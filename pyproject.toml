@@ -1,0 +1,127 @@
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "freecad.diff_workbench"
+version = "0.1.0"
+description = "A FreeCAD workbench for comparing document snapshots"
+readme = "README.md"
+license = {file = "LICENSE-CODE"}
+authors = [
+    { name = "FreeCAD Community", email = "community@freecad.org" }
+]
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "mypy>=1.17.1",
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "radon>=6.0.1",
+    "ruff>=0.12.11",
+    "taskfile-help>=0.4.1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["freecad/diff_wb"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"freecad/diff_wb/resources" = "freecad/diff_wb/resources"
+
+[project.urls]
+Homepage = "https://github.com/royw/freecad_diff_workbench"
+Repository = "https://github.com/royw/freecad_diff_workbench"
+Issues = "https://github.com/royw/freecad_diff_workbench/issues"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_unreachable = true
+strict_equality = true
+exclude = [
+    '^freecad/diff_wb/init_gui\\.py$',
+    '^freecad/diff_wb/ui/.*\\.py$',
+    '^freecad/diff_wb/entrypoints/.*\\.py$',
+]
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = [
+    "FreeCAD",
+    "FreeCADGui",
+    "PySide6",
+    "PySide6.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "freecad.diff_wb.init_gui",
+    "freecad.diff_wb.ui.*",
+    "freecad.diff_wb.entrypoints.*",
+]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = [
+    "freecad.diff_wb.ports.*",
+    "freecad.diff_wb.freecad_version_check",
+]
+disable_error_code = ["attr-defined", "no-any-return"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.format]
+docstring-code-format = true
+docstring-code-line-length = 80
+
+[tool.ruff.lint]
+# Selected lint codes:
+#   E - pycodestyle errors
+#   W - pycodestyle warnings
+#   F - Pyflakes
+#   I - isort
+#   B - flake8-bugbear
+#   C4 - flake8-comprehensions
+#   UP - pyupgrade
+#   N - pep8-naming
+#   SIM - flake8-simplify
+#   C901 - mccabe (complexity)
+# Ignored codes:
+#   S101 - assert statements (disallowed by pylint)
+#   N802 - function name case (disabled for flexibility)
+#   N806 - variable name case in function (disabled for flexibility)
+select = ["E", "W", "F", "I", "B", "C4", "UP", "N", "SIM", "C901"]
+ignore = ["S101", "N802", "N806"]
+# Per-file ignores:
+#   tests/* - allow asserts, higher complexity, and longer lines in tests
+per-file-ignores = { "tests/*" = ["S101", "C901", "E501"] }
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.isort]
+known-first-party = ["diff_wb"]
+lines-after-imports = 2
+combine-as-imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+
+[tool.coverage.run]
+source = ["freecad/"]
+omit = ["tests/*"]

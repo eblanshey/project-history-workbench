@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
+
+    <!--[ Versions ]―――――――――――――――――――――――――――――――――――――――――――――――――――――――――-->
+
+    <freecadmin>1.0.2</freecadmin>
+    <version>0.1.0</version>
+    <date>2026-03-11</date>
+
+    <!--[ Dependencies ]―――――――――――――――――――――――――――――――――――――――――――――――――――――-->
+
+
+    <!--[ Info ]―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――-->
+
+    <description>A FreeCAD workbench for comparing document snapshots.</description>
+    <name>Diff Workbench</name>
+
+    <!--[ Tags ]―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――-->
+
+    <tag>Diff</tag>
+    <tag>Comparison</tag>
+    <tag>Snapshots</tag>
+    <tag>Versions</tag>
+    <tag>Versioning</tag>
+    <tag>Git</tag>
+
+    <!--[ Maintainers ]――――――――――――――――――――――――――――――――――――――――――――――――――――――-->
+
+    <maintainer email="hello@blanshey.com">Ephi Blanshey</maintainer>
+
+    <!--[ Authors ]――――――――――――――――――――――――――――――――――――――――――――――――――――――――――-->
+
+    <author email="hello@blanshey.com">Ephi Blanshey</author>
+
+    <!--[ Licenses ]―――――――――――――――――――――――――――――――――――――――――――――――――――――――――-->
+
+    <license file="LICENSE-CODE">LGPL-3.0-or-later</license>
+
+    <!--[ Icon ]―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――-->
+
+    <icon>freecad/diff_wb/resources/icons/Logo.svg</icon>
+
+    <!--[ Urls ]―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――-->
+
+    <url type="documentation">https://github.com/eblanshey/freecad_diff_workbench</url>
+    <url branch="main" type="repository">https://github.com/eblanshey/freecad_diff_workbench</url>
+    <url type="bugtracker">https://github.com/eblanshey/freecad_diff_workbench/issues</url>
+    <url type="readme">https://github.com/eblanshey/freecad_diff_workbench/blob/main/README.md</url>
+
+    <!--[ Content ]――――――――――――――――――――――――――――――――――――――――――――――――――――――――――-->
+
+    <content>
+        <workbench>
+            <classname>DiffWorkbench</classname>
+            <subdirectory>./</subdirectory>
+        </workbench>
+    </content>
+
+</package>

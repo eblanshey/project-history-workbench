@@ -1,0 +1,103 @@
+version: '3'
+
+vars:
+  APP_NAME:
+    sh: python3 -c "import tomllib; f = open('pyproject.toml', 'rb'); data = tomllib.load(f); f.close(); print(data['project']['name'].replace('-', '_'))"
+  SRC: freecad/diff_wb/
+  TESTS: tests/
+  UV: uv
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - echo "Available tasks:"
+      - task --list --sort none
+    silent: true
+
+  check:
+    desc: Run all code quality checks
+    summary: Runs formatting check, linting, docstring check, and complexity analysis
+    cmds:
+      - task: format:check
+      - task: lint
+      - task: lint:check_docstrs
+      - task: metrics:complexity
+
+  format:
+    desc: Format code with ruff (including import sorting)
+    summary: Formats source code and fixes import ordering
+    cmds:
+      - "{{.UV}} run ruff check --fix --select I {{.CLI_ARGS | default .SRC}}"
+      - "{{.UV}} run ruff format {{.CLI_ARGS | default .SRC}}"
+
+  format:check:
+    desc: Check code formatting without modifying files
+    summary: Verifies source code is properly formatted
+    cmds:
+      - "{{.UV}} run ruff check --select I {{.CLI_ARGS | default .SRC}}"
+      - "{{.UV}} run ruff format --check {{.CLI_ARGS | default .SRC}}"
+
+  lint:
+    desc: Run all linting tasks
+    summary: Runs ruff and mypy on source code
+    cmds:
+      - task: lint:ruff
+      - task: lint:mypy
+
+  lint:ruff:
+    desc: Run linting with ruff
+    summary: Checks code style, imports, and common issues
+    cmds:
+      - "{{.UV}} run ruff check {{.CLI_ARGS | default .SRC}}"
+
+  lint:mypy:
+    desc: Run type checking with mypy
+    summary: Validates type hints and catches type errors
+    cmds:
+      - "{{.UV}} run mypy {{.CLI_ARGS | default .SRC}}"
+
+  lint:check_docstrs:
+    desc: Check that modules and public objects have docstrings
+    summary: Runs the docstring checker on the source directory
+    cmds:
+      - echo "Checking docstrings..."
+      - "{{.UV}} run python scripts/check_docstrs.py {{.SRC}}"
+
+  metrics:
+    desc: Display comprehensive project metrics summary
+    summary: Shows LOC, test coverage, complexity, and quality scores
+    cmds:
+      - "{{.UV}} run python scripts/dev-metrics.py"
+
+  metrics:complexity:
+    desc: Analyze code complexity with radon
+    summary: Reports cyclomatic complexity for functions/classes with grade B or worse
+    silent: true
+    cmds:
+      - echo "Checking complexity..."
+      - |
+          OUTPUT=$(uv run radon cc --show-complexity {{.CLI_ARGS | default .SRC}} --min B 2>&1)
+          if [ -z "$OUTPUT" ]; then
+            echo "✅ No complexity issues found (all functions rated A)"
+          else
+            echo "$OUTPUT"
+          fi
+
+  test:
+    desc: Run tests with pytest
+    summary: Executes unit tests with coverage
+    cmds:
+      - "{{.UV}} run pytest {{.CLI_ARGS | default .TESTS}}"
+
+  test:coverage:
+    desc: Run tests with coverage report
+    summary: Executes tests and generates coverage report
+    cmds:
+      - "{{.UV}} run pytest --cov={{.APP_NAME}} --cov-report=term-missing {{.CLI_ARGS | default .TESTS}}"
+
+  help:
+    desc: Show available tasks
+    summary: Displays all available tasks with descriptions
+    cmd: taskfile-help search {{.CLI_ARGS}}
+    silent: true

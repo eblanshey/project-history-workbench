@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: CC-BY-SA-4.0
+# Placeholder file to ensure the ui directory is tracked by git.
+# Add your Qt Designer .ui files here:
+# - diff_panel.ui
