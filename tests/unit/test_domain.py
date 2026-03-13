@@ -384,31 +384,31 @@ class TestPropertyDiff:
     """Tests for the PropertyDiff class."""
 
     def test_added_property(self):
-        """Test added property diff."""
+        """Test added property diff - state auto-calculated."""
         new_val = PropertyValue.create(PropertyType.FLOAT, 10.0)
-        diff = PropertyDiff(property_name="Length", old_value=None, new_value=new_val, state=DiffState.ADDED)
+        diff = PropertyDiff(property_name="Length", old_value=None, new_value=new_val)
         assert diff.state == DiffState.ADDED
         assert "+10.0" in str(diff)
 
     def test_deleted_property(self):
-        """Test deleted property diff."""
+        """Test deleted property diff - state auto-calculated."""
         old_val = PropertyValue.create(PropertyType.FLOAT, 5.0)
-        diff = PropertyDiff(property_name="Length", old_value=old_val, new_value=None, state=DiffState.DELETED)
+        diff = PropertyDiff(property_name="Length", old_value=old_val, new_value=None)
         assert diff.state == DiffState.DELETED
         assert "-5.0" in str(diff)
 
     def test_modified_property(self):
-        """Test modified property diff."""
+        """Test modified property diff - state auto-calculated."""
         old_val = PropertyValue.create(PropertyType.FLOAT, 5.0)
         new_val = PropertyValue.create(PropertyType.FLOAT, 10.0)
-        diff = PropertyDiff(property_name="Length", old_value=old_val, new_value=new_val, state=DiffState.MODIFIED)
+        diff = PropertyDiff(property_name="Length", old_value=old_val, new_value=new_val)
         assert diff.state == DiffState.MODIFIED
         assert "5.0 -> 10.0" in str(diff)
 
     def test_unchanged_property(self):
-        """Test unchanged property diff."""
+        """Test unchanged property diff - state auto-calculated."""
         val = PropertyValue.create(PropertyType.FLOAT, 10.0)
-        diff = PropertyDiff(property_name="Length", old_value=val, new_value=val, state=DiffState.UNCHANGED)
+        diff = PropertyDiff(property_name="Length", old_value=val, new_value=val)
         assert diff.state == DiffState.UNCHANGED
 
     # =====================================================================
@@ -419,7 +419,7 @@ class TestPropertyDiff:
         """Test that expression-only change is detected as modified."""
         old_val = PropertyValue.create(PropertyType.FLOAT, 10.0)
         new_val = PropertyValue.create(PropertyType.FLOAT, 10.0, expression="Sketch001.X")
-        diff = PropertyDiff(property_name="Length", old_value=old_val, new_value=new_val, state=DiffState.MODIFIED)
+        diff = PropertyDiff(property_name="Length", old_value=old_val, new_value=new_val)
         assert diff.state == DiffState.MODIFIED
         assert "10.0 -> 10.0" in str(diff)  # Values same but expression changed
 
@@ -427,7 +427,7 @@ class TestPropertyDiff:
         """Test that value-only change is detected as modified."""
         old_val = PropertyValue.create(PropertyType.INT, 10, expression="Sketch001.Count")
         new_val = PropertyValue.create(PropertyType.INT, 20, expression="Sketch001.Count")
-        diff = PropertyDiff(property_name="Count", old_value=old_val, new_value=new_val, state=DiffState.MODIFIED)
+        diff = PropertyDiff(property_name="Count", old_value=old_val, new_value=new_val)
         assert diff.state == DiffState.MODIFIED
         # String format: "Count: 10 (via Sketch001.Count) -> 20 (via Sketch001.Count)"
         assert "Count:" in str(diff)
@@ -438,7 +438,7 @@ class TestPropertyDiff:
         """Test that both expression and value change is detected."""
         old_val = PropertyValue.create(PropertyType.FLOAT, 5.0, expression="Sketch001.X")
         new_val = PropertyValue.create(PropertyType.FLOAT, 15.0, expression="Sketch002.Y")
-        diff = PropertyDiff(property_name="Dimension", old_value=old_val, new_value=new_val, state=DiffState.MODIFIED)
+        diff = PropertyDiff(property_name="Dimension", old_value=old_val, new_value=new_val)
         assert diff.state == DiffState.MODIFIED
         # String format includes property name, values, and expressions
         assert "Dimension:" in str(diff)
@@ -451,21 +451,21 @@ class TestPropertyDiff:
         """Test that removing an expression is detected as modified."""
         old_val = PropertyValue.create(PropertyType.STRING, "test", expression="Doc.Name")
         new_val = PropertyValue.create(PropertyType.STRING, "test")
-        diff = PropertyDiff(property_name="Name", old_value=old_val, new_value=new_val, state=DiffState.MODIFIED)
+        diff = PropertyDiff(property_name="Name", old_value=old_val, new_value=new_val)
         assert diff.state == DiffState.MODIFIED
 
     def test_expression_added_from_none(self):
         """Test that adding an expression is detected as modified."""
         old_val = PropertyValue.create(PropertyType.INT, 42)
         new_val = PropertyValue.create(PropertyType.INT, 42, expression="Some.Expr")
-        diff = PropertyDiff(property_name="Value", old_value=old_val, new_value=new_val, state=DiffState.MODIFIED)
+        diff = PropertyDiff(property_name="Value", old_value=old_val, new_value=new_val)
         assert diff.state == DiffState.MODIFIED
 
     def test_different_expressions_same_value(self):
         """Test different expressions with same value detected as modified."""
         old_val = PropertyValue.create(PropertyType.VECTOR, (1.0, 2.0, 3.0), expression="Sketch001.X")
         new_val = PropertyValue.create(PropertyType.VECTOR, (1.0, 2.0, 3.0), expression="Sketch002.X")
-        diff = PropertyDiff(property_name="Position", old_value=old_val, new_value=new_val, state=DiffState.MODIFIED)
+        diff = PropertyDiff(property_name="Position", old_value=old_val, new_value=new_val)
         assert diff.state == DiffState.MODIFIED
 
 
@@ -473,15 +473,29 @@ class TestNodeDiff:
     """Tests for the NodeDiff class."""
 
     def test_creation(self):
-        """Test node diff creation."""
-        diff = NodeDiff(path="Body/Pad", type_id="PartDesign::Pad", state=DiffState.MODIFIED)
+        """Test node diff creation - state auto-calculated from empty property_diffs and children."""
+        diff = NodeDiff(path="Body/Pad", type_id="PartDesign::Pad")
         assert diff.path == "Body/Pad"
-        assert diff.state == DiffState.MODIFIED
+        # With no property diffs or children, state should be UNCHANGED
+        assert diff.state == DiffState.UNCHANGED
 
-    def test_has_changes_with_state(self):
-        """Test has_changes when state is not UNCHANGED."""
-        diff = NodeDiff(path="Body/Pad", type_id="PartDesign::Pad", state=DiffState.MODIFIED)
+    def test_state_auto_calculated_from_property_diffs(self):
+        """Test that state is auto-calculated based on property diffs."""
+        prop_diff = PropertyDiff(
+            property_name="Length",
+            old_value=PropertyValue.create(PropertyType.FLOAT, 5.0),
+            new_value=PropertyValue.create(PropertyType.FLOAT, 10.0),
+        )
+        diff = NodeDiff(path="Body/Pad", type_id="PartDesign::Pad", property_diffs=[prop_diff])
+        # State should be MODIFIED because there's a changed property
+        assert diff.state == DiffState.MODIFIED
         assert diff.has_changes is True
+
+    def test_state_auto_calculated_unchanged(self):
+        """Test that state is UNCHANGED when no property diffs."""
+        diff = NodeDiff(path="Body/Pad", type_id="PartDesign::Pad", property_diffs=[])
+        assert diff.state == DiffState.UNCHANGED
+        assert diff.has_changes is False
 
     def test_has_changes_with_property_diffs(self):
         """Test has_changes when there are property diffs."""
@@ -489,17 +503,9 @@ class TestNodeDiff:
             property_name="Length",
             old_value=PropertyValue.create(PropertyType.FLOAT, 5.0),
             new_value=PropertyValue.create(PropertyType.FLOAT, 10.0),
-            state=DiffState.MODIFIED,
         )
-        diff = NodeDiff(
-            path="Body/Pad", type_id="PartDesign::Pad", state=DiffState.UNCHANGED, property_diffs=[prop_diff]
-        )
+        diff = NodeDiff(path="Body/Pad", type_id="PartDesign::Pad", property_diffs=[prop_diff])
         assert diff.has_changes is True
-
-    def test_has_changes_no_changes(self):
-        """Test has_changes when nothing changed."""
-        diff = NodeDiff(path="Body/Pad", type_id="PartDesign::Pad", state=DiffState.UNCHANGED, property_diffs=[])
-        assert diff.has_changes is False
 
     def test_changed_properties(self):
         """Test getting only changed properties."""
@@ -507,17 +513,13 @@ class TestNodeDiff:
             property_name="Length",
             old_value=PropertyValue.create(PropertyType.FLOAT, 5.0),
             new_value=PropertyValue.create(PropertyType.FLOAT, 10.0),
-            state=DiffState.MODIFIED,
         )
         unchanged = PropertyDiff(
             property_name="Type",
             old_value=PropertyValue.create(PropertyType.STRING, "Dimension"),
             new_value=PropertyValue.create(PropertyType.STRING, "Dimension"),
-            state=DiffState.UNCHANGED,
         )
-        diff = NodeDiff(
-            path="Body/Pad", type_id="PartDesign::Pad", state=DiffState.UNCHANGED, property_diffs=[changed, unchanged]
-        )
+        diff = NodeDiff(path="Body/Pad", type_id="PartDesign::Pad", property_diffs=[changed, unchanged])
         changed_props = diff.changed_properties
         assert len(changed_props) == 1
         assert changed_props[0].property_name == "Length"
@@ -556,15 +558,30 @@ class TestDiffResult:
 
     def test_has_changes_true(self):
         """Test has_changes when there are changes."""
-        node_diff = NodeDiff(path="Body/Pad", type_id="PartDesign::Pad", state=DiffState.MODIFIED)
+        prop_diff = PropertyDiff(
+            property_name="Length",
+            old_value=PropertyValue.create(PropertyType.FLOAT, 10.0),
+            new_value=PropertyValue.create(PropertyType.FLOAT, 20.0),
+        )
+        node_diff = NodeDiff(path="Body/Pad", type_id="PartDesign::Pad", property_diffs=[prop_diff])
         diff = DiffResult(old_snapshot_name="v1", new_snapshot_name="v2", node_diffs=[node_diff])
         assert diff.has_changes is True
 
     def test_get_all_changed_paths(self):
         """Test getting all changed paths."""
-        child = NodeDiff(path="Body/Pad/Sub", type_id="Part::Feature", state=DiffState.MODIFIED)
-        parent = NodeDiff(path="Body/Pad", type_id="PartDesign::Pad", state=DiffState.UNCHANGED, children=[child])
-        unchanged = NodeDiff(path="Body", type_id="PartDesign::Body", state=DiffState.UNCHANGED)
+        child_prop = PropertyDiff(
+            property_name="Width",
+            old_value=PropertyValue.create(PropertyType.FLOAT, 5.0),
+            new_value=PropertyValue.create(PropertyType.FLOAT, 15.0),
+        )
+        child = NodeDiff(path="Body/Pad/Sub", type_id="Part::Feature", property_diffs=[child_prop])
+        parent_prop = PropertyDiff(
+            property_name="Length",
+            old_value=PropertyValue.create(PropertyType.FLOAT, 10.0),
+            new_value=PropertyValue.create(PropertyType.FLOAT, 20.0),
+        )
+        parent = NodeDiff(path="Body/Pad", type_id="PartDesign::Pad", property_diffs=[parent_prop], children=[child])
+        unchanged = NodeDiff(path="Body", type_id="PartDesign::Body")
 
         diff = DiffResult(old_snapshot_name="v1", new_snapshot_name="v2", node_diffs=[parent, unchanged])
 

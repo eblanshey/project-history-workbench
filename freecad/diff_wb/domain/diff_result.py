@@ -27,21 +27,77 @@ class DiffState(Enum):
     UNCHANGED = auto()
 
 
+def _calculate_property_diff_state(old_value: PropertyValue | None, new_value: PropertyValue | None) -> DiffState:
+    """Calculate the diff state for a property based on old and new values.
+
+    Args:
+        old_value: Value in the old snapshot (None if added)
+        new_value: Value in the new snapshot (None if deleted)
+
+    Returns:
+        The appropriate DiffState based on the values
+    """
+    # If old_value is None, property was added
+    if old_value is None:
+        return DiffState.ADDED
+    # If new_value is None, property was deleted
+    if new_value is None:
+        return DiffState.DELETED
+    # If values are equal (including expressions), unchanged
+    if old_value == new_value:
+        return DiffState.UNCHANGED
+    # Otherwise, modified
+    return DiffState.MODIFIED
+
+
+def _calculate_node_diff_state(property_diffs: list["PropertyDiff"], children: list["NodeDiff"]) -> DiffState:
+    """Calculate the overall state for a node based on its properties and children.
+
+    A node's state is determined by:
+    - If any property has changed (not UNCHANGED), the node is MODIFIED
+    - If any child has changes, the node is MODIFIED
+    - Otherwise, the node is UNCHANGED
+
+    Args:
+        property_diffs: List of property diffs for this node
+        children: List of child node diffs
+
+    Returns:
+        The appropriate DiffState for the node
+    """
+    # Check if any property has changes
+    if any(prop_diff.state != DiffState.UNCHANGED for prop_diff in property_diffs):
+        return DiffState.MODIFIED
+    # Check if any child has changes
+    if any(child.state != DiffState.UNCHANGED for child in children):
+        return DiffState.MODIFIED
+    return DiffState.UNCHANGED
+
+
 @dataclass(frozen=True)
 class PropertyDiff:
     """The difference between two property values.
+
+    The state is automatically calculated based on the old and new values
+    (including their expressions). This ensures consistency and prevents
+    invalid states where the state doesn't match the actual values.
 
     Attributes:
         property_name: Name of the property
         old_value: Value in the old snapshot (None if added)
         new_value: Value in the new snapshot (None if deleted)
-        state: The diff state (ADDED, DELETED, MODIFIED, UNCHANGED)
+        state: The diff state (ADDED, DELETED, MODIFIED, UNCHANGED) - auto-calculated
     """
 
     property_name: str
     old_value: PropertyValue | None
     new_value: PropertyValue | None
-    state: DiffState
+    state: DiffState = field(init=False)
+
+    def __post_init__(self) -> None:
+        """Calculate state based on old and new values."""
+        # Use object.__setattr__ since the dataclass is frozen
+        object.__setattr__(self, "state", _calculate_property_diff_state(self.old_value, self.new_value))
 
     def __str__(self) -> str:
         if self.state == DiffState.ADDED:
@@ -60,19 +116,27 @@ class NodeDiff:
     Represents the diff result for a single node in the document tree,
     including its properties and children.
 
+    The state is automatically calculated based on property diffs and children.
+    This ensures consistency and prevents invalid states.
+
     Attributes:
         path: The path to this node
         type_id: The TypeID of the node
-        state: The overall state of this node
+        state: The overall state of this node - auto-calculated
         property_diffs: List of property-level differences
         children: List of child node diffs
     """
 
     path: str
     type_id: str
-    state: DiffState
+    state: DiffState = field(init=False)
     property_diffs: list[PropertyDiff] = field(default_factory=list)
     children: list["NodeDiff"] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        """Calculate state based on property diffs and children."""
+        # Use object.__setattr__ since the dataclass is frozen
+        object.__setattr__(self, "state", _calculate_node_diff_state(self.property_diffs, self.children))
 
     def __str__(self) -> str:
         state_str = self.state.name
