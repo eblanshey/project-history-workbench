@@ -1,14 +1,17 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 """Domain models for diff results.
 
-This module provides models for representing the differences between two
+File responsibility: This module provides models for representing the differences between two
 document snapshots, including property-level and node-level comparisons.
+
+This module contains pure data models with embedded state calculation logic.
+It depends on domain/property_value.py but has no circular dependencies.
 """
 
 from dataclasses import dataclass, field
 from enum import Enum, auto
 
-from .property_value import PropertyValue
+from ..domain.property_value import PropertyValue
 
 
 class DiffState(Enum):
@@ -27,7 +30,7 @@ class DiffState(Enum):
     UNCHANGED = auto()
 
 
-def _calculate_property_diff_state(old_value: PropertyValue | None, new_value: PropertyValue | None) -> DiffState:
+def _calculate_property_diff_state(old_value: PropertyValue | None, new_value: PropertyValue | None) -> "DiffState":
     """Calculate the diff state for a property based on old and new values.
 
     Args:
@@ -50,28 +53,29 @@ def _calculate_property_diff_state(old_value: PropertyValue | None, new_value: P
     return DiffState.MODIFIED
 
 
-def _calculate_node_diff_state(property_diffs: list["PropertyDiff"], children: list["NodeDiff"]) -> DiffState:
-    """Calculate the overall state for a node based on its properties and children.
+def _are_properties_modified(property_diffs: list["PropertyDiff"], children: list["NodeDiff"]) -> bool:
+    """Check if any properties or children have modifications.
 
-    A node's state is determined by:
-    - If any property has changed (not UNCHANGED), the node is MODIFIED
-    - If any child has changes, the node is MODIFIED
-    - Otherwise, the node is UNCHANGED
+    A node's properties are considered modified if:
+    - Any child has state != DiffState.UNCHANGED
+    - Any property has state != DiffState.UNCHANGED (includes ADDED, DELETED, MODIFIED)
 
     Args:
         property_diffs: List of property diffs for this node
         children: List of child node diffs
 
     Returns:
-        The appropriate DiffState for the node
+        True if any properties or children are modified, False otherwise
     """
-    # Check if any property has changes
-    if any(prop_diff.state != DiffState.UNCHANGED for prop_diff in property_diffs):
-        return DiffState.MODIFIED
-    # Check if any child has changes
+    # Check child states first - if any child has changes, properties are modified
     if any(child.state != DiffState.UNCHANGED for child in children):
-        return DiffState.MODIFIED
-    return DiffState.UNCHANGED
+        return True
+
+    # Check if any property has changed (ADDED, DELETED, or MODIFIED)
+    if any(prop_diff.state != DiffState.UNCHANGED for prop_diff in property_diffs):
+        return True
+
+    return False
 
 
 @dataclass(frozen=True)
@@ -116,15 +120,24 @@ class NodeDiff:
     Represents the diff result for a single node in the document tree,
     including its properties and children.
 
-    The state is automatically calculated based on property diffs and children.
-    This ensures consistency and prevents invalid states.
+    The state is automatically calculated based on property diffs and children:
+    - If `_force_state` is set (by factory functions), that state is used
+    - Otherwise, state is MODIFIED if any property/child has changes, UNCHANGED otherwise
+
+    This separates node-level changes (entire node added/deleted) from
+    property-level changes (properties modified/added/deleted).
 
     Attributes:
         path: The path to this node
         type_id: The TypeID of the node
-        state: The overall state of this node - auto-calculated
+        state: The overall state of this node - auto-calculated or forced
         property_diffs: List of property-level differences
         children: List of child node diffs
+        _force_state: Internal override for state calculation. Only used by
+            factory functions (`create_added_node_diff`, `create_deleted_node_diff`)
+            to indicate node-level changes (ADDED/DELETED). When None, state is
+            calculated from property_diffs (MODIFIED/UNCHANGED). Not included in
+            repr or comparison.
     """
 
     path: str
@@ -132,11 +145,23 @@ class NodeDiff:
     state: DiffState = field(init=False)
     property_diffs: list[PropertyDiff] = field(default_factory=list)
     children: list["NodeDiff"] = field(default_factory=list)
+    _force_state: DiffState | None = field(default=None, repr=False, compare=False)
 
     def __post_init__(self) -> None:
-        """Calculate state based on property diffs and children."""
+        """Calculate state based on _force_state or property diffs.
+
+        State calculation logic:
+        1. If _force_state is set (node-level change), use that state
+        2. Otherwise, check if any properties/children are modified
+        3. Return MODIFIED if changes exist, UNCHANGED otherwise
+        """
         # Use object.__setattr__ since the dataclass is frozen
-        object.__setattr__(self, "state", _calculate_node_diff_state(self.property_diffs, self.children))
+        if self._force_state is not None:
+            object.__setattr__(self, "state", self._force_state)
+        elif _are_properties_modified(self.property_diffs, self.children):
+            object.__setattr__(self, "state", DiffState.MODIFIED)
+        else:
+            object.__setattr__(self, "state", DiffState.UNCHANGED)
 
     def __str__(self) -> str:
         state_str = self.state.name
@@ -220,7 +245,7 @@ class DiffSummary:
         )
 
     @staticmethod
-    def _count_node(node: NodeDiff) -> dict[str, int]:
+    def _count_node(node: "NodeDiff") -> dict[str, int]:
         """Recursively count node states and property changes.
 
         Returns:
@@ -312,7 +337,7 @@ class DiffResult:
             self._collect_changed_paths(node_diff, changed_paths)
         return changed_paths
 
-    def _collect_changed_paths(self, node: NodeDiff, result: list[str]) -> None:
+    def _collect_changed_paths(self, node: "NodeDiff", result: list[str]) -> None:
         """Recursively collect paths with changes."""
         if node.has_changes:
             result.append(node.path)

@@ -6,18 +6,20 @@ from datetime import datetime
 import pytest
 
 from freecad.diff_wb.domain import (
-    DiffResult,
-    DiffState,
-    DiffSummary,
-    NodeDiff,
     Placement,
-    PropertyDiff,
     PropertyType,
     PropertyValue,
     Rotation,
     Snapshot,
     TreeNode,
     Vector,
+)
+from freecad.diff_wb.diff.diff_result import (
+    DiffResult,
+    DiffState,
+    DiffSummary,
+    NodeDiff,
+    PropertyDiff,
 )
 
 

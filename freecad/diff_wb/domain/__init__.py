@@ -1,18 +1,14 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 """Domain models for the Diff Workbench.
 
-This package contains the core domain models that represent FreeCAD documents,
-snapshots, and diff results. These models are pure Python with no FreeCAD
-dependencies, enabling easy testing and validation.
+This package contains the core domain models that represent FreeCAD documents
+and snapshots. These models are pure Python with no FreeCAD dependencies,
+enabling easy testing and validation.
+
+Note: Diff result models (DiffState, PropertyDiff, NodeDiff, DiffSummary, DiffResult)
+are located in the diff/ module, not here.
 """
 
-from .diff_result import (
-    DiffResult,
-    DiffState,
-    DiffSummary,
-    NodeDiff,
-    PropertyDiff,
-)
 from .property_value import (
     Placement,
     PropertyType,
@@ -36,10 +32,4 @@ __all__ = [
     # Snapshots
     "TreeNode",
     "Snapshot",
-    # Diff results
-    "DiffState",
-    "PropertyDiff",
-    "NodeDiff",
-    "DiffSummary",
-    "DiffResult",
 ]

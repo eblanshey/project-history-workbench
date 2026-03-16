@@ -511,21 +511,21 @@ Following datamanager patterns:
 
 ## Implementation Phases
 
-### Phase 1: Foundation
-- [ ] Project structure matching datamanager
-- [ ] `pyproject.toml` with dependencies and tool configuration
-- [ ] Ports layer implementation (`ports/`)
-- [ ] Resource management (`resources.py`)
-- [ ] Basic entrypoints (`init_gui.py`, `workbench.py`)
-- [ ] Version management (`version.py`)
+### Phase 1: Foundation ✅ (Complete)
+- [x] Project structure matching datamanager
+- [x] `pyproject.toml` with dependencies and tool configuration
+- [x] Ports layer implementation (`ports/`) - `freecad_context.py`, `freecad_port.py`, `gui_port.py`, `settings_port.py`, `app_port.py`
+- [x] Resource management (`resources.py`)
+- [x] Basic entrypoints (`init_gui.py`, `workbench.py`)
+- [x] Version management (`version.py`)
 
-### Phase 2: Core Domain
-- [ ] Snapshot data structures (`domain/snapshot.py`)
-- [ ] TreeNode representation (`domain/tree_node.py`)
-- [ ] Diff result types (`domain/diff_result.py`, `domain/property_diff.py`)
-- [ ] Settings persistence via SettingsPort
+### Phase 2: Core Domain ✅ (Complete)
+- [x] Snapshot data structures (`domain/snapshot.py`) - `Snapshot`, `TreeNode` with path, label, is_root
+- [x] TreeNode representation (`domain/tree_node.py`)
+- [x] Diff result types (`domain/diff_result.py`, `domain/property_diff.py`) - `DiffState`, `PropertyDiff`, `NodeDiff`, `DiffSummary`, `DiffResult`
+- [x] Settings persistence via SettingsPort - `SettingsPort` interface with adapter
 
-### Phase 3: Diff Engine
+### Phase 3: Diff Engine ❌ (Not Started)
 - [ ] Tree comparison algorithm (`diff/tree_diff.py`)
 - [ ] Property comparison (`diff/property_diff.py`)
 - [ ] Diff orchestration (`diff/diff_engine.py`)
@@ -535,27 +535,27 @@ Following datamanager patterns:
 - [x] Document state extraction (`snapshot/snapshot_query.py`)
 - [x] In-memory storage (`snapshot/snapshot_store.py`)
 - [x] Snapshot mutations (`snapshot/snapshot_mutations.py`)
-- [x] Unit tests (27 tests passing)
+- [x] Unit tests (93 tests passing)
 - [x] Added `PropertyValue.from_freecad_property()` factory method for type detection
 
-### Phase 5: UI Implementation
+### Phase 5: UI Implementation ❌ (Not Started)
 - [ ] Qt Designer file (`resources/ui/diff_panel.ui`)
 - [ ] Main panel widget (`ui/diff_panel.py`)
 - [ ] Presenter logic (`ui/diff_panel_presenter.py`)
 - [ ] Panel controller (`ui/panel_controller.py`)
 
-### Phase 6: Integration
-- [ ] Command registration (`entrypoints/commands.py`)
-- [ ] Toolbar/menu wiring
-- [ ] Icon assets
+### Phase 6: Integration ⚠️ (Partial)
+- [x] Command registration (`entrypoints/commands.py`) - stubs implemented
+- [x] Toolbar/menu wiring - registered in `workbench.py`
+- [ ] Icon assets - missing (only `.gitkeep` files exist)
 
-### Phase 7: Preferences Integration (Optional)
+### Phase 7: Preferences Integration ❌ (Not Started)
 - [ ] FreeCAD Preferences dialog panel
-- [ ] Settings persistence via SettingsPort
+- [ ] Settings persistence via SettingsPort - infrastructure ready, UI missing
 - [ ] Dynamic reload of excluded types/properties
 
-### Phase 8: Testing & Polish
-- [ ] Comprehensive unit test coverage
+### Phase 8: Testing & Polish ⚠️ (Partial)
+- [x] Unit test coverage - 93 tests passing on domain/snapshot modules
 - [ ] Integration tests
 - [ ] Documentation updates (README.md)
 - [ ] Icon design/finalization
