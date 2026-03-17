@@ -73,8 +73,9 @@ You MUST think, read, search, and delegate explore agents to construct a well-fo
 ## Task Plan Creation Process
 
 ### Step 1: Consult Architecture Context
-- Read `docs/PLAN.md` to understand high-level architecture and current project state
-- Review existing task plans in `tasks/*.md` for patterns and conventions
+- Read `docs/PLAN.md` to understand the current project state
+- Read `docs/Architecture.md` to understand architecture
+- Review existing task plans in `.opencode/tasks/*.md` for patterns and conventions
 - Check module structure in `freecad/diff_wb/` to identify code locations
 
 ### Step 2: Ask Clarifying Questions
