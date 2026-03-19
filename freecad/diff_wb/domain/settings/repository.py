@@ -5,6 +5,8 @@
 
 from typing import Protocol
 
+from .models import Settings
+
 
 class SettingsRepository(Protocol):
     """Interface for settings access.
@@ -25,5 +27,13 @@ class SettingsRepository(Protocol):
 
         Returns:
             List of property names to exclude (e.g., ["TimeStamp", "Label2"])
+        """
+        ...
+
+    def get_settings(self) -> Settings:
+        """Get all settings as a Settings object.
+
+        Returns:
+            Settings object containing excluded types and properties
         """
         ...

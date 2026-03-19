@@ -85,7 +85,7 @@ class TestBuildPathIndex:
     def test_single_root_node(self):
         """Test building index with a single root node."""
         root = TreeNode(name="Body", type_id="PartDesign::Body", label="Body", path="Body")
-        snapshot = Snapshot(document_name="Test", timestamp=datetime.now(), root_nodes=[root])
+        snapshot = Snapshot(snapshot_id="", document_name="Test", timestamp=datetime.now(), root_nodes=[root])
 
         index = build_path_index(snapshot.root_nodes)
 
@@ -663,8 +663,8 @@ class TestCompareSnapshots:
 
     def test_empty_snapshots(self):
         """Test comparing two empty snapshots."""
-        old_snapshot = Snapshot(document_name="Test", timestamp=datetime.now(), root_nodes=[])
-        new_snapshot = Snapshot(document_name="Test", timestamp=datetime.now(), root_nodes=[])
+        old_snapshot = Snapshot(snapshot_id="", document_name="Test", timestamp=datetime.now(), root_nodes=[])
+        new_snapshot = Snapshot(snapshot_id="", document_name="Test", timestamp=datetime.now(), root_nodes=[])
 
         result = compare_snapshots(old_snapshot, new_snapshot)
 
@@ -682,11 +682,13 @@ class TestCompareSnapshots:
             path="Body",
         )
         old_snapshot = Snapshot(
+            snapshot_id="",
             document_name="Test",
             timestamp=datetime.now(),
             root_nodes=[node],
         )
         new_snapshot = Snapshot(
+            snapshot_id="",
             document_name="Test",
             timestamp=datetime.now(),
             root_nodes=[node],
@@ -714,11 +716,13 @@ class TestCompareSnapshots:
             path="Cube",
         )
         old_snapshot = Snapshot(
+            snapshot_id="",
             document_name="Test",
             timestamp=datetime.now(),
             root_nodes=[old_node],
         )
         new_snapshot = Snapshot(
+            snapshot_id="",
             document_name="Test",
             timestamp=datetime.now(),
             root_nodes=[old_node, new_node],
@@ -747,11 +751,13 @@ class TestCompareSnapshots:
             path="Cube",
         )
         old_snapshot = Snapshot(
+            snapshot_id="",
             document_name="Test",
             timestamp=datetime.now(),
             root_nodes=[old_node, deleted_node],
         )
         new_snapshot = Snapshot(
+            snapshot_id="",
             document_name="Test",
             timestamp=datetime.now(),
             root_nodes=[old_node],
@@ -788,11 +794,13 @@ class TestCompareSnapshots:
             properties=new_props,
         )
         old_snapshot = Snapshot(
+            snapshot_id="",
             document_name="Test",
             timestamp=datetime.now(),
             root_nodes=[old_node],
         )
         new_snapshot = Snapshot(
+            snapshot_id="",
             document_name="Test",
             timestamp=datetime.now(),
             root_nodes=[new_node],
@@ -848,11 +856,13 @@ class TestCompareSnapshots:
         )
 
         old_snapshot = Snapshot(
+            snapshot_id="",
             document_name="Test",
             timestamp=datetime.now(),
             root_nodes=[old_body],
         )
         new_snapshot = Snapshot(
+            snapshot_id="",
             document_name="Test",
             timestamp=datetime.now(),
             root_nodes=[new_body],
@@ -882,6 +892,7 @@ class TestCompareSnapshots:
             path="Body2/Pad",
         )
         old_snapshot = Snapshot(
+            snapshot_id="",
             document_name="Test",
             timestamp=datetime.now(),
             root_nodes=[old_node1, old_node2],
@@ -889,6 +900,7 @@ class TestCompareSnapshots:
 
         # Delete Body1/Pad, keep Body2/Pad
         new_snapshot = Snapshot(
+            snapshot_id="",
             document_name="Test",
             timestamp=datetime.now(),
             root_nodes=[old_node2],
@@ -928,6 +940,7 @@ class TestPerformance:
             root_nodes.append(root)
 
         old_snapshot = Snapshot(
+            snapshot_id="",
             document_name="Test",
             timestamp=datetime.now(),
             root_nodes=root_nodes,
@@ -936,6 +949,7 @@ class TestPerformance:
         # New snapshot with slight modifications
         new_root_nodes = list(root_nodes)  # Copy reference
         new_snapshot = Snapshot(
+            snapshot_id="",
             document_name="Test",
             timestamp=datetime.now(),
             root_nodes=new_root_nodes,

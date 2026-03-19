@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Protocol
 
@@ -243,14 +244,18 @@ class SnapshotExtractor:
 
         if port is None:
             self._logger.info("No port provided, returning empty snapshot")
-            return Snapshot(document_name="NoPort", timestamp=datetime.now(), root_nodes=[])
+            return Snapshot(
+                snapshot_id=str(uuid.uuid4()), document_name="NoPort", timestamp=datetime.now(), root_nodes=[]
+            )
 
         doc = port.get_active_document()
 
         if doc is None:
             # No document open, return empty snapshot
             self._logger.info("No document open, returning empty snapshot")
-            return Snapshot(document_name="NoDocument", timestamp=datetime.now(), root_nodes=[])
+            return Snapshot(
+                snapshot_id=str(uuid.uuid4()), document_name="NoDocument", timestamp=datetime.now(), root_nodes=[]
+            )
 
         document_name = getattr(doc, "Name", "Unnamed")
         root_nodes: list[TreeNode] = []
@@ -275,7 +280,9 @@ class SnapshotExtractor:
         # Use current time for timestamp
         timestamp = datetime.now()
 
-        return Snapshot(document_name=document_name, timestamp=timestamp, root_nodes=root_nodes)
+        return Snapshot(
+            snapshot_id=str(uuid.uuid4()), document_name=document_name, timestamp=timestamp, root_nodes=root_nodes
+        )
 
 
 # Legacy function for backward compatibility

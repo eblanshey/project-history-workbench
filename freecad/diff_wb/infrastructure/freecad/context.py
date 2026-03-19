@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 
 class ConsoleLike(Protocol):
@@ -34,13 +34,15 @@ class AppLike(Protocol):
     ActiveDocument: DocumentLike | None
     Console: ConsoleLike
 
+    def ParamGet(self, path: str) -> object: ...
     def translate(self, context: str, text: str) -> str: ...
+    def GetString(self, name: str) -> str: ...
 
 
 class GuiLike(Protocol):
     """Minimal Protocol for the FreeCAD GUI module."""
 
-    pass
+    def update(self) -> None: ...
 
 
 @dataclass(frozen=True)
@@ -55,7 +57,7 @@ class FreeCadContext:
     gui: GuiLike | None = None
 
 
-def get_runtime_context() -> FreeCadContext:
+def get_freecad_runtime_context() -> FreeCadContext:
     """Return a context wired to the real FreeCAD runtime modules."""
     import FreeCAD as App
 
@@ -117,7 +119,7 @@ class FreeCadPortAdapter:
     def get_active_document(self) -> object | None:
         return self._ctx.app.ActiveDocument
 
-    def get_object(self, doc: object, name: str) -> object | None:
+    def get_object(self, doc: DocumentLike, name: str) -> object | None:
         return doc.getObject(name)
 
     def try_recompute_active_document(self) -> None:
@@ -139,7 +141,7 @@ class FreeCadPortAdapter:
         self._ctx.app.Console.PrintMessage(text + "\n")
 
 
-def get_port(ctx: FreeCadContext | None = None) -> FreeCadPort:
+def get_port(ctx: FreeCadContext | None = None) -> Any:
     """Get a FreeCadPort instance.
 
     Factory function that creates and returns a FreeCadPortAdapter
@@ -148,5 +150,5 @@ def get_port(ctx: FreeCadContext | None = None) -> FreeCadPort:
     If no context is provided, creates a runtime context.
     """
     if ctx is None:
-        ctx = get_runtime_context()
+        ctx = get_freecad_runtime_context()
     return FreeCadPortAdapter(ctx)

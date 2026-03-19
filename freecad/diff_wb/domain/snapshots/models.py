@@ -35,18 +35,28 @@ class Snapshot:
     methods for comparing against other snapshots.
 
     Attributes:
+        snapshot_id: Unique identifier for this snapshot (UUID)
         document_name: Name of the document
         timestamp: Timestamp when the snapshot was taken
         root_nodes: List of root-level tree nodes (top-level objects)
     """
 
+    snapshot_id: str
     document_name: str
     timestamp: datetime
     root_nodes: list[TreeNode] = field(default_factory=list)
 
+    @property
+    def node_count(self) -> int:
+        """Return total count of all nodes in the tree.
+
+        Returns:
+            Total number of nodes including all descendants
+        """
+        return sum(self._count_nodes(node) for node in self.root_nodes)
+
     def __str__(self) -> str:
-        node_count = sum(self._count_nodes(node) for node in self.root_nodes)
-        return f"Snapshot({self.document_name}, {len(self.root_nodes)} objects, {node_count} total nodes)"
+        return f"Snapshot({self.document_name}, {len(self.root_nodes)} objects, {self.node_count} total nodes)"
 
     def _count_nodes(self, node: TreeNode) -> int:
         """Helper to count all nodes recursively."""

@@ -5,9 +5,9 @@
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Any, Protocol
 
-from ..freecad.context import FreeCadContext, get_runtime_context
+from ..freecad.context import FreeCadContext, get_freecad_runtime_context
 
 
 class GuiPort(Protocol):
@@ -25,7 +25,7 @@ class GuiPort(Protocol):
         """Get the main application window."""
         ...
 
-    def get_mdi_area(self) -> object | None:
+    def get_mdi_area(self) -> Any:
         """Get the MDI area for subwindows, or None if not available."""
         ...
 
@@ -66,16 +66,16 @@ class GuiPortAdapter:
 
         return getMainWindow()
 
-    def get_mdi_area(self) -> object | None:
-        main_window = self.get_main_window()
+    def get_mdi_area(self) -> Any:
+        main_window: Any = self.get_main_window()
         return main_window.workspace()
 
-    def add_subwindow(self, *, mdi_area: object, widget: object) -> object:
+    def add_subwindow(self, *, mdi_area: Any, widget: object) -> object:
         subwindow = mdi_area.addSubWindow(widget)
-        widget.setParent(mdi_area)
+        widget.setParent(mdi_area)  # type: ignore[attr-defined]
         return subwindow
 
-    def find_subwindow(self, *, mdi_area: object, title: str) -> object | None:
+    def find_subwindow(self, *, mdi_area: Any, title: str) -> Any:
         for sub in mdi_area.subWindowList():
             if sub.windowTitle() == title:
                 return sub
@@ -92,7 +92,7 @@ def get_gui_port(ctx: FreeCadContext | None = None) -> GuiPort:
     Returns None if GUI is not available.
     """
     if ctx is None:
-        ctx = get_runtime_context()
+        ctx = get_freecad_runtime_context()
     if ctx.gui is None:
         raise RuntimeError("GUI not available")
     return GuiPortAdapter(ctx)

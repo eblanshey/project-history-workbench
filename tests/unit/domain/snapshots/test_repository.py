@@ -11,7 +11,7 @@ from freecad.diff_wb.domain.snapshots.repository import InMemorySnapshotReposito
 
 def _make_snapshot(name: str, root_nodes: list[TreeNode]) -> Snapshot:
     """Helper to create a Snapshot with current timestamp."""
-    return Snapshot(document_name=name, timestamp=datetime.now(), root_nodes=root_nodes)
+    return Snapshot(snapshot_id="", document_name=name, timestamp=datetime.now(), root_nodes=root_nodes)
 
 
 class TestInMemorySnapshotRepository:

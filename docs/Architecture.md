@@ -72,45 +72,52 @@ domain/
 
 ### 2. Application Layer (`application/`)
 
-**Responsibility**: Use cases, orchestration, and presentation logic. Coordinates domain objects to perform workbench operations and prepares data for UI display.
+**Responsibility**: Use cases, orchestration, and business logic. Coordinates domain objects to perform workbench operations.
 
 **Characteristics**:
-- Contains application services, controllers, and presenters
+- Contains application services and actions (use cases)
 - Orchestrates flow between domain services
 - Handles transaction boundaries
-- Formats domain data for UI consumption
 - Depends on domain layer only
 
 **Structure**:
 ```
 application/
 ├── __init__.py
-├── controllers/
-│   ├── __init__.py
-│   ├── snapshot_controller.py    # TakeSnapshot use case
-│   └── compare_controller.py     # CompareSnapshots use case
-└── presenters/
-    ├── __init__.py
-    ├── diff_presenter.py         # Format diff for display
-    └── snapshot_presenter.py     # Format snapshots for display
+├── actions/                       # Use cases / commands
+│   ├── commands/
+│   │   ├── take_snapshot.py      # TakeSnapshot use case
+│   │   └── compare_snapshots.py  # CompareSnapshots use case
+│   └── queries/
+│       └── list_snapshots.py     # ListSnapshots query
+└── result_models.py              # Action result dataclasses
 ```
 
 ### 3. UI Layer (`ui/`)
 
-**Responsibility**: User interface widgets only. Thin Qt views that wire user interactions to application controllers.
+**Responsibility**: User interface widgets and presenters. Thin Qt views that wire user interactions to application controllers, with presenters transforming domain data into view calls.
 
 **Characteristics**:
 - Contains only Qt widgets and UI files
 - No workbench logic - delegates to application layer
-- Receives formatted data from presenters
+- Presenters transform application results into view protocol calls
 - Depends on application layer for behavior
 
 **Structure**:
 ```
 ui/
 ├── __init__.py
+├── presenters/                    # Presenters (transform data for views)
+│   ├── __init__.py
+│   ├── diff_presenter.py         # DiffPresenter - transforms DiffResult
+│   └── snapshot_presenter.py     # SnapshotPresenter - formats results
+├── protocols/                     # View interfaces (ports)
+│   ├── diff_view.py              # DiffView protocol
+│   └── snapshot_view.py          # SnapshotView protocol
 └── diff_panel.py                 # Qt widget (two-column diff view)
 ```
+
+**Flow**: Application Action → Presenter → View Protocol → Qt Widget
 
 ### 4. Infrastructure Layer (`infrastructure/`)
 
@@ -383,6 +390,20 @@ This approach ensures core workbench logic is tested independently from external
 - Requires FreeCAD runtime
 - Slower execution
 - Test real FreeCAD API interactions
+
+### Unit Tests vs Integration Tests
+
+**Unit Tests** (`tests/unit/`):
+- Focus: Error handling paths, input validation, orchestration logic
+- Dependencies: Fakes and mocks only
+- Examples: No document error, snapshot not found, extraction failures
+
+**Integration Tests** (`tests/integration/application/actions/`):
+- Focus: Happy path with real domain services, end-to-end workflows
+- Dependencies: Real services (DiffEngine, SnapshotExtractor) + fake ports
+- Examples: Successful snapshot creation, complex diff scenarios, exclusion rules
+
+**Principle**: Unit tests provide fast feedback for common errors; integration tests verify real services work together correctly.
 
 ---
 

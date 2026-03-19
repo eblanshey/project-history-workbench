@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from .context import FreeCadContext, get_runtime_context
+from .context import FreeCadContext, get_freecad_runtime_context
 
 
 class AppPort(Protocol):
@@ -41,5 +41,5 @@ def get_app_port(ctx: FreeCadContext | None = None) -> AppPort:
     If no context is provided, creates a runtime context.
     """
     if ctx is None:
-        ctx = get_runtime_context()
+        ctx = get_freecad_runtime_context()
     return AppPortAdapter(ctx)

@@ -57,10 +57,30 @@ class PropertyHandler:
 
     @classmethod
     def handles(cls, prop_name: str) -> bool:
+        """Check if a property name is handled by this handler.
+
+        Args:
+            prop_name: The name of the property to check
+
+        Returns:
+            True if this handler manages the given property name, False otherwise
+        """
         return prop_name in cls.PROPERTY_NAMES
 
     @classmethod
     def from_freecad_value(cls, value: Any, expression: str | None = None) -> "Property":
+        """Create a Property from a FreeCAD object.
+
+        Args:
+            value: The FreeCAD object/property value to extract
+            expression: Optional expression that drives this value
+
+        Returns:
+            A Property instance with the extracted value
+
+        Raises:
+            NotImplementedError: Subclasses must implement this method
+        """
         raise NotImplementedError("Subclasses must implement from_freecad_value")
 
 
@@ -99,6 +119,18 @@ class Vector(PropertyHandler):
 
     @classmethod
     def from_freecad_value(cls, value: Any, expression: str | None = None) -> "Property":
+        """Extract Vector property from FreeCAD object.
+
+        Args:
+            value: The FreeCAD object or vector containing x, y, z attributes
+            expression: Optional expression that drives this value
+
+        Returns:
+            A Property instance with the extracted Vector value
+
+        Raises:
+            ValueError: If the value doesn't have x, y, z attributes
+        """
         try:
             return Property(
                 type_=PropertyType.VECTOR,
@@ -183,6 +215,18 @@ class Placement(PropertyHandler):
 
     @classmethod
     def from_freecad_value(cls, value: Any, expression: str | None = None) -> "Property":
+        """Extract Placement property from FreeCAD object.
+
+        Args:
+            value: The FreeCAD object with Position and Rotation attributes
+            expression: Optional expression that drives this value
+
+        Returns:
+            A Property instance with the extracted Placement value
+
+        Raises:
+            ValueError: If the value is missing Position or Rotation attributes
+        """
         try:
             pos = getattr(value, "Position", None)
             rot = getattr(value, "Rotation", None)

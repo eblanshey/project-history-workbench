@@ -17,3 +17,5 @@ Report only:
    - If tests fail: Show only the failures/errors with brief context
 
 Be extremely concise - no verbose output unless there are actual failures
+
+DO NOT ATTEMPT TO FIX TESTS. IF THERE IS A BUG IN THE TESTS THAT PREVENTS THEM FROM RUNNING, SIMPLY REPORT THE ERROR AND FINISH.

@@ -89,7 +89,7 @@ You MUST think, read, search, and delegate explore agents to construct a well-fo
 - Decide if API exploration is needed (required for FreeCAD-dependent features)
 
 ### Step 4: Create the Task Plan File
-Write the plan to `tasks/x-plan-name.md` (e.g., `tasks/6-new-feature-plan.md`) following the template below.
+Write the plan to `.opencode/tasks/x-plan-name.md` (e.g., `.opencode/tasks/6-new-feature-plan.md`) following the template below.
 
 ### Step 5: Document Decisions
 Include rationale and alternatives considered in the Decisions Made section.
@@ -99,6 +99,8 @@ Each phase should follow the Testing Order Principle:
 1. **Write tests first** - Define what success looks like before writing code
 2. **Implement to pass tests** - Write only enough code to make tests pass
 3. **Refactor** - Improve code quality while keeping tests green
+
+Use checkboxes for each phase so they can be ticked off during implementation.
 
 ---
 
@@ -191,7 +193,7 @@ When creating implementation plans, ensure the following architectural principle
 Your output should be:
 1. A brief summary of your understanding of the task
 2. Any clarifying questions (if needed)
-3. The complete task plan file content ready to be written to `tasks/x-plan-name.md`
+3. The complete task plan file content ready to be written to `.opencode/tasks/x-plan-name.md`
 
 After writing the plan file, inform the user that the plan is ready for review and they can switch to an implementation mode (or you can proceed if authorized).
 

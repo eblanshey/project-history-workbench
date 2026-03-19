@@ -1,0 +1,36 @@
+"""File responsibility: UI-friendly presentation models for diff display."""
+
+from dataclasses import dataclass
+
+
+__all__ = ["NodePresentation", "PropertyPresentation", "SnapshotPresentation"]
+
+
+@dataclass(frozen=True)
+class NodePresentation:
+    """UI-friendly format for a tree node."""
+
+    path: str
+    type_id: str
+    state: str  # "ADDED", "DELETED", "MODIFIED", "UNCHANGED"
+    has_changes: bool
+
+
+@dataclass(frozen=True)
+class PropertyPresentation:
+    """UI-friendly format for property differences."""
+
+    name: str
+    old_display: str  # Formatted string like "10.0 (via Sketch.X)"
+    new_display: str  # Formatted string like "20.0"
+    state: str  # "ADDED", "DELETED", "MODIFIED", "UNCHANGED"
+
+
+@dataclass(frozen=True)
+class SnapshotPresentation:
+    """UI-friendly format for snapshot summary."""
+
+    id: str
+    name: str
+    created_at: str
+    node_count: int

@@ -251,8 +251,11 @@ def test_snapshot_domain_model(doc: FreeCAD.Document) -> None:
 
     # Create Snapshot
     from datetime import datetime
+    import uuid
 
-    snapshot = Snapshot(document_name=doc.Name, timestamp=datetime.now(), root_nodes=root_nodes)
+    snapshot = Snapshot(
+        snapshot_id=str(uuid.uuid4()), document_name=doc.Name, timestamp=datetime.now(), root_nodes=root_nodes
+    )
 
     print(f"\nCreated Snapshot: {snapshot}")
     print(f"Root nodes count: {len(snapshot.root_nodes)}")

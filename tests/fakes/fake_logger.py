@@ -16,7 +16,7 @@ class FakeLogger(Logger):
         _messages: Internal list of (level, message) tuples
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize an empty message capture list."""
         self._messages: list[tuple[str, str]] = []
 

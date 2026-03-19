@@ -7,7 +7,8 @@
 from __future__ import annotations
 
 from ...config import EXCLUDED_PROPERTIES, EXCLUDED_TYPES
-from ..freecad.context import FreeCadContext, get_runtime_context
+from ...domain.settings.models import Settings
+from ..freecad.context import FreeCadContext, get_freecad_runtime_context
 
 
 class FreeCADSettingsRepository:
@@ -19,7 +20,7 @@ class FreeCADSettingsRepository:
     """
 
     def __init__(self, ctx: FreeCadContext | None = None) -> None:
-        self._ctx = ctx if ctx is not None else get_runtime_context()
+        self._ctx = ctx if ctx is not None else get_freecad_runtime_context()
         self._group_path = "User parameter:BaseApp/Preferences/Mod/DiffWorkbench"
 
     def _get_group(self) -> object:
@@ -33,7 +34,7 @@ class FreeCADSettingsRepository:
             Returns default from config.py if no persisted value exists.
         """
         group = self._get_group()
-        raw = group.GetString("ExcludedTypes", "")
+        raw = group.GetString("ExcludedTypes", "")  # type: ignore[attr-defined]
         if not raw:
             return EXCLUDED_TYPES
         return [item.strip() for item in raw.split(",") if item.strip()]
@@ -46,7 +47,19 @@ class FreeCADSettingsRepository:
             Returns default from config.py if no persisted value exists.
         """
         group = self._get_group()
-        raw = group.GetString("ExcludedProperties", "")
+        raw = group.GetString("ExcludedProperties", "")  # type: ignore[attr-defined]
         if not raw:
             return EXCLUDED_PROPERTIES
         return [item.strip() for item in raw.split(",") if item.strip()]
+
+    def get_settings(self) -> Settings:
+        """Get all settings as a Settings object.
+
+        Returns:
+            Settings object with excluded types and properties from FreeCAD preferences,
+            or defaults from config.py if no persisted values exist.
+        """
+        return Settings(
+            excluded_types=self.get_excluded_types(),
+            excluded_properties=self.get_excluded_properties(),
+        )

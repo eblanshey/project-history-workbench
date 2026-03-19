@@ -60,6 +60,14 @@ class SnapshotRepository(Protocol):
         """
         ...
 
+    def get_all_snapshots(self) -> list[Snapshot]:
+        """Retrieve all snapshots from the repository.
+
+        Returns:
+            List of all Snapshot objects with full data including nodes
+        """
+        ...
+
 
 class InMemorySnapshotRepository:
     """In-memory implementation of SnapshotRepository.
@@ -88,13 +96,18 @@ class InMemorySnapshotRepository:
         """
         snapshot_id = str(uuid.uuid4())
 
+        # Create new snapshot with assigned ID (since Snapshot is frozen)
+        from dataclasses import replace
+
+        snapshot_with_id = replace(snapshot, snapshot_id=snapshot_id)
+
         metadata = SnapshotMetadata(
             id=snapshot_id,
             name=snapshot.document_name,
             timestamp=snapshot.timestamp,
         )
 
-        self._snapshots[snapshot_id] = snapshot
+        self._snapshots[snapshot_id] = snapshot_with_id
         self._metadata[snapshot_id] = metadata
 
         return snapshot_id
@@ -141,3 +154,11 @@ class InMemorySnapshotRepository:
         """
         self._snapshots.clear()
         self._metadata.clear()
+
+    def get_all_snapshots(self) -> list[Snapshot]:
+        """Retrieve all snapshots from the repository.
+
+        Returns:
+            List of all Snapshot objects with full data including nodes
+        """
+        return list(self._snapshots.values())
