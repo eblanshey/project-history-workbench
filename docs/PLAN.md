@@ -40,34 +40,35 @@ Implementation note: This can be done using FreeCAD's Parameter system, with `Se
 
 Following Architecture.md's layered approach with strict test isolation:
 
-### Domain Layer Tests (`tests/unit/domain/`)
+### Unit Tests (No FreeCAD)
 
-Test pure domain logic WITHOUT FreeCAD:
+**Location**: `tests/unit/`
 
-| Test File | Coverage | Location |
-|-----------|----------|----------|
-| `test_node.py` | TreeNode data model | `unit/domain/tree/` |
-| `test_property.py` | Property value models | `unit/domain/tree/` |
-| `test_snapshot_models.py` | Snapshot data model | `unit/domain/snapshots/` |
-| `test_snapshot_extractor.py` | Tree extraction logic | `unit/domain/snapshots/` |
-| `test_tree_diff.py` | Tree comparison algorithms | `unit/domain/diff/` |
-| `test_property_diff.py` | Property value comparison | `unit/domain/diff/` |
-| `test_diff_engine.py` | End-to-end diff computation | `unit/domain/diff/` |
-| `test_logger.py` | Logger port behavior | `unit/domain/logging/` |
-| `test_settings.py` | Settings models | `unit/domain/settings/` |
-| `test_version.py` | Version parsing/formatting | `unit/` |
+**Coverage**:
+- Domain models and services
+- Repository interfaces (with fakes)
+- Diff algorithms
+- Tree extraction logic
+- Application actions (with mocks)
 
-Use fakes for repository interfaces (see Architecture.md for details).
+**Characteristics**:
+- Pure Python, no FreeCAD imports
+- Fast execution (< 1 second total)
+- Use inline fixtures and fakes
 
-### Integration Tests (`tests/integration/`)
+### Integration Tests (With FreeCAD)
 
-Test with real FreeCAD (when available):
+**Location**: `tests/integration/`
 
-| Test File | Coverage | Location |
-|-----------|----------|----------|
-| `test_freecad_context.py` | FreeCAD runtime context | `integration/infrastructure/freecad/` |
-| `test_snapshot_persistence.py` | Snapshot save/load | `integration/infrastructure/persistence/` |
-| `test_full_workflow.py` | End-to-end workflows | `integration/` |
+**Coverage**:
+- Infrastructure adapters
+- FreeCAD context handling
+- Full end-to-end workflows
+
+**Characteristics**:
+- Requires FreeCAD runtime
+- Slower execution
+- Test real FreeCAD API interactions
 
 ## Linting & Quality Tools
 
@@ -94,79 +95,65 @@ Following datamanager patterns:
 
 ## Implementation Phases
 
-### Architecture Refactoring Phases (Steps 1-5 Complete)
+### Architecture Refactoring Phases (Steps 1-6 Complete)
 
-#### Phase 1: Domain Tree Models ✅ (Complete)
-- [x] Create `domain/tree/` directory structure
-- [x] Move `TreeNode` to `domain/tree/node.py`
-- [x] Merge property models into `domain/tree/property.py`
-- [x] Update imports in existing code
-- [x] Run tests (66 passed)
+**Phase 1-6**: Domain, Infrastructure, and Application Layer refactoring complete. See git history for details.
 
-#### Phase 2: Domain Snapshots ✅ (Complete)
-- [x] Create `domain/snapshots/` directory structure
-- [x] Move `Snapshot` to `domain/snapshots/models.py`
-- [x] Create `domain/snapshots/repository.py` with `SnapshotRepository` protocol
-- [x] Create `domain/snapshots/extractor.py` with `SnapshotExtractor`
-- [x] Delete old `domain/snapshot.py`
-- [x] Run tests (13 + 8 + 6 = 27 passed)
+### MVP Implementation Phases
 
-#### Phase 3: Domain Diff ✅ (Complete)
-- [x] Create `domain/diff/` directory structure
-- [x] Move models to `domain/diff/models.py`
-- [x] Create `domain/diff/comparator.py` with `TreeComparator`, `PropertyComparator`
-- [x] Create `domain/diff/engine.py` with `DiffEngine`
-- [x] Delete old `diff/` directory files
-- [x] Run tests (34 + 40 + 66 = 140 passed)
+**Incremental Development Approach**: Each phase should be completed and tested in FreeCAD before moving to the next. This allows you to:
+- Verify UI changes visually without complex setup
+- Learn FreeCAD/Qt concepts gradually
+- Get immediate feedback on each feature
+- Avoid debugging multiple unknowns at once
 
-#### Phase 4: Infrastructure Reorganization ✅ (Complete)
-- [x] Create `infrastructure/` directory structure
-- [x] Create `domain/logging/logger.py` (Logger protocol/port)
-- [x] Create `domain/settings/` with `Settings` and `SettingsRepository` protocol
-- [x] Move ports to `infrastructure/` as adapters (`FreeCadPort`, `GuiPort`)
-- [x] Create `infrastructure/freecad/context.py` (FreeCadPort adapter)
-- [x] Create `infrastructure/freecad/settings_repo.py` (SettingsRepository adapter)
-- [x] Create `infrastructure/gui/qt_adapter.py` (GuiPort adapter)
-- [x] Update all imports
-- [x] Run tests (167 passed)
+See [UI.md](UI.md) for detailed UI requirements.
 
-#### Phase 5: Cleanup and Migration ✅ (Complete)
-- [x] Remove old directories (`domain/snapshot.py`, `domain/property_value.py`, `snapshot/`, `diff/`, `ports/`)
-- [x] Update `config.py` with deprecation comments
-- [x] Update entrypoints for dependency injection
-- [x] Run full test suite (161 passed)
-- [x] Run linter checks (all passed)
+#### Phase 7: Application Layer ✅ (Complete)
+- [x] Create `application/actions/commands/take_snapshot.py` - `TakeSnapshotAction`
+- [x] Create `application/actions/commands/compare_snapshots.py` - `CompareSnapshotsAction`
+- [x] Create `application/actions/queries/list_snapshots.py` - `ListSnapshotsQuery`
+- [x] Create `application/di/container.py` - Dependency injection container
+- [x] Wire actions and presenters in container
+- [x] Register commands in `entrypoints/commands.py`
 
-### Phase 6: Documentation ✅ (Complete)
-- [x] Update `PLAN.md` with new architecture references
-- [x] Mark Phase 1-5 as complete
-- [x] Update module map with new structure
-- [x] Update import path examples
-- [x] Verify `ARCHITECTURE.md` accuracy
-- [x] Create migration guide in `development.md`
+#### Phase 8: 3-Column Window + Show on Activation ❌ (Not Started)
+- [ ] Create `ui/diff_panel.py` with horizontal `QSplitter`
+- [ ] Three columns: `QListWidget` (Snapshots) | `QTreeWidget` (Tree) | `QTableWidget` (Properties)
+- [ ] Empty columns, no data wiring yet
+- [ ] Wire to show when Diff workbench activates in `workbench.py`
+- [ ] **Test**: Switch to Diff workbench → see empty 3 columns
 
-### Future Phases (Post-Refactoring)
+#### Phase 9: Populate Snapshots Column ❌ (Not Started)
+- [ ] Wire `ListSnapshotsQuery` to load snapshots on panel show
+- [ ] Display snapshot names + timestamps (newest first)
+- [ ] **Test**: Take snapshot → appears in list
 
-#### Phase 7: Application Layer ❌ (Not Started)
-- [ ] Create `application/` directory structure
-- [ ] Implement `SnapshotController` use case in `application/controllers/`
-- [ ] Implement `CompareController` use case in `application/controllers/`
-- [ ] Implement presenters in `application/presenters/`
+#### Phase 10: Snapshot Selection ❌ (Not Started)
+- [ ] Single click: select one snapshot
+- [ ] Ctrl+click: select second snapshot (first = "from", second = "to")
+- [ ] Visual indicator of selection state
+- [ ] **Test**: Can select 1-2 snapshots
 
-#### Phase 8: UI Implementation ❌ (Not Started)
-- [ ] Qt Designer file (`resources/ui/diff_panel.ui`)
-- [ ] Main panel widget (`application/ui/diff_panel.py`)
-- [ ] MDI subwindow management via `GuiPort` adapter
+#### Phase 11: Compare Command → Tree Diff ❌ (Not Started)
+- [ ] "Compare" button triggers `CompareSnapshotsAction`
+- [ ] Display diff tree in Tree column (changed nodes only)
+- [ ] Color coding: green=added, red=removed, blue=modified
+- [ ] Preserve node indentation from FreeCAD feature tree
+- [ ] Expand/collapse children with +/- icons
+- [ ] **Test**: Select 2 snapshots → Compare → see tree diff
 
-#### Phase 9: Preferences Integration ❌ (Not Started)
-- [ ] FreeCAD Preferences dialog panel
-- [ ] Settings persistence via `SettingsRepository`
-- [ ] Dynamic reload of excluded types/properties
+#### Phase 12: Node Selection → Properties Diff ❌ (Not Started)
+- [ ] Click node in Tree → show property diff in Properties column
+- [ ] Two sub-columns: Property Key | Property Value
+- [ ] Color coding: red=deleted, green=added, blue=modified
+- [ ] Handle expression diffs (two rows if needed)
+- [ ] **Test**: Click node → see property changes
 
-#### Phase 10: Testing & Polish ❌ (Not Started)
-- [ ] Integration tests
+#### Phase 13: Polish & Preferences ❌ (Not Started)
+- [ ] FreeCAD Preferences dialog (optional for MVP)
 - [ ] Icon design/finalization
-- [ ] Performance optimization
+- [ ] Integration tests
 - [ ] User documentation (README.md)
 
 
@@ -174,12 +161,12 @@ Following datamanager patterns:
 
 | Aspect | DataManager | Diff Workbench |
 |--------|-------------|----------------|
-| **Panel Type** | Tabbed MDI subwindow | Single-panel MDI subwindow |
-| **Layout** | Two tabs (VarSets, Aliases) | Two columns (old, new) |
+| **Panel Type** | Tabbed MDI subwindow | 3-column MDI subwindow |
+| **Layout** | Two tabs (VarSets, Aliases) | Snapshots \| Tree \| Properties |
 | **Storage** | Live document access | In-memory snapshots |
 | **Actions** | Remove unused references | Compare, swap columns |
 | **Docs Location** | mkdocs documentation | README.md at root |
-| **Configuration** | Per-tab display modes | Hard-coded (Preferences in Phase 7) |
+| **Configuration** | Per-tab display modes | Hard-coded (Phase 13 optional) |
 
 ## Key Flows
 
@@ -190,25 +177,23 @@ sequenceDiagram
     participant User
     participant Commands
     participant Workbench
-    participant SnapshotController
+    participant TakeSnapshotAction
     participant SnapshotExtractor
-    participant InMemorySnapshotRepository
+    participant SnapshotRepository
     participant FreeCadPort
-    participant GuiPort
 
     User->>Commands: Click "Take Snapshot"
     Commands->>Workbench: execute_command()
-    Workbench->>SnapshotController: take_snapshot(name)
-    SnapshotController->>FreeCadPort: get_active_document()
-    FreeCadPort-->>SnapshotController: doc
-    SnapshotController->>SnapshotExtractor: extract_tree(doc)
+    Workbench->>TakeSnapshotAction: execute(name)
+    TakeSnapshotAction->>FreeCadPort: get_active_document()
+    FreeCadPort-->>TakeSnapshotAction: doc
+    TakeSnapshotAction->>SnapshotExtractor: extract_tree(freecad_port)
     SnapshotExtractor->>FreeCadPort: query_object_properties()
     FreeCadPort-->>SnapshotExtractor: object_data
-    SnapshotExtractor-->>SnapshotController: Snapshot
-    SnapshotController->>InMemorySnapshotRepository: save(snapshot)
-    InMemorySnapshotRepository-->>SnapshotController: snapshot_id
-    SnapshotController->>GuiPort: show_message("Snapshot created")
-    SnapshotController-->>Workbench: success
+    SnapshotExtractor-->>TakeSnapshotAction: Snapshot
+    TakeSnapshotAction->>SnapshotRepository: add_snapshot(snapshot)
+    SnapshotRepository-->>TakeSnapshotAction: snapshot_id
+    TakeSnapshotAction-->>Workbench: SnapshotResult
     Workbench-->>Commands: success
     Commands-->>User: UI updated
 ```
@@ -220,28 +205,25 @@ sequenceDiagram
     participant User
     participant Commands
     participant Workbench
-    participant CompareController
-    participant InMemorySnapshotRepository
+    participant CompareSnapshotsAction
+    participant SnapshotRepository
     participant DiffEngine
     participant SettingsRepository
-    participant Logger
 
     User->>Commands: Select snapshots + Click "Compare"
     Commands->>Workbench: execute_command()
-    Workbench->>CompareController: compare_snapshots(old_id, new_id)
-    CompareController->>InMemorySnapshotRepository: get(old_id)
-    InMemorySnapshotRepository-->>CompareController: old_snapshot
-    CompareController->>InMemorySnapshotRepository: get(new_id)
-    InMemorySnapshotRepository-->>CompareController: new_snapshot
-    CompareController->>SettingsRepository: get_settings()
-    SettingsRepository-->>CompareController: settings
-    CompareController->>DiffEngine: compute_diff(old, new, settings)
-    DiffEngine->>Logger: log(comparison_progress)
-    Logger-->>DiffEngine: ack
-    DiffEngine-->>CompareController: DiffResult
-    CompareController-->>Workbench: diff_result
-    Workbench-->>Commands: display_diff(diff_result)
-    Commands-->>User: Render two-column diff view
+    Workbench->>CompareSnapshotsAction: execute(old_id, new_id)
+    CompareSnapshotsAction->>SnapshotRepository: get_snapshot(old_id)
+    SnapshotRepository-->>CompareSnapshotsAction: old_snapshot
+    CompareSnapshotsAction->>SnapshotRepository: get_snapshot(new_id)
+    SnapshotRepository-->>CompareSnapshotsAction: new_snapshot
+    CompareSnapshotsAction->>SettingsRepository: get_settings()
+    SettingsRepository-->>CompareSnapshotsAction: settings
+    CompareSnapshotsAction->>DiffEngine: compute_diff(old, new, settings)
+    DiffEngine-->>CompareSnapshotsAction: DiffResult
+    CompareSnapshotsAction-->>Workbench: DiffResult
+    Workbench-->>Commands: display_diff(result)
+    Commands-->>User: Render 3-column diff view
 ```
 
 ## Configuration Files to Create
