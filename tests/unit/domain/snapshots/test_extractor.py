@@ -149,7 +149,7 @@ class TestSnapshotExtractor:
         fake_port = FakePortAndLogger()
         fake_port.set_active_document(mock_doc)
 
-        extractor = SnapshotExtractor(logger=fake_port)
+        extractor = SnapshotExtractor()
         result = extractor.extract_tree(fake_port)
 
         assert isinstance(result, Snapshot)
@@ -175,7 +175,7 @@ class TestSnapshotExtractor:
         fake_port = FakePortAndLogger()
         fake_port.set_active_document(mock_doc)
 
-        extractor = SnapshotExtractor(logger=fake_port)
+        extractor = SnapshotExtractor()
         result = extractor.extract_tree(fake_port)
 
         assert isinstance(result, Snapshot)
@@ -212,7 +212,7 @@ class TestSnapshotExtractor:
         fake_port = FakePortAndLogger()
         fake_port.set_active_document(mock_doc)
 
-        extractor = SnapshotExtractor(logger=fake_port)
+        extractor = SnapshotExtractor()
         result = extractor.extract_tree(fake_port)
 
         assert len(result.root_nodes) == 1
@@ -227,7 +227,7 @@ class TestSnapshotExtractor:
         fake_port = FakePortAndLogger()
         # No document set
 
-        extractor = SnapshotExtractor(logger=fake_port)
+        extractor = SnapshotExtractor()
         result = extractor.extract_tree(fake_port)
 
         # Should return a Snapshot with empty root_nodes when no document
@@ -254,7 +254,7 @@ class TestSnapshotExtractor:
         fake_port = FakePortAndLogger()
         fake_port.set_active_document(mock_doc)
 
-        extractor = SnapshotExtractor(logger=fake_port)
+        extractor = SnapshotExtractor()
         result = extractor.extract_tree(fake_port)
 
         assert len(result.root_nodes) == 1
@@ -283,7 +283,7 @@ class TestSnapshotExtractor:
         fake_port = FakePortAndLogger()
         fake_port.set_active_document(mock_doc)
 
-        extractor = SnapshotExtractor(logger=fake_port)
+        extractor = SnapshotExtractor()
         result = extractor.extract_tree(fake_port)
 
         assert len(result.root_nodes) == 1
@@ -352,7 +352,7 @@ class TestSnapshotExtractor:
 
         fake_port.get_object = mock_get_object
 
-        extractor = SnapshotExtractor(logger=fake_port)
+        extractor = SnapshotExtractor()
         result = extractor.extract_tree(fake_port)
 
         assert len(result.root_nodes) == 1
@@ -413,7 +413,7 @@ class TestSnapshotExtractor:
 
         fake_port.get_object = mock_get_object
 
-        extractor = SnapshotExtractor(logger=fake_port)
+        extractor = SnapshotExtractor()
         result = extractor.extract_tree(fake_port)
 
         assert len(result.root_nodes) == 1

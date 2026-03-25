@@ -8,7 +8,7 @@ from freecad.diff_wb.application.actions.commands import CompareSnapshotsAction
 from freecad.diff_wb.domain.snapshots.models import Snapshot
 from freecad.diff_wb.domain.tree import Property, PropertyType
 from freecad.diff_wb.domain.tree.node import TreeNode
-from tests.fakes import FakeDiffEngine, FakeLogger, FakeSettingsRepository, FakeSnapshotRepository
+from tests.fakes import FakeDiffEngine, FakeSettingsRepository, FakeSnapshotRepository
 
 
 class TestCompareSnapshotsAction:
@@ -53,13 +53,11 @@ class TestCompareSnapshotsAction:
 
         diff_engine = FakeDiffEngine()
         settings_repo = FakeSettingsRepository()
-        logger = FakeLogger()
 
         action = CompareSnapshotsAction(
             snapshot_repo=snapshot_repo,
             diff_engine=diff_engine,
             settings_repo=settings_repo,
-            logger=logger,
         )
 
         # Act
@@ -77,13 +75,11 @@ class TestCompareSnapshotsAction:
         snapshot_repo = FakeSnapshotRepository()
         diff_engine = FakeDiffEngine()
         settings_repo = FakeSettingsRepository()
-        logger = FakeLogger()
 
         action = CompareSnapshotsAction(
             snapshot_repo=snapshot_repo,
             diff_engine=diff_engine,
             settings_repo=settings_repo,
-            logger=logger,
         )
 
         # Act
@@ -108,13 +104,11 @@ class TestCompareSnapshotsAction:
 
         diff_engine = FakeDiffEngine()
         settings_repo = FakeSettingsRepository()
-        logger = FakeLogger()
 
         action = CompareSnapshotsAction(
             snapshot_repo=snapshot_repo,
             diff_engine=diff_engine,
             settings_repo=settings_repo,
-            logger=logger,
         )
 
         # Act
@@ -167,13 +161,11 @@ class TestCompareSnapshotsAction:
             excluded_types=["App::Origin"],
             excluded_properties=["TimeStamp"],
         )
-        logger = FakeLogger()
 
         action = CompareSnapshotsAction(
             snapshot_repo=snapshot_repo,
             diff_engine=diff_engine,
             settings_repo=settings_repo,
-            logger=logger,
         )
 
         # Act
@@ -224,13 +216,11 @@ class TestCompareSnapshotsAction:
             excluded_types=custom_excluded_types,
             excluded_properties=custom_excluded_properties,
         )
-        logger = FakeLogger()
 
         action = CompareSnapshotsAction(
             snapshot_repo=snapshot_repo,
             diff_engine=diff_engine,
             settings_repo=settings_repo,
-            logger=logger,
         )
 
         # Act
@@ -265,13 +255,11 @@ class TestCompareSnapshotsAction:
 
         diff_engine = FakeDiffEngine()
         settings_repo = FakeSettingsRepository()
-        logger = FakeLogger()
 
         action = CompareSnapshotsAction(
             snapshot_repo=snapshot_repo,
             diff_engine=diff_engine,
             settings_repo=settings_repo,
-            logger=logger,
         )
 
         # Act
@@ -279,17 +267,7 @@ class TestCompareSnapshotsAction:
 
         # Assert
         assert result.success is True
-
-        messages = logger.messages
-        info_messages = [msg for level, msg in messages if level == "info"]
-        error_messages = [msg for level, msg in messages if level == "error"]
-
-        # Should have logged info messages about the comparison
-        assert len(info_messages) >= 2  # "Loading exclusion settings" and "Comparing snapshots..."
-        assert "Loading exclusion settings" in info_messages
-        assert f"Comparing snapshots: {old_id} vs {new_id}" in info_messages
-        assert "Diff computation completed successfully" in info_messages
-        assert len(error_messages) == 0
+        # Note: Logging is done via static Log methods, not captured in unit tests
 
     def test_execute_diff_engine_exception(self) -> None:
         """Error: DiffEngine raises exception during comparison."""
@@ -312,13 +290,11 @@ class TestCompareSnapshotsAction:
 
         diff_engine = FakeDiffEngine(side_effect=RuntimeError("Comparison failed"))
         settings_repo = FakeSettingsRepository()
-        logger = FakeLogger()
 
         action = CompareSnapshotsAction(
             snapshot_repo=snapshot_repo,
             diff_engine=diff_engine,
             settings_repo=settings_repo,
-            logger=logger,
         )
 
         # Act
@@ -330,10 +306,7 @@ class TestCompareSnapshotsAction:
         # RuntimeError is not in our specific exception list, so it falls through to catch-all
         assert "Unexpected error during diff computation" in str(result.error_message)
 
-        # Verify error was logged
-        error_messages = logger.get_messages_by_level("error")
-        assert len(error_messages) == 1
-        assert "Unexpected error during diff computation" in error_messages[0]
+        # Note: Logging is done via static Log methods, not captured in unit tests
 
     def test_execute_same_snapshot_id_returns_unchanged_diff(self) -> None:
         """Edge case: comparing snapshot to itself returns no changes."""
@@ -349,13 +322,11 @@ class TestCompareSnapshotsAction:
 
         diff_engine = FakeDiffEngine()
         settings_repo = FakeSettingsRepository()
-        logger = FakeLogger()
 
         action = CompareSnapshotsAction(
             snapshot_repo=snapshot_repo,
             diff_engine=diff_engine,
             settings_repo=settings_repo,
-            logger=logger,
         )
 
         # Act

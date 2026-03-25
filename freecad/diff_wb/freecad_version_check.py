@@ -4,19 +4,12 @@
 
 This module validates that the current FreeCAD and Python runtime meet the
 minimum required versions for the Diff Workbench.
-
-Translation Strategy:
-    Version warning messages use templates with %s placeholders. The template
-    is translated first, then parameters are substituted using Python's % operator:
-
-        template = _container.translate("Log", _PYTHON_VERSION_WARNING_TEMPLATE)
-        translated = template % (major, minor, patch)
-        _container.log(translated)
 """
 
 import sys
 
 from ._container import _container
+from .utils import Log
 
 
 # Minimum required FreeCAD version (0.21.2+)
@@ -25,68 +18,52 @@ FC_MINOR_VER_REQUIRED = 0
 FC_PATCH_VER_REQUIRED = 2
 FC_COMMIT_REQUIRED = 33772
 
-# ============================================================================
-# VERSION WARNING TEMPLATES
-# ============================================================================
-# Context: "Log"
-# These templates use %s placeholders for version numbers.
-# Translation happens first, then % substitution.
 
-_PYTHON_VERSION_WARNING_TEMPLATE = (
-    "Python version (%s.%s.%s) must be at least 3.11 in order to work with FreeCAD 1.0 and above\n"
-)
-"""Template for Python version warning message.
+def _get_python_version_warning() -> str:
+    """Get the Python version warning message.
 
-Placeholders:
-    %s - Python major version (int)
-    %s - Python minor version (int)
-    %s - Python patch version (int)
+    Returns:
+        Formatted warning message with current Python version.
+    """
+    return (
+        f"Python version ({sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}) "
+        "must be at least 3.11 in order to work with FreeCAD 1.0 and above"
+    )
 
-Example:
-    "Python version (3.10.5) must be at least 3.11 in order to work with FreeCAD 1.0 and above"
-"""
 
-_FC_VERSION_WARNING_TEMPLATE = (
-    "FreeCAD version (%s.%s.%s (%s)) must be at least %s.%s.%s (%s) in order to work with Python 3.11 and above\n"
-)
-"""Template for FreeCAD version warning message.
+def _get_freecad_version_warning(major: int, minor: int, patch: int, gitver: int) -> str:
+    """Get the FreeCAD version warning message.
 
-Placeholders:
-    %s - FreeCAD major version (int)
-    %s - FreeCAD minor version (int)
-    %s - FreeCAD patch version (int)
-    %s - FreeCAD git commit (int)
-    %s - Required FreeCAD major version (int)
-    %s - Required FreeCAD minor version (int)
-    %s - Required FreeCAD patch version (int)
-    %s - Required FreeCAD git commit (int)
+    Args:
+        major: FreeCAD major version
+        minor: FreeCAD minor version
+        patch: FreeCAD patch version
+        gitver: FreeCAD git commit number
 
-Example:
-    "FreeCAD version (0.21.1 (33700)) must be at least 0.21.2 (33772) in order to work with Python 3.11 and above"
-"""
+    Returns:
+        Formatted warning message with current FreeCAD version.
+    """
+    return (
+        f"FreeCAD version ({major}.{minor}.{patch} ({gitver})) must be at least "
+        f"{FC_MAJOR_VER_REQUIRED}.{FC_MINOR_VER_REQUIRED}.{FC_PATCH_VER_REQUIRED} ({FC_COMMIT_REQUIRED}) "
+        "in order to work with Python 3.11 and above"
+    )
 
 
 def _warn_unsupported_python_version() -> None:
-    """Warn about unsupported Python version using container helpers.
+    """Warn about unsupported Python version using unified logging.
 
-    This function uses the global _container which should always be set during
-    normal FreeCAD operation. In test environments where _container is None,
-    this function is expected to not be called or will be handled elsewhere.
+    This function logs a warning to the unified logger. In test environments
+    where _container is None, this function falls back to stderr output.
     """
+    message = _get_python_version_warning()
     if _container is None:
         # Fallback for tests - print to stderr
         import sys as _sys
 
-        _sys.stderr.write(
-            f"Python version ({sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}) "
-            "must be at least 3.11 in order to work with FreeCAD 1.0 and above\n"
-        )
-        return
-
-    # Translate template first, then substitute parameters
-    template = _container.translate("Log", _PYTHON_VERSION_WARNING_TEMPLATE)
-    translated = template % (sys.version_info[0], sys.version_info[1], sys.version_info[2])
-    _container.log(translated)
+        _sys.stderr.write(message + "\n")
+    else:
+        Log.warning(message)
 
 
 def _coerce_gitver(value: str) -> int:
@@ -111,36 +88,19 @@ def _parse_freecad_version() -> tuple[int, int, int, int]:
 
 
 def _warn_unsupported_freecad_version(*, major: int, minor: int, patch: int, gitver: int) -> None:
-    """Warn about unsupported FreeCAD version using container helpers.
+    """Warn about unsupported FreeCAD version using unified logging.
 
-    This function uses the global _container which should always be set during
-    normal FreeCAD operation. In test environments where _container is None,
-    this function is expected to not be called or will be handled elsewhere.
+    This function logs a warning to the unified logger. In test environments
+    where _container is None, this function falls back to stderr output.
     """
+    message = _get_freecad_version_warning(major, minor, patch, gitver)
     if _container is None:
         # Fallback for tests - print to stderr
         import sys as _sys
 
-        _sys.stderr.write(
-            f"FreeCAD version ({major}.{minor}.{patch} ({gitver})) must be at least "
-            f"{FC_MAJOR_VER_REQUIRED}.{FC_MINOR_VER_REQUIRED}.{FC_PATCH_VER_REQUIRED} ({FC_COMMIT_REQUIRED}) "
-            "in order to work with Python 3.11 and above\n"
-        )
-        return
-
-    # Translate template first, then substitute parameters
-    template = _container.translate("Log", _FC_VERSION_WARNING_TEMPLATE)
-    translated = template % (
-        major,
-        minor,
-        patch,
-        gitver,
-        FC_MAJOR_VER_REQUIRED,
-        FC_MINOR_VER_REQUIRED,
-        FC_PATCH_VER_REQUIRED,
-        FC_COMMIT_REQUIRED,
-    )
-    _container.log(translated)
+        _sys.stderr.write(message + "\n")
+    else:
+        Log.warning(message)
 
 
 def check_supported_version(major_ver: int, minor_ver: int, patch_ver: int = 0, git_ver: int = 0) -> bool:

@@ -88,12 +88,14 @@ class TestWorkbenchActivationFlow:
     def test_snapshot_presenter_loads_snapshots_on_panel_creation(self, initialized_workbench: DiffWorkbench) -> None:
         """Test that snapshot presenter loads snapshots when panel is created.
 
-        This test verifies the Phase 4 goal of connecting the presenter to the view.
+        This test verifies the connection between the presenter and the view.
         It checks that:
         - SnapshotPresenter is created with DiffPanelView
         - load_snapshots() is called after panel is shown
         - Snapshots are displayed in the panel
         """
+        from .._container import get_container
+
         wb = initialized_workbench
 
         # Trigger panel creation by activating workbench
@@ -102,14 +104,15 @@ class TestWorkbenchActivationFlow:
         # Verify subwindow was created
         assert wb._subwindow is not None
 
-        # Verify presenter was created
-        assert wb._snapshot_presenter is not None
+        # Verify presenter was created via container
+        container = get_container()
+        assert container.snapshot_presenter is not None
 
         # Verify the presenter has the correct view (the panel widget)
-        assert wb._snapshot_presenter._view is not None
+        assert container.snapshot_presenter._view is not None
 
         # Verify the presenter has list_snapshots_action wired
-        assert wb._snapshot_presenter._list_snapshots_action is not None
+        assert container.snapshot_presenter._list_snapshots_action is not None
 
     def test_container_wires_list_snapshots_action_to_presenter(
         self, freecad_app: AppLike, freecad_context: FreeCadContext

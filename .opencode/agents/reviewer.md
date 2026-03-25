@@ -10,8 +10,6 @@ permission:
   edit: deny
   bash: deny
   webfetch: deny
-  task:
-      linter-fix: allow
 ---
 # FreeCAD Diff Workbench Code Reviewer
 

@@ -16,10 +16,17 @@ Translation Strategy:
         View: template = SNAPSHOT_SUCCESS_TEMPLATE  # "Snapshot '%1' created successfully"
         View: translated = QCoreApplication.translate("SnapshotView", template)
         View: final = translated % snapshot_name  # "Snapshot 'my_snapshot' created successfully"
+
+Logging Responsibility:
+    The presenter handles logging success/error messages to maintain separation
+    of concerns. Views should not depend on the container for logging.
+    The unified logging module handles both production (FreeCAD console) and
+    testing (stdout or FakeLogger) scenarios.
 """
 
 from ...application.actions.queries.list_snapshots import ListSnapshotsAction
 from ...application.actions.result_models import SnapshotResult
+from ...utils import Log
 from ..protocols.snapshot_view import SnapshotView
 
 
@@ -45,21 +52,27 @@ class SnapshotPresenter:
     def present_result(self, result: SnapshotResult) -> None:
         """Pass result data to view for display.
 
-        On success, also refreshes the snapshot list automatically to show
-        the newly created snapshot immediately. The presenter passes raw data
-        only. The view handles translation and parameter substitution.
+        On success, logs the success message and refreshes the snapshot list
+        automatically to show the newly created snapshot immediately. The
+        presenter passes raw data only. The view handles translation and
+        parameter substitution.
 
         Args:
             result: SnapshotResult from TakeSnapshotAction.execute()
         """
         if result.success:
+            # Log success message (presenter handles logging, not the view)
+            Log.info(f"Snapshot '{result.snapshot_name}' created successfully")
             # Pass raw snapshot_name - view handles translation and formatting
             self._view.show_success(snapshot_name=result.snapshot_name)
             # Auto-refresh the snapshot list to show the new snapshot immediately
             self.load_snapshots()
         else:
+            # Log error message
+            error_message = result.error_message or "Unknown error occurred"
+            Log.error(f"Error creating snapshot: {error_message}")
             # Pass error message as-is - view handles translation of templates
-            self._view.show_error(result.error_message or "Unknown error occurred")
+            self._view.show_error(error_message)
 
     def load_snapshots(self) -> None:
         """Load and display all snapshots.

@@ -3,7 +3,7 @@
 # verification without relying on FreeCAD Console or standard logging.
 """Fake logger implementation for testing."""
 
-from freecad.diff_wb.domain.logging import Logger
+from freecad.diff_wb.utils import Logger
 
 
 class FakeLogger(Logger):

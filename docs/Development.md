@@ -23,6 +23,34 @@ from freecad.diff_wb.infrastructure.freecad.settings_repo import FreeCADSettings
 from freecad.diff_wb.infrastructure.freecad.logger import FreeCADLogger
 ```
 
+### Logging
+
+Use the unified logging utility for all application messages:
+
+```python
+from freecad.diff_wb.utils import Log
+
+Log.info("Informational message")
+Log.warning("Warning message")
+Log.error("Error message")
+```
+
+**Important notes:**
+- **No translation needed**: Log messages are not translated. They are meant for developers and technical users who can read English.
+- **Default behavior**: Before initialization, messages go to stdout/stderr (visible in terminal).
+- **Production**: After `workbench.Initialize()`, messages go to FreeCAD console via `FreeCADLogger`.
+- **Testing**: Tests can inject a `FakeLogger` via `set_logger()` to capture and verify log messages.
+
+Example usage:
+
+```python
+# In presenters, actions, or any application code
+def take_snapshot(self, name: str) -> None:
+    Log.info(f"Creating snapshot '{name}'")
+    # ... snapshot logic ...
+    Log.info(f"Snapshot '{name}' created successfully")
+```
+
 ### Direct Module Access
 
 Access specific classes directly when needed:

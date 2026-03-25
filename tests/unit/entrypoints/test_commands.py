@@ -19,11 +19,16 @@ from freecad.diff_wb.entrypoints.commands import (
 class TestTakeSnapshotCommand:
     """Tests for _TakeSnapshotCommand."""
 
-    def test_take_snapshot_command_calls_action_and_presenter(self) -> None:
+    @patch("freecad.diff_wb._container.get_container")
+    def test_take_snapshot_command_calls_action_and_presenter(self, mock_get_container: Mock) -> None:
         """Verifies flow from command to action to presenter."""
         # Setup
+        mock_container = MagicMock()
         mock_action = MagicMock()
         mock_presenter = MagicMock()
+        mock_container.take_snapshot_action = mock_action
+        mock_container.snapshot_presenter = mock_presenter
+        mock_get_container.return_value = mock_container
 
         expected_result = SnapshotResult(
             success=True,
@@ -33,7 +38,7 @@ class TestTakeSnapshotCommand:
         )
         mock_action.execute.return_value = expected_result
 
-        command = _TakeSnapshotCommand(action=mock_action, presenter=mock_presenter)
+        command = _TakeSnapshotCommand()
 
         # Execute
         command.Activated()
@@ -42,14 +47,10 @@ class TestTakeSnapshotCommand:
         mock_action.execute.assert_called_once()
         mock_presenter.present_result.assert_called_once_with(expected_result)
 
-    @patch("freecad.diff_wb.entrypoints.commands._container")
-    def test_command_resources_correct(self, mock_container: Mock) -> None:
+    def test_command_resources_correct(self) -> None:
         """Menu text, tooltips, icons are correct."""
         # Setup
-        mock_container.translate.side_effect = lambda ctx, text: text
-        mock_action = MagicMock()
-        mock_presenter = MagicMock()
-        command = _TakeSnapshotCommand(action=mock_action, presenter=mock_presenter)
+        command = _TakeSnapshotCommand()
 
         # Execute
         resources = command.GetResources()
@@ -58,16 +59,14 @@ class TestTakeSnapshotCommand:
         assert "MenuText" in resources
         assert "ToolTip" in resources
         assert "Pixmap" in resources
-        assert "Take Snapshot" in resources["MenuText"]
+        assert resources["MenuText"] == "Take Snapshot"
         assert "snapshot" in resources["ToolTip"].lower()
         assert "TakeSnapshot.svg" in resources["Pixmap"]
 
     def test_is_active_returns_true(self) -> None:
         """Command is always active."""
         # Setup
-        mock_action = MagicMock()
-        mock_presenter = MagicMock()
-        command = _TakeSnapshotCommand(action=mock_action, presenter=mock_presenter)
+        command = _TakeSnapshotCommand()
 
         # Execute
         result = command.IsActive()
@@ -79,11 +78,16 @@ class TestTakeSnapshotCommand:
 class TestCompareCommand:
     """Tests for _CompareCommand."""
 
-    def test_compare_command_calls_action_and_presenter(self) -> None:
+    @patch("freecad.diff_wb._container.get_container")
+    def test_compare_command_calls_action_and_presenter(self, mock_get_container: Mock) -> None:
         """Verifies comparison flow from command to action to presenter."""
         # Setup
+        mock_container = MagicMock()
         mock_action = MagicMock()
         mock_presenter = MagicMock()
+        mock_container.compare_snapshots_action = mock_action
+        mock_container.diff_presenter = mock_presenter
+        mock_get_container.return_value = mock_container
 
         expected_diff_result = MagicMock()
         expected_result = CompareResult(
@@ -93,18 +97,23 @@ class TestCompareCommand:
         )
         mock_action.execute.return_value = expected_result
 
-        command = _CompareCommand(action=mock_action, presenter=mock_presenter)
+        command = _CompareCommand()
 
         # Note: The compare command will raise NotImplementedError because
         # snapshot selection is not yet implemented (Phase 8 UI)
         with pytest.raises(NotImplementedError, match="Phase 8"):
             command.Activated()
 
-    def test_compare_command_error_result_no_presenter_call(self) -> None:
+    @patch("freecad.diff_wb._container.get_container")
+    def test_compare_command_error_result_no_presenter_call(self, mock_get_container: Mock) -> None:
         """When result is error, presenter is not called."""
         # Setup
+        mock_container = MagicMock()
         mock_action = MagicMock()
         mock_presenter = MagicMock()
+        mock_container.compare_snapshots_action = mock_action
+        mock_container.diff_presenter = mock_presenter
+        mock_get_container.return_value = mock_container
 
         expected_result = CompareResult(
             success=False,
@@ -113,7 +122,7 @@ class TestCompareCommand:
         )
         mock_action.execute.return_value = expected_result
 
-        command = _CompareCommand(action=mock_action, presenter=mock_presenter)
+        command = _CompareCommand()
 
         # Note: The compare command will raise NotImplementedError because
         # snapshot selection is not yet implemented (Phase 8 UI)
@@ -123,14 +132,10 @@ class TestCompareCommand:
         # Verify presenter was never called since we can't get past the NotImplementedError
         mock_presenter.present_diff.assert_not_called()
 
-    @patch("freecad.diff_wb.entrypoints.commands._container")
-    def test_compare_command_resources_correct(self, mock_container: Mock) -> None:
+    def test_compare_command_resources_correct(self) -> None:
         """Menu text, tooltips, icons are correct."""
         # Setup
-        mock_container.translate.side_effect = lambda ctx, text: text
-        mock_action = MagicMock()
-        mock_presenter = MagicMock()
-        command = _CompareCommand(action=mock_action, presenter=mock_presenter)
+        command = _CompareCommand()
 
         # Execute
         resources = command.GetResources()
@@ -139,16 +144,14 @@ class TestCompareCommand:
         assert "MenuText" in resources
         assert "ToolTip" in resources
         assert "Pixmap" in resources
-        assert "Compare" in resources["MenuText"]
+        assert resources["MenuText"] == "Compare"
         assert "snapshot" in resources["ToolTip"].lower()
         assert "Compare.svg" in resources["Pixmap"]
 
     def test_is_active_returns_true(self) -> None:
         """Command is always active."""
         # Setup
-        mock_action = MagicMock()
-        mock_presenter = MagicMock()
-        command = _CompareCommand(action=mock_action, presenter=mock_presenter)
+        command = _CompareCommand()
 
         # Execute
         result = command.IsActive()
@@ -160,11 +163,9 @@ class TestCompareCommand:
 class TestSwapColumnsCommand:
     """Tests for _SwapColumnsCommand."""
 
-    @patch("freecad.diff_wb.entrypoints.commands._container")
-    def test_swap_columns_command_resources_correct(self, mock_container: Mock) -> None:
+    def test_swap_columns_command_resources_correct(self) -> None:
         """Menu text, tooltips, icons are correct."""
         # Setup
-        mock_container.translate.side_effect = lambda ctx, text: text
         command = _SwapColumnsCommand()
 
         # Execute
@@ -174,7 +175,7 @@ class TestSwapColumnsCommand:
         assert "MenuText" in resources
         assert "ToolTip" in resources
         assert "Pixmap" in resources
-        assert "Swap Columns" in resources["MenuText"]
+        assert resources["MenuText"] == "Swap Columns"
         assert "column" in resources["ToolTip"].lower()
         assert "SwapColumns.svg" in resources["Pixmap"]
 

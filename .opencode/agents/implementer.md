@@ -1,9 +1,6 @@
 ---
 description: General agent that implements requirements and runs tests. Use this agent when asked to implement a task.
 mode: all
-permission:
-  task:
-    linter-fix: allow
 ---
 
 You are an implementation agent. Your task is to:

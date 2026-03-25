@@ -8,10 +8,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from ...domain.diff.engine import DiffEngine
-from ...domain.logging import Logger
 from ...domain.snapshots.extractor import SnapshotExtractor
 from ...domain.snapshots.repository import InMemorySnapshotRepository
-from ...infrastructure.freecad.logger import FreeCADLogger
 from ...infrastructure.freecad.ports import AppPort, FreeCadContext, FreeCadPort, get_app_port, get_port
 from ...infrastructure.freecad.settings_repo import FreeCADSettingsRepository
 from ...ui.presenters.diff_presenter import DiffPresenter
@@ -113,8 +111,8 @@ def create_application_container(
     Args:
         ctx: FreeCAD runtime context
         snapshot_repo: Snapshot repository (created in init_gui.py)
-        diff_view: Optional view for diff display (Phase 8)
-        snapshot_view: Optional view for snapshot display (Phase 4)
+        diff_view: Optional view for diff display
+        snapshot_view: Optional view for snapshot display
         settings_repo: Optional settings repository (uses FreeCADSettingsRepository if None)
 
     Returns:
@@ -123,14 +121,13 @@ def create_application_container(
     # Get infrastructure adapters
     freecad_port = get_port(ctx)
     app_port = get_app_port(ctx)
-    logger: Logger = FreeCADLogger(freecad_port)
 
     # Use provided settings_repo or create default
     if settings_repo is None:
         settings_repo = FreeCADSettingsRepository(ctx)
 
     # Create domain services
-    extractor = SnapshotExtractor(logger=logger)
+    extractor = SnapshotExtractor()
     diff_engine = DiffEngine(settings_repo=settings_repo)
 
     # Create actions (application layer - pure orchestration)
@@ -144,13 +141,11 @@ def create_application_container(
         snapshot_repo=snapshot_repo,
         diff_engine=diff_engine,
         settings_repo=settings_repo,
-        logger=logger,
     )
 
     list_snapshots_action = ListSnapshotsAction(snapshot_repo=snapshot_repo)
 
     # Create presenters (UI layer - interface adapters)
-    # Note: For Phase 7, may use fake/None views until Phase 8
     snapshot_presenter = SnapshotPresenter(
         view=snapshot_view or NullSnapshotView(),
         list_snapshots_action=list_snapshots_action,

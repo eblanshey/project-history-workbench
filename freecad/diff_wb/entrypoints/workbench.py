@@ -9,8 +9,8 @@ and activate the workbench.
 
 import os
 
-from .._container import _container
 from ..resources import ICONPATH
+from ..utils import Log, set_logger
 
 
 try:
@@ -26,8 +26,6 @@ if Gui is not None:
     class DiffWorkbench(Gui.Workbench):
         """Workbench class for the Diff Workbench addon."""
 
-        MenuText = _container.translate("Workbench", "Diff Workbench")
-        ToolTip = _container.translate("Workbench", "Compare document snapshots")
         Icon = os.path.join(ICONPATH, "Logo.svg")
         toolbox = [
             "DiffTakeSnapshot",
@@ -37,28 +35,52 @@ if Gui is not None:
 
         def __init__(self):
             super().__init__()
+            self.MenuText = "Diff Workbench"
+            self.ToolTip = "Compare document snapshots"
             self._subwindow = None  # Store reference to MDI subwindow
-            self._snapshot_presenter = None  # Store reference to snapshot presenter for refresh
 
         def GetClassName(self) -> str:
             """Return the class name of the workbench."""
             return "Gui::PythonWorkbench"
 
         def Initialize(self) -> None:
-            """Called at first activation; import all commands."""
+            """Called at first activation; create container and register commands."""
             import FreeCAD as App  # pylint: disable=import-error
 
-            _container.log(_container.translate("Log", "Switching to diff_wb") + "\n")
+            from .._container import set_container
+            from ..application.di.container import create_application_container
+            from ..domain.snapshots.repository import InMemorySnapshotRepository
+            from ..entrypoints.commands import register_commands
+            from ..infrastructure.freecad.logger import FreeCADLogger
+            from ..infrastructure.freecad.ports import get_freecad_runtime_context
 
+            # Create runtime context
+            ctx = get_freecad_runtime_context()
+
+            # Create snapshot repository
+            snapshot_repo = InMemorySnapshotRepository()
+
+            # Create container (wires all actions/presenters)
+            container = create_application_container(ctx, snapshot_repo=snapshot_repo)
+
+            # Initialize global logger with FreeCAD logger
+            set_logger(FreeCADLogger(container._freecad_port))
+
+            # Make container globally available
+            set_container(container)
+
+            # Register commands
+            register_commands()
+
+            # Setup toolbar and menu
+            Log.info("Switching to diff_wb")
             qt_translate_noop = App.Qt.QT_TRANSLATE_NOOP
-
-            # NOTE: Context for these commands must be "Workbench"
             self.appendToolbar(qt_translate_noop("Workbench", "Diff Workbench"), self.toolbox)
             self.appendMenu(qt_translate_noop("Workbench", "Diff Workbench"), self.toolbox)
 
         def Activated(self) -> None:
             """Called when user switches to this workbench."""
-            _container.log(_container.translate("Log", "Workbench diff_wb activated.") + "\n")
+            Log.info("Workbench diff_wb activated.")
 
             # Create subwindow if it doesn't exist (was closed or never created)
             if self._subwindow is None:
@@ -71,7 +93,7 @@ if Gui is not None:
 
         def Deactivated(self) -> None:
             """Called when this workbench is deactivated."""
-            _container.log(_container.translate("Log", "Workbench diff_wb de-activated.") + "\n")
+            Log.info("Workbench diff_wb de-activated.")
 
             # Don't hide the subwindow - let it stay visible like other FreeCAD panels
             # This prevents interference with FreeCAD's default view management
@@ -80,13 +102,14 @@ if Gui is not None:
         def _create_diff_panel(self) -> None:
             """Create the 3-column diff panel as an MDI subwindow."""
             if getMainWindow is None:
-                _container.log("Warning: FreeCADGui not available\n")
+                Log.warning("FreeCADGui not available")
                 return
 
             try:
                 from PySide6.QtCore import Qt
                 from PySide6.QtWidgets import QMdiArea
 
+                from .._container import _container  # By now _container is set
                 from ..ui import DiffPanelView
                 from ..ui.presenters.snapshot_presenter import SnapshotPresenter
 
@@ -95,14 +118,15 @@ if Gui is not None:
                 mdi_area = main_window.findChild(QMdiArea)
 
                 if mdi_area is None:
-                    _container.log("Warning: Could not get MDI area\n")
+                    Log.warning("Could not get MDI area")
                     return
 
                 # Create panel
                 panel = DiffPanelView()
 
-                # Create presenter with the actual DiffPanelView and list_snapshots_action
-                self._snapshot_presenter = SnapshotPresenter(
+                # Update container's snapshot_presenter to use the real DiffPanelView
+                # This fixes the bug where commands were using NullSnapshotView instead of the actual UI
+                _container.snapshot_presenter = SnapshotPresenter(
                     view=panel,
                     list_snapshots_action=_container.list_snapshots_action,
                 )
@@ -124,19 +148,18 @@ if Gui is not None:
                 self._subwindow.show()
 
                 # Load snapshots after showing the panel
-                self._snapshot_presenter.load_snapshots()
+                _container.snapshot_presenter.load_snapshots()
 
                 # Connect destroyed signal to reset reference when window is closed
                 # QMdiSubWindow inherits from QWidget which inherits from QObject
                 self._subwindow.destroyed.connect(self._on_subwindow_closed)
             except Exception as e:
-                _container.log(f"ERROR creating diff panel: {e}\n")
                 import traceback
 
-                _container.log(traceback.format_exc() + "\n")
+                Log.error(f"ERROR creating diff panel: {e}")
+                Log.error(traceback.format_exc())
 
         def _on_subwindow_closed(self) -> None:
             """Called when the diff panel subwindow is closed."""
-            _container.log(_container.translate("Log", "Diff panel closed.") + "\n")
+            Log.info("Diff panel closed.")
             self._subwindow = None  # Reset reference so new one will be created on next activation
-            self._snapshot_presenter = None  # Reset presenter reference

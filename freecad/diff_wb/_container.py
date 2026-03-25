@@ -20,12 +20,11 @@ else:
 
 
 # Module-level variable for entry point compatibility.
-# This mirrors the _container from init_gui.py but can be set by tests.
-# IMPORTANT: _container is ALWAYS set by init_gui.py BEFORE any entry point modules
-# (workbench.py, commands.py) are imported. This ensures _container is never None
-# during normal FreeCAD operation. Tests set it via set_container() before importing
-# entry points. Initialized to None for module loading, but guaranteed to be set
-# before any entry point code executes.
+# This can be set by tests or by workbench.Initialize().
+# IMPORTANT: _container is set by workbench.Initialize() when the workbench is first
+# activated. It can also be set by tests via set_container() before importing entry
+# points. Initialized to None for module loading, but guaranteed to be set before
+# any command execution occurs during normal FreeCAD operation.
 _container: ApplicationContainer | None = None
 
 
@@ -42,12 +41,17 @@ def set_container(container: ApplicationContainer) -> None:
     _container = container
 
 
-def get_container() -> ApplicationContainer | None:
+def get_container() -> ApplicationContainer:
     """Get the current container.
 
     Returns:
-        The currently set container (always available after init_gui.py runs)
+        The currently set container
+
+    Raises:
+        RuntimeError: If container has not been initialized yet
     """
+    if _container is None:
+        raise RuntimeError("Container not initialized. Workbench must be activated first.")
     return _container
 
 

@@ -13,7 +13,6 @@ You are an orchestrator agent. Your sole responsibility is to delegate tasks to 
 ## Available Subagents
 
 - **implementer**: Implements code changes and features per task requirements
-- **linter-fix**: Runs linting, formatting, type checks, and auto-fixes
 - **reviewer**: Reviews code quality and architecture adherence  
 - **fc_plan**: Creates task plans (READ-ONLY mode)
 
@@ -92,8 +91,8 @@ Delegate to **reviewer** with:
 
 ### STEP 6: Final Quality Checks
 Run these in sequence:
-1. Delegate to **linter-fix** to ensure code quality
-2. After linter-fix completes, run the tests with `uv run pytest tests/`
+1. Run linting/formatting
+2. Run the tests with `uv run pytest tests/`
 
 **Decision point:**
 - If all checks pass → Task complete, inform user
@@ -133,6 +132,6 @@ After completion, confirm task is fully complete and inform user.
 Task is complete when ALL of these are true:
 - All phases in task file have all checklist items marked `- [x]`
 - Final reviewer validation approved the complete implementation
-- Final linter-fix reports no issues
+- Final linters/complexity reports no issues
 - Final test run shows all tests passing
 - Documentation is up to date

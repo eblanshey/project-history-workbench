@@ -80,7 +80,7 @@ class TestApplicationContainer:
         assert hasattr(compare_action, "_snapshot_repo")
         assert hasattr(compare_action, "_diff_engine")
         assert hasattr(compare_action, "_settings_repo")
-        assert hasattr(compare_action, "_logger")
+        # Note: logger is no longer injected; uses static Log methods
 
         # Verify ListSnapshotsAction dependencies
         list_action = container.list_snapshots_action

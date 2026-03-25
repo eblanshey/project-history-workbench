@@ -14,7 +14,6 @@ from freecad.diff_wb.domain.settings.repository import SettingsRepository
 from freecad.diff_wb.domain.snapshots.models import Snapshot
 from freecad.diff_wb.domain.snapshots.repository import InMemorySnapshotRepository
 from freecad.diff_wb.domain.tree.node import TreeNode
-from tests.fakes.fake_logger import FakeLogger
 
 
 class FakeSettingsRepository(SettingsRepository):
@@ -47,7 +46,6 @@ class TestCompareSnapshotsAction:
     def test_compare_snapshots_with_existing_snapshots(self) -> None:
         """Test successful comparison of two existing snapshots."""
         # Arrange
-        logger = FakeLogger()
         snapshot_repo = InMemorySnapshotRepository()
         settings_repo = FakeSettingsRepository()
         diff_engine = DiffEngine(settings_repo=settings_repo)
@@ -96,7 +94,6 @@ class TestCompareSnapshotsAction:
             snapshot_repo=snapshot_repo,
             diff_engine=diff_engine,
             settings_repo=settings_repo,
-            logger=logger,
         )
 
         # Act
@@ -124,7 +121,6 @@ class TestCompareSnapshotsAction:
     def test_compare_snapshots_old_not_found(self) -> None:
         """Test comparison when old snapshot doesn't exist."""
         # Arrange
-        logger = FakeLogger()
         snapshot_repo = InMemorySnapshotRepository()
         settings_repo = FakeSettingsRepository()
         diff_engine = DiffEngine(settings_repo=settings_repo)
@@ -142,7 +138,6 @@ class TestCompareSnapshotsAction:
             snapshot_repo=snapshot_repo,
             diff_engine=diff_engine,
             settings_repo=settings_repo,
-            logger=logger,
         )
 
         # Act - use non-existent old ID
@@ -156,7 +151,6 @@ class TestCompareSnapshotsAction:
     def test_compare_snapshots_new_not_found(self) -> None:
         """Test comparison when new snapshot doesn't exist."""
         # Arrange
-        logger = FakeLogger()
         snapshot_repo = InMemorySnapshotRepository()
         settings_repo = FakeSettingsRepository()
         diff_engine = DiffEngine(settings_repo=settings_repo)
@@ -174,7 +168,6 @@ class TestCompareSnapshotsAction:
             snapshot_repo=snapshot_repo,
             diff_engine=diff_engine,
             settings_repo=settings_repo,
-            logger=logger,
         )
 
         # Act - use non-existent new ID
@@ -188,7 +181,6 @@ class TestCompareSnapshotsAction:
     def test_compare_snapshots_empty_snapshots(self) -> None:
         """Test comparison of two empty snapshots."""
         # Arrange
-        logger = FakeLogger()
         snapshot_repo = InMemorySnapshotRepository()
         settings_repo = FakeSettingsRepository()
         diff_engine = DiffEngine(settings_repo=settings_repo)
@@ -214,7 +206,6 @@ class TestCompareSnapshotsAction:
             snapshot_repo=snapshot_repo,
             diff_engine=diff_engine,
             settings_repo=settings_repo,
-            logger=logger,
         )
 
         # Act
@@ -231,7 +222,6 @@ class TestCompareSnapshotsAction:
     def test_compare_snapshots_with_exclusions(self) -> None:
         """Test comparison respects exclusion settings."""
         # Arrange
-        logger = FakeLogger()
         snapshot_repo = InMemorySnapshotRepository()
         # Configure exclusions
         settings_repo = FakeSettingsRepository(
@@ -281,7 +271,6 @@ class TestCompareSnapshotsAction:
             snapshot_repo=snapshot_repo,
             diff_engine=diff_engine,
             settings_repo=settings_repo,
-            logger=logger,
         )
 
         # Act
@@ -297,7 +286,6 @@ class TestCompareSnapshotsAction:
     def test_compare_snapshots_detects_added_node(self) -> None:
         """Test that added nodes are detected in comparison."""
         # Arrange
-        logger = FakeLogger()
         snapshot_repo = InMemorySnapshotRepository()
         settings_repo = FakeSettingsRepository()
         diff_engine = DiffEngine(settings_repo=settings_repo)
@@ -353,7 +341,6 @@ class TestCompareSnapshotsAction:
             snapshot_repo=snapshot_repo,
             diff_engine=diff_engine,
             settings_repo=settings_repo,
-            logger=logger,
         )
 
         # Act
@@ -370,7 +357,6 @@ class TestCompareSnapshotsAction:
     def test_compare_snapshots_detects_deleted_node(self) -> None:
         """Test that deleted nodes are detected in comparison."""
         # Arrange
-        logger = FakeLogger()
         snapshot_repo = InMemorySnapshotRepository()
         settings_repo = FakeSettingsRepository()
         diff_engine = DiffEngine(settings_repo=settings_repo)
@@ -426,7 +412,6 @@ class TestCompareSnapshotsAction:
             snapshot_repo=snapshot_repo,
             diff_engine=diff_engine,
             settings_repo=settings_repo,
-            logger=logger,
         )
 
         # Act
@@ -443,7 +428,6 @@ class TestCompareSnapshotsAction:
     def test_compare_snapshots_multiple_changes(self) -> None:
         """Test detection of multiple nodes with different states."""
         # Arrange
-        logger = FakeLogger()
         snapshot_repo = InMemorySnapshotRepository()
         settings_repo = FakeSettingsRepository()
         diff_engine = DiffEngine(settings_repo=settings_repo)
@@ -534,7 +518,6 @@ class TestCompareSnapshotsAction:
             snapshot_repo=snapshot_repo,
             diff_engine=diff_engine,
             settings_repo=settings_repo,
-            logger=logger,
         )
 
         # Act
@@ -564,7 +547,6 @@ class TestCompareSnapshotsAction:
     def test_compare_snapshots_nested_children(self) -> None:
         """Test detection of changes in child nodes."""
         # Arrange
-        logger = FakeLogger()
         snapshot_repo = InMemorySnapshotRepository()
         settings_repo = FakeSettingsRepository()
         diff_engine = DiffEngine(settings_repo=settings_repo)
@@ -654,7 +636,6 @@ class TestCompareSnapshotsAction:
             snapshot_repo=snapshot_repo,
             diff_engine=diff_engine,
             settings_repo=settings_repo,
-            logger=logger,
         )
 
         # Act
@@ -685,7 +666,6 @@ class TestCompareSnapshotsAction:
     def test_compare_snapshots_property_value_changes(self) -> None:
         """Test detection of numeric and string property value differences."""
         # Arrange
-        logger = FakeLogger()
         snapshot_repo = InMemorySnapshotRepository()
         settings_repo = FakeSettingsRepository()
         diff_engine = DiffEngine(settings_repo=settings_repo)
@@ -742,7 +722,6 @@ class TestCompareSnapshotsAction:
             snapshot_repo=snapshot_repo,
             diff_engine=diff_engine,
             settings_repo=settings_repo,
-            logger=logger,
         )
 
         # Act

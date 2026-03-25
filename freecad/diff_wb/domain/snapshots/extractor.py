@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 # File responsibility: This module contains the SnapshotExtractor class which extracts
 # tree structure from FreeCAD documents and converts them to Snapshot domain models.
-# It uses Logger port for logging - implementation injected at runtime.
+# It uses the unified Log class from utils for logging.
 """Snapshot extraction from FreeCAD documents."""
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Protocol
 
-from ..logging import Logger
+from ...utils import Log
 from ..tree import Property, TreeNode
 
 
@@ -216,20 +216,13 @@ class SnapshotExtractor:
     """Extracts tree structure from FreeCAD documents.
 
     This class extracts the document tree structure from a live
-    FreeCAD document and converts it to Snapshot domain models. Uses Logger port
-    for logging - implementation injected at runtime.
-
-    Attributes:
-        _logger: Logger instance for logging operations
+    FreeCAD document and converts it to Snapshot domain models. Uses the
+    unified Log class from utils for logging.
     """
 
-    def __init__(self, logger: Logger):
-        """Initialize the extractor with a logger.
-
-        Args:
-            logger: Logger implementation to use for logging
-        """
-        self._logger = logger
+    def __init__(self) -> None:
+        """Initialize the extractor."""
+        pass
 
     def extract_tree(self, port: FreeCadPort | None = None) -> Snapshot:
         """Extract the document tree structure from the active FreeCAD document.
@@ -247,7 +240,7 @@ class SnapshotExtractor:
         from .models import Snapshot
 
         if port is None:
-            self._logger.info("No port provided, returning empty snapshot")
+            Log.info("No port provided, returning empty snapshot")
             return Snapshot(
                 snapshot_id=str(uuid.uuid4()), document_name="NoPort", timestamp=datetime.now(), root_nodes=[]
             )
@@ -256,7 +249,7 @@ class SnapshotExtractor:
 
         if doc is None:
             # No document open, return empty snapshot
-            self._logger.info("No document open, returning empty snapshot")
+            Log.info("No document open, returning empty snapshot")
             return Snapshot(
                 snapshot_id=str(uuid.uuid4()), document_name="NoDocument", timestamp=datetime.now(), root_nodes=[]
             )
@@ -271,7 +264,7 @@ class SnapshotExtractor:
             for obj in objects:
                 if not hasattr(obj, "Name"):
                     # Skip invalid objects
-                    self._logger.warning("Skipping object without Name attribute")
+                    Log.warning("Skipping object without Name attribute")
                     continue
 
                 node = _build_tree_node(obj, port, doc, "", is_root=True)
@@ -279,7 +272,7 @@ class SnapshotExtractor:
                     root_nodes.append(node)
 
         except Exception as e:
-            self._logger.error(f"Error extracting document tree: {e}")
+            Log.error(f"Error extracting document tree: {e}")
 
         # Use current time for timestamp
         timestamp = datetime.now()

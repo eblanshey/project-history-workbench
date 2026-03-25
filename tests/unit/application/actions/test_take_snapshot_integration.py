@@ -10,7 +10,6 @@ from freecad.diff_wb.application.actions.commands.take_snapshot import TakeSnaps
 from freecad.diff_wb.domain.snapshots.extractor import SnapshotExtractor
 from freecad.diff_wb.domain.snapshots.repository import InMemorySnapshotRepository
 from tests.fakes.fake_freecad_port import FakeFreeCadPort
-from tests.fakes.fake_logger import FakeLogger
 
 
 class TestTakeSnapshotAction:
@@ -19,11 +18,10 @@ class TestTakeSnapshotAction:
     def test_take_snapshot_with_valid_document(self):
         """Test successful snapshot creation with a valid document."""
         # Arrange
-        logger = FakeLogger()
         fake_doc = type("FakeDocument", (), {"Name": "TestDocument", "Objects": []})()
         fake_freecad_port = FakeFreeCadPort(active_document=fake_doc)
         snapshot_repo = InMemorySnapshotRepository()
-        extractor = SnapshotExtractor(logger=logger)
+        extractor = SnapshotExtractor()
 
         action = TakeSnapshotAction(
             freecad_port=fake_freecad_port,
@@ -43,10 +41,9 @@ class TestTakeSnapshotAction:
     def test_take_snapshot_with_no_document(self):
         """Test snapshot creation when no document is active."""
         # Arrange
-        logger = FakeLogger()
         fake_freecad_port = FakeFreeCadPort(active_document=None)
         snapshot_repo = InMemorySnapshotRepository()
-        extractor = SnapshotExtractor(logger=logger)
+        extractor = SnapshotExtractor()
 
         action = TakeSnapshotAction(
             freecad_port=fake_freecad_port,
@@ -66,11 +63,10 @@ class TestTakeSnapshotAction:
     def test_take_snapshot_auto_generates_name(self):
         """Test that snapshot name is auto-generated with timestamp when not provided."""
         # Arrange
-        logger = FakeLogger()
         fake_doc = type("FakeDocument", (), {"Name": "MyDoc", "Objects": []})()
         fake_freecad_port = FakeFreeCadPort(active_document=fake_doc)
         snapshot_repo = InMemorySnapshotRepository()
-        extractor = SnapshotExtractor(logger=logger)
+        extractor = SnapshotExtractor()
 
         action = TakeSnapshotAction(
             freecad_port=fake_freecad_port,
@@ -93,7 +89,6 @@ class TestTakeSnapshotAction:
     def test_take_snapshot_with_tree_nodes(self):
         """Test snapshot creation with actual tree nodes."""
         # Arrange
-        logger = FakeLogger()
 
         # Create a mock document with objects
         mock_obj = type(
@@ -110,7 +105,7 @@ class TestTakeSnapshotAction:
         fake_doc = type("FakeDocument", (), {"Name": "TestDoc", "Objects": [mock_obj]})()
         fake_freecad_port = FakeFreeCadPort(active_document=fake_doc)
         snapshot_repo = InMemorySnapshotRepository()
-        extractor = SnapshotExtractor(logger=logger)
+        extractor = SnapshotExtractor()
 
         action = TakeSnapshotAction(
             freecad_port=fake_freecad_port,
@@ -129,11 +124,10 @@ class TestTakeSnapshotAction:
     def test_take_snapshot_saves_to_repository(self):
         """Test that created snapshot is saved to repository."""
         # Arrange
-        logger = FakeLogger()
         fake_doc = type("FakeDocument", (), {"Name": "TestDoc", "Objects": []})()
         fake_freecad_port = FakeFreeCadPort(active_document=fake_doc)
         snapshot_repo = InMemorySnapshotRepository()
-        extractor = SnapshotExtractor(logger=logger)
+        extractor = SnapshotExtractor()
 
         action = TakeSnapshotAction(
             freecad_port=fake_freecad_port,
@@ -155,11 +149,10 @@ class TestTakeSnapshotAction:
     def test_take_snapshot_custom_name(self):
         """Test using a custom snapshot name."""
         # Arrange
-        logger = FakeLogger()
         fake_doc = type("FakeDocument", (), {"Name": "TestDoc", "Objects": []})()
         fake_freecad_port = FakeFreeCadPort(active_document=fake_doc)
         snapshot_repo = InMemorySnapshotRepository()
-        extractor = SnapshotExtractor(logger=logger)
+        extractor = SnapshotExtractor()
 
         action = TakeSnapshotAction(
             freecad_port=fake_freecad_port,

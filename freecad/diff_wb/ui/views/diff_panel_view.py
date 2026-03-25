@@ -21,14 +21,12 @@ from ..presenters.presentation_models import NodePresentation
 
 
 class DiffPanelView(QWidget):
-    """Empty 3-column diff panel view implementing DiffView and SnapshotView protocols.
+    """3-column diff panel view implementing DiffView and SnapshotView protocols.
 
     Provides a horizontal QSplitter with:
     - Left: Placeholder for snapshots list (visible)
     - Middle: QTreeWidget for diff tree (hidden/empty)
     - Right: QTableWidget for properties (hidden/empty)
-
-    Phase 8: Empty stubs - panel shows placeholder text only.
 
     Note: This class implements the DiffView and SnapshotView protocols through
     structural subtyping (duck typing) rather than explicit inheritance to avoid
@@ -137,13 +135,20 @@ class DiffPanelView(QWidget):
         return dt.strftime("%b %d, %Y %I:%M%p").replace(" 0", " ")
 
     def show_success(self, snapshot_name: str) -> None:
-        """Show success message after taking snapshot."""
-        # Phase 9: Implementation pending - will show success feedback
+        """Notify view of successful snapshot creation.
+
+        Logging is handled by the presenter to maintain separation of concerns.
+        This method can be extended in the future to provide UI feedback
+        (e.g., status bar message, notification) without depending on the container.
+
+        Args:
+            snapshot_name: The name of the created snapshot.
+        """
+        # No-op: logging handled by presenter. Future UI feedback can be added here.
         pass
 
     def show_error(self, error_message: str) -> None:
         """Show error message."""
-        # Phase 8: No implementation
         pass
 
     def show_loading(
@@ -152,16 +157,13 @@ class DiffPanelView(QWidget):
         **kwargs: Any,
     ) -> None:
         """Show loading indicator."""
-        # Phase 8: No implementation
         pass
 
-    # DiffView protocol methods (Phase 8 stubs)
+    # DiffView protocol methods
     def show_diff_tree(self, nodes: list[NodePresentation]) -> None:
         """Display the diff tree."""
-        # Phase 8: No implementation - tree stays hidden
         pass
 
     def show_summary(self, added: int, deleted: int, modified: int) -> None:
         """Display the diff summary counts."""
-        # Phase 8: No implementation
         pass
