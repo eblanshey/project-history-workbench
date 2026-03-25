@@ -5,6 +5,7 @@ It's the composition root for the application layer.
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 from ...domain.diff.engine import DiffEngine
 from ...domain.logging import Logger
@@ -38,6 +39,10 @@ class NullSnapshotView(SnapshotView):
         pass
 
     def show_loading(self, message: str | None = None) -> None:
+        """Do nothing - null object pattern."""
+        pass
+
+    def show_snapshots(self, snapshots: list[Any]) -> None:
         """Do nothing - null object pattern."""
         pass
 
@@ -100,6 +105,7 @@ def create_application_container(
     ctx: FreeCadContext,
     snapshot_repo: InMemorySnapshotRepository,
     diff_view: DiffView | None = None,
+    snapshot_view: SnapshotView | None = None,
     settings_repo: FreeCADSettingsRepository | None = None,
 ) -> ApplicationContainer:
     """Wire all application layer dependencies.
@@ -108,6 +114,7 @@ def create_application_container(
         ctx: FreeCAD runtime context
         snapshot_repo: Snapshot repository (created in init_gui.py)
         diff_view: Optional view for diff display (Phase 8)
+        snapshot_view: Optional view for snapshot display (Phase 4)
         settings_repo: Optional settings repository (uses FreeCADSettingsRepository if None)
 
     Returns:
@@ -144,7 +151,10 @@ def create_application_container(
 
     # Create presenters (UI layer - interface adapters)
     # Note: For Phase 7, may use fake/None views until Phase 8
-    snapshot_presenter = SnapshotPresenter(view=NullSnapshotView())
+    snapshot_presenter = SnapshotPresenter(
+        view=snapshot_view or NullSnapshotView(),
+        list_snapshots_action=list_snapshots_action,
+    )
     diff_presenter = DiffPresenter(view=diff_view) if diff_view else None
 
     return ApplicationContainer(

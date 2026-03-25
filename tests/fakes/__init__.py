@@ -12,6 +12,7 @@ from .fake_repositories import (
     InMemorySnapshotRepository,
 )
 from .fake_snapshot_view import FakeSnapshotView
+from .null_snapshot_view import NullSnapshotView
 
 
 __all__ = [
@@ -22,4 +23,5 @@ __all__ = [
     "FakeDiffView",
     "InMemorySnapshotRepository",
     "FakeSnapshotView",
+    "NullSnapshotView",
 ]

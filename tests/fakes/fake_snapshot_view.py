@@ -5,6 +5,7 @@ It follows the updated SnapshotView protocol where presenters pass raw data
 and views handle translation.
 """
 
+from freecad.diff_wb.application.actions.result_models import SnapshotSummary
 from freecad.diff_wb.ui.protocols.snapshot_view import SnapshotView
 
 
@@ -14,9 +15,10 @@ class FakeSnapshotView(SnapshotView):
     Captures method calls for verification in tests.
     """
 
-    def __init__(self):
-        self._call_log = []
-        self._last_call = None
+    def __init__(self) -> None:
+        self._call_log: list = []
+        self._last_call: dict | None = None
+        self._shown_snapshots: list[SnapshotSummary] = []
 
     def show_success(self, snapshot_name: str) -> None:
         """Capture success call instead of showing UI.
@@ -48,11 +50,28 @@ class FakeSnapshotView(SnapshotView):
         self._call_log.append(call)
         self._last_call = call
 
-    def clear_calls(self):
+    def show_snapshots(self, snapshots: list[SnapshotSummary]) -> None:
+        """Capture show_snapshots call instead of showing UI.
+
+        Args:
+            snapshots: List of snapshot summaries - view handles translation
+                and formatting for display.
+        """
+        call = {"method": "show_snapshots", "snapshots": snapshots}
+        self._call_log.append(call)
+        self._last_call = call
+        self._shown_snapshots = snapshots
+
+    def clear_calls(self) -> None:
         """Clear the call log."""
         self._call_log.clear()
         self._last_call = None
+        self._shown_snapshots = []
 
-    def get_call_count(self):
+    def get_call_count(self) -> int:
         """Return number of calls logged."""
         return len(self._call_log)
+
+    def get_shown_snapshots(self) -> list[SnapshotSummary]:
+        """Return the list of snapshots last shown."""
+        return self._shown_snapshots

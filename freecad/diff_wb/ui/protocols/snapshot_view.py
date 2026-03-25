@@ -20,6 +20,8 @@ Translation Strategy:
 
 from typing import Protocol
 
+from ...application.actions.result_models import SnapshotSummary
+
 
 __all__ = ["SnapshotView"]
 
@@ -29,8 +31,12 @@ class SnapshotView(Protocol):
 
     Implemented by Qt implementations in the UI views layer.
 
-    The view is responsible for translating messages and substituting
-    parameters. Presenters pass raw data only.
+    The view is responsible for:
+    1. Translating messages using templates from translation_strings.py
+    2. Substituting parameters using Python's % formatting or Qt placeholders
+    3. Formatting data for display (e.g., timestamps, counts)
+
+    Presenters pass raw data only and never format user-facing messages.
     """
 
     def show_success(self, snapshot_name: str) -> None:
@@ -57,4 +63,18 @@ class SnapshotView(Protocol):
         Args:
             message: Optional custom loading message. If None, use the
                 default from SNAPSHOT_LOADING_DEFAULT in translation_strings.py.
+        """
+
+    def show_snapshots(self, snapshots: list[SnapshotSummary]) -> None:
+        """Display list of available snapshots.
+
+        The view should populate a list widget with snapshot information,
+        including name, timestamp, and optionally node count. The view is
+        responsible for translating any messages and formatting timestamps
+        for display.
+
+        Args:
+            snapshots: List of snapshot summaries containing id, name,
+                created_at (ISO format), and node_count. The view should
+                sort by timestamp (newest first) and format for display.
         """

@@ -32,25 +32,25 @@ def main():
         print("ERROR: Could not find Pocket object!")
         sys.exit(1)
 
-    print(f"\n=== POCKET OBJECT ===")
+    print("\n=== POCKET OBJECT ===")
     print(f"Name: {pocket.Name}")
     print(f"TypeId: {pocket.TypeId}")
     print(f"Label: {pocket.Label}")
 
     # Check if getExpression method exists
-    print(f"\n--- Method Availability ---")
+    print("\n--- Method Availability ---")
     print(f"Has getExpression: {hasattr(pocket, 'getExpression')}")
     print(f"Has setExpression: {hasattr(pocket, 'setExpression')}")
     print(f"Has ExpressionEngine: {hasattr(pocket, 'ExpressionEngine')}")
 
     # Check ExpressionEngine
-    print(f"\n--- ExpressionEngine ---")
+    print("\n--- ExpressionEngine ---")
     expr_engine = getattr(pocket, "ExpressionEngine", [])
     print(f"ExpressionEngine value: {expr_engine}")
     print(f"ExpressionEngine type: {type(expr_engine)}")
 
     # Try to get expression for Length property using getExpression
-    print(f"\n--- Testing getExpression('Length') ---")
+    print("\n--- Testing getExpression('Length') ---")
     try:
         if hasattr(pocket, "getExpression"):
             expr = pocket.getExpression("Length")
@@ -61,7 +61,7 @@ def main():
         print(f"ERROR: {e}")
 
     # Parse ExpressionEngine manually
-    print(f"\n--- Parsing ExpressionEngine ---")
+    print("\n--- Parsing ExpressionEngine ---")
     if isinstance(expr_engine, list):
         for entry in expr_engine:
             print(f"  Entry: {entry}")
@@ -72,13 +72,13 @@ def main():
                 print(f"    Expression: {expression}")
 
     # Get actual Length value
-    print(f"\n--- Actual Property Value ---")
+    print("\n--- Actual Property Value ---")
     length_value = getattr(pocket, "Length", "N/A")
     print(f"Length value: {length_value}")
 
     # Check all objects for getExpression support
     print(f"\n{'=' * 80}")
-    print(f"=== ALL OBJECTS - getExpression SUPPORT ===")
+    print("=== ALL OBJECTS - getExpression SUPPORT ===")
     print(f"{'=' * 80}")
 
     for obj in doc.Objects:
@@ -93,7 +93,7 @@ def main():
             print(f"  ExpressionEngine: {expr_engine_val}")
 
     print(f"\n{'=' * 80}")
-    print(f"END OF EXPRESSION EXPLORATION")
+    print("END OF EXPRESSION EXPLORATION")
     print(f"{'=' * 80}")
 
 

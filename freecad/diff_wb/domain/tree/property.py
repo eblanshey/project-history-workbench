@@ -218,28 +218,28 @@ class Placement(PropertyHandler):
         """Extract Placement property from FreeCAD object.
 
         Args:
-            value: The FreeCAD object with Position and Rotation attributes
+            value: The FreeCAD Placement object with Base (position) and Rotation attributes
             expression: Optional expression that drives this value
 
         Returns:
             A Property instance with the extracted Placement value
 
         Raises:
-            ValueError: If the value is missing Position or Rotation attributes
+            ValueError: If the value is missing Base or Rotation attributes
         """
         try:
-            pos = getattr(value, "Position", None)
+            pos = getattr(value, "Base", None)
             rot = getattr(value, "Rotation", None)
             if not pos or not rot:
-                raise ValueError("Placement missing Position or Rotation")
+                raise ValueError("Placement missing Base or Rotation")
             return Property(
                 type_=PropertyType.PLACEMENT,
                 value=cls(
                     position=Vector(x=float(pos.x), y=float(pos.y), z=float(pos.z)),
                     rotation=Rotation(
-                        axis_x=float(rot.AxisX),
-                        axis_y=float(rot.AxisY),
-                        axis_z=float(rot.AxisZ),
+                        axis_x=float(rot.Axis.x),
+                        axis_y=float(rot.Axis.y),
+                        axis_z=float(rot.Axis.z),
                         angle_degrees=float(rot.Angle),
                     ),
                 ),

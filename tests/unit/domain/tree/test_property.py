@@ -215,14 +215,18 @@ class TestPlacementHandler:
     def test_placement_from_freecad_value(self):
         """Test Placement.from_freecad_value() converts FreeCAD object to Property."""
 
-        class MockRotation:
-            AxisX, AxisY, AxisZ, Angle = 0.0, 0.0, 1.0, 90.0
+        class MockAxis:
+            x, y, z = 0.0, 0.0, 1.0
 
-        class MockPosition:
+        class MockRotation:
+            Axis = MockAxis()
+            Angle = 90.0
+
+        class MockBase:
             x, y, z = 1.0, 2.0, 3.0
 
         class MockPlacement:
-            Position = MockPosition()
+            Base = MockBase()
             Rotation = MockRotation()
 
         prop = Placement.from_freecad_value(MockPlacement())
@@ -234,14 +238,18 @@ class TestPlacementHandler:
     def test_placement_from_freecad_value_with_expression(self):
         """Test Placement.from_freecad_value() with expression."""
 
-        class MockRotation:
-            AxisX, AxisY, AxisZ, Angle = 0.0, 0.0, 1.0, 45.0
+        class MockAxis:
+            x, y, z = 0.0, 0.0, 1.0
 
-        class MockPosition:
+        class MockRotation:
+            Axis = MockAxis()
+            Angle = 45.0
+
+        class MockBase:
             x, y, z = 0.0, 0.0, 0.0
 
         class MockPlacement:
-            Position = MockPosition()
+            Base = MockBase()
             Rotation = MockRotation()
 
         prop = Placement.from_freecad_value(MockPlacement(), expression="Body.Placement")

@@ -38,6 +38,7 @@ if Gui is not None:
         def __init__(self):
             super().__init__()
             self._subwindow = None  # Store reference to MDI subwindow
+            self._snapshot_presenter = None  # Store reference to snapshot presenter for refresh
 
         def GetClassName(self) -> str:
             """Return the class name of the workbench."""
@@ -74,6 +75,7 @@ if Gui is not None:
 
             # Don't hide the subwindow - let it stay visible like other FreeCAD panels
             # This prevents interference with FreeCAD's default view management
+            # Presenter reference is kept alive; cleaned up by _on_subwindow_closed if window closes
 
         def _create_diff_panel(self) -> None:
             """Create the 3-column diff panel as an MDI subwindow."""
@@ -86,6 +88,7 @@ if Gui is not None:
                 from PySide6.QtWidgets import QMdiArea
 
                 from ..ui import DiffPanelView
+                from ..ui.presenters.snapshot_presenter import SnapshotPresenter
 
                 # Get MDI area from FreeCAD's main window
                 main_window = getMainWindow()
@@ -97,6 +100,12 @@ if Gui is not None:
 
                 # Create panel
                 panel = DiffPanelView()
+
+                # Create presenter with the actual DiffPanelView and list_snapshots_action
+                self._snapshot_presenter = SnapshotPresenter(
+                    view=panel,
+                    list_snapshots_action=_container.list_snapshots_action,
+                )
 
                 # Add as subwindow (QMdiSubWindow created automatically)
                 # Do NOT call setParent - let FreeCAD handle it
@@ -114,6 +123,9 @@ if Gui is not None:
                 # Show normally (not maximized) to coexist with other MDI views
                 self._subwindow.show()
 
+                # Load snapshots after showing the panel
+                self._snapshot_presenter.load_snapshots()
+
                 # Connect destroyed signal to reset reference when window is closed
                 # QMdiSubWindow inherits from QWidget which inherits from QObject
                 self._subwindow.destroyed.connect(self._on_subwindow_closed)
@@ -127,3 +139,4 @@ if Gui is not None:
             """Called when the diff panel subwindow is closed."""
             _container.log(_container.translate("Log", "Diff panel closed.") + "\n")
             self._subwindow = None  # Reset reference so new one will be created on next activation
+            self._snapshot_presenter = None  # Reset presenter reference

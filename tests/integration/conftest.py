@@ -13,9 +13,13 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
+
+
+if TYPE_CHECKING:
+    from freecad.diff_wb.infrastructure.freecad.ports import FreeCadContext, GuiLike
 
 
 def pytest_configure(config: object) -> None:
@@ -54,7 +58,11 @@ def freecad_root() -> str:
 
 @pytest.fixture(scope="session")
 def project_root() -> Path:
-    """Return the project root directory."""
+    """Return the project root directory.
+
+    Returns:
+        Path to project root directory.
+    """
     return Path(__file__).parent.parent.parent
 
 
@@ -63,7 +71,7 @@ def freecad_app() -> Any:
     """Import and return the FreeCAD application module.
 
     Returns:
-        FreeCAD application module.
+        FreeCAD application module (typed as Any due to dynamic FreeCAD API).
 
     Raises:
         pytest.skip: If FreeCAD cannot be imported.
@@ -77,7 +85,7 @@ def freecad_app() -> Any:
 
 
 @pytest.fixture
-def freecad_gui(freecad_app) -> Any | None:
+def freecad_gui(freecad_app: Any) -> GuiLike | None:
     """Import and return the FreeCAD GUI module.
 
     Args:
@@ -89,13 +97,13 @@ def freecad_gui(freecad_app) -> Any | None:
     try:
         import FreeCADGui
 
-        return FreeCADGui
+        return FreeCADGui  # type: ignore[return-value]
     except ImportError:
         return None
 
 
 @pytest.fixture
-def freecad_context(freecad_app, freecad_gui) -> Any:
+def freecad_context(freecad_app: Any, freecad_gui: GuiLike | None) -> FreeCadContext:
     """Create a FreeCAD runtime context for testing.
 
     Args:
@@ -111,7 +119,7 @@ def freecad_context(freecad_app, freecad_gui) -> Any:
 
 
 @pytest.fixture
-def temp_document(freecad_app) -> Any:
+def temp_document(freecad_app: Any) -> object:
     """Create and yield a fresh FreeCAD document, cleaning up after test.
 
     Usage:
@@ -132,7 +140,7 @@ def temp_document(freecad_app) -> Any:
 
 
 @pytest.fixture
-def initialized_workbench(project_root) -> Any:
+def initialized_workbench(project_root: Path) -> Any:
     """Initialize the Diff Workbench and return the workbench instance.
 
     This fixture:
@@ -203,6 +211,6 @@ def initialized_workbench(project_root) -> Any:
     container_module.set_container(container)
 
     # Create workbench instance
-    wb = DiffWorkbench()
+    wb = DiffWorkbench()  # type: ignore[no-untyped-call]
 
     return wb

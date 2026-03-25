@@ -1,5 +1,6 @@
 """File responsibility: Diff panel view with 3-column layout, implementing DiffView and SnapshotView protocols."""
 
+from datetime import datetime
 from typing import Any
 
 from PySide6.QtCore import Qt
@@ -7,6 +8,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QListWidget,
+    QListWidgetItem,
     QSplitter,
     QTableWidget,
     QTreeWidget,
@@ -14,6 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ...application.actions.result_models import SnapshotSummary
 from ..presenters.presentation_models import NodePresentation
 
 
@@ -81,10 +84,61 @@ class DiffPanelView(QWidget):
 
         layout.addWidget(splitter)
 
-    # SnapshotView protocol methods (Phase 8 stubs)
+    # SnapshotView protocol methods
+    def show_snapshots(self, snapshots: list[SnapshotSummary]) -> None:
+        """Display list of available snapshots.
+
+        Populates the snapshot list widget with snapshot information, sorted by
+        timestamp (newest first). Each item displays the snapshot name and
+        formatted timestamp, with the snapshot ID stored in Qt.UserRole for
+        later selection.
+
+        Args:
+            snapshots: List of snapshot summaries containing id, name,
+                created_at (ISO format), and node_count.
+        """
+        # Clear existing items
+        self.snapshot_list.clear()
+
+        # Sort snapshots by timestamp (newest first)
+        sorted_snapshots = sorted(
+            snapshots,
+            key=lambda s: datetime.fromisoformat(s.created_at),
+            reverse=True,
+        )
+
+        # Add each snapshot to the list
+        for snapshot in sorted_snapshots:
+            # Format display text: "name - Month Day, Year Time"
+            display_text = f"{snapshot.name} - {self._format_timestamp(snapshot.created_at)}"
+
+            # Create list item
+            item = QListWidgetItem(display_text)
+
+            # Store snapshot ID in UserRole for later retrieval
+            item.setData(Qt.ItemDataRole.UserRole, snapshot.id)
+
+            # Add to list
+            self.snapshot_list.addItem(item)
+
+    def _format_timestamp(self, iso_string: str) -> str:
+        """Format ISO timestamp string for display.
+
+        Converts an ISO format timestamp (e.g., "2024-01-15T10:30:00") to a
+        human-readable format (e.g., "Jan 15, 2024 10:30 AM").
+
+        Args:
+            iso_string: ISO format timestamp string.
+
+        Returns:
+            Formatted timestamp string like "Jan 1, 2024 10:00 AM".
+        """
+        dt = datetime.fromisoformat(iso_string)
+        return dt.strftime("%b %d, %Y %I:%M%p").replace(" 0", " ")
+
     def show_success(self, snapshot_name: str) -> None:
         """Show success message after taking snapshot."""
-        # Phase 8: No implementation - will populate list in Phase 9
+        # Phase 9: Implementation pending - will show success feedback
         pass
 
     def show_error(self, error_message: str) -> None:

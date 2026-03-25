@@ -4,12 +4,15 @@ These tests verify that the DI container correctly wires all application
 layer dependencies together.
 """
 
+import pytest
+
 from freecad.diff_wb.application.di.container import (
     ApplicationContainer,
     create_application_container,
 )
 from freecad.diff_wb.domain.snapshots.repository import InMemorySnapshotRepository
 from freecad.diff_wb.infrastructure.freecad.ports import FreeCadContext
+from tests.fakes import FakeDiffView, FakeSnapshotView
 
 
 class TestApplicationContainer:
@@ -48,20 +51,6 @@ class TestApplicationContainer:
         # Setup
         ctx = FreeCadContext(app=None, gui=None)  # type: ignore
         snapshot_repo = InMemorySnapshotRepository()
-
-        # Create a fake diff view for testing
-        class FakeDiffView:
-            def show_loading(self) -> None:
-                pass
-
-            def show_diff_tree(self, nodes) -> None:  # type: ignore
-                pass
-
-            def show_summary(self, added, deleted, modified) -> None:  # type: ignore
-                pass
-
-            def show_error(self, message) -> None:  # type: ignore
-                pass
 
         fake_diff_view = FakeDiffView()
 
@@ -102,30 +91,6 @@ class TestApplicationContainer:
         _ctx = FreeCadContext(app=None, gui=None)  # type: ignore  # Setup for context
         _snapshot_repo = InMemorySnapshotRepository()  # Setup for snapshot repo
 
-        # Create fake views for testing
-        class FakeSnapshotView:
-            def show_success(self, snapshot_name) -> None:  # type: ignore
-                pass
-
-            def show_error(self, error_message) -> None:  # type: ignore
-                pass
-
-            def show_loading(self, message=None) -> None:  # type: ignore
-                pass
-
-        class FakeDiffView:
-            def show_loading(self) -> None:
-                pass
-
-            def show_diff_tree(self, nodes) -> None:  # type: ignore
-                pass
-
-            def show_summary(self, added, deleted, modified) -> None:  # type: ignore
-                pass
-
-            def show_error(self, message) -> None:  # type: ignore
-                pass
-
         fake_snapshot_view = FakeSnapshotView()
         fake_diff_view = FakeDiffView()
 
@@ -152,3 +117,49 @@ class TestApplicationContainer:
 
         # Verify
         assert isinstance(container, ApplicationContainer)
+
+    def test_container_accepts_snapshot_view_parameter(self) -> None:
+        """Container accepts snapshot_view parameter and passes it to SnapshotPresenter."""
+        # Setup
+        ctx = FreeCadContext(app=None, gui=None)  # type: ignore
+        snapshot_repo = InMemorySnapshotRepository()
+
+        fake_view = FakeSnapshotView()
+
+        # Execute with snapshot_view parameter
+        container = create_application_container(
+            ctx,
+            snapshot_repo,
+            snapshot_view=fake_view,
+        )
+
+        # Verify presenter was created with our view
+        assert container.snapshot_presenter is not None
+        assert container.snapshot_presenter._view is fake_view
+
+    def test_container_wires_list_snapshots_action_to_presenter(self) -> None:
+        """Container wires list_snapshots_action to SnapshotPresenter."""
+        # Setup
+        ctx = FreeCadContext(app=None, gui=None)  # type: ignore
+        snapshot_repo = InMemorySnapshotRepository()
+
+        fake_view = FakeSnapshotView()
+
+        # Execute
+        container = create_application_container(
+            ctx,
+            snapshot_repo,
+            snapshot_view=fake_view,
+        )
+
+        # Verify presenter has list_snapshots_action wired
+        assert container.snapshot_presenter._list_snapshots_action is not None
+
+        # Verify we can call load_snapshots without error
+        try:
+            container.snapshot_presenter.load_snapshots()
+        except Exception as e:
+            pytest.fail(f"load_snapshots() raised exception: {e}")
+
+        # Verify empty repository shows 0 snapshots
+        assert len(fake_view.get_shown_snapshots()) == 0

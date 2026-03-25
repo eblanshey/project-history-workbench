@@ -8,6 +8,7 @@ Run with: ./run_with_freecad.sh python scripts/verify_snapshot_extraction.py
 """
 
 import FreeCAD
+
 from freecad.diff_wb.domain.snapshots.models import Snapshot
 from freecad.diff_wb.domain.tree.node import TreeNode
 from freecad.diff_wb.domain.tree.property import Property, PropertyType
@@ -250,8 +251,8 @@ def test_snapshot_domain_model(doc: FreeCAD.Document) -> None:
         root_nodes.append(node)
 
     # Create Snapshot
-    from datetime import datetime
     import uuid
+    from datetime import datetime
 
     snapshot = Snapshot(
         snapshot_id=str(uuid.uuid4()), document_name=doc.Name, timestamp=datetime.now(), root_nodes=root_nodes
