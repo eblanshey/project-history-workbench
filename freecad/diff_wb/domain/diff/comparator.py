@@ -18,6 +18,7 @@
 
 from dataclasses import dataclass
 
+from ...utils import Log
 from ..tree.node import TreeNode
 from ..tree.property import Property
 from .models import DiffState, NodeDiff, PropertyDiff
@@ -216,166 +217,181 @@ class TreeComparator:
             _force_state=DiffState.DELETED,
         )
 
-    def _reconstruct_hierarchy(
-        self,
-        node_diffs: list[NodeDiff],
-        old_index: dict[str, TreeNode] | None = None,
-        new_index: dict[str, TreeNode] | None = None,
-    ) -> list[NodeDiff]:
-        """Reconstruct hierarchical structure from a flat list of NodeDiff objects.
+    def _get_parent_path(self, child_path: str) -> str:
+        """Extract the parent path while preserving the leading slash format.
 
-        Takes a list of NodeDiff objects (which may be at various depths) and
-        organizes them into a proper tree structure based on path hierarchy.
-        The result is sorted so that parents appear before their children,
-        and siblings are sorted alphabetically.
-
-        If a parent node is missing from the diff list but is needed to maintain
-        hierarchy (e.g., a child has changes but the parent doesn't), placeholder
-        parent nodes with UNCHANGED state are inserted using type information from
-        the provided indices.
+        This method handles both path formats (with or without leading slashes)
+        and returns the parent path in the same format as the input.
 
         Args:
-            node_diffs: Flat list of NodeDiff objects
-            old_index: Optional path index for the old snapshot (for placeholder types)
-            new_index: Optional path index for the new snapshot (for placeholder types)
+            child_path: The child path string (e.g., "/Body/Pad" or "Body/Pad")
 
         Returns:
-            Hierarchical list of NodeDiff objects with children properly nested
-            and sorted in tree order (parents before children, siblings alphabetically)
+            The parent path string, or empty string if child_path is a root node
+
+        Examples:
+            >>> _get_parent_path("/Body/Pad")
+            '/Body'
+            >>> _get_parent_path("Body/Pad")
+            'Body'
+            >>> _get_parent_path("/Part")
+            ''
+            >>> _get_parent_path("Part")
+            ''
+            >>> _get_parent_path("/Body/Pad/Sketch")
+            '/Body/Pad'
         """
-        if not node_diffs:
-            return []
+        has_leading_slash = child_path.startswith("/")
+        parts = [p for p in child_path.split("/") if p]  # Remove empty segments
+        if len(parts) <= 1:
+            return ""  # Root node, no parent
+        parent_parts = parts[:-1]
+        parent_path = "/".join(parent_parts)
+        return "/" + parent_path if has_leading_slash else parent_path
 
-        # Sort node_diffs by path to ensure consistent ordering:
-        # - Parents before children (shorter paths first when they are prefixes)
-        # - Siblings sorted alphabetically
-        sorted_node_diffs = sorted(node_diffs, key=lambda d: d.path.split("/"))
-
-        # Build a lookup dictionary for quick access
-        diff_by_path: dict[str, NodeDiff] = {diff.path: diff for diff in sorted_node_diffs}
-
-        # Track which nodes have been added as children
-        has_parent: set[str] = set()
-
-        # First pass: establish parent-child relationships
-        # Iterate over sorted_node_diffs to ensure children are added in sorted order
-        for diff in sorted_node_diffs:
-            path_parts = diff.path.split("/")
-            if len(path_parts) > 1:
-                # This node has a potential parent
-                parent_path = "/".join(path_parts[:-1])
-                if parent_path in diff_by_path:
-                    parent_diff = diff_by_path[parent_path]
-                    # Add this node as a child of its parent
-                    # Since NodeDiff is frozen, we need to use object.__setattr__
-                    object.__setattr__(parent_diff, "children", parent_diff.children + [diff])
-                    has_parent.add(diff.path)
-
-        # Second pass: collect root nodes (nodes without parents in the diff list)
-        # Use sorted_node_diffs to maintain consistent ordering
-        root_diffs: list[NodeDiff] = []
-        for diff in sorted_node_diffs:
-            if diff.path not in has_parent:
-                root_diffs.append(diff)
-
-        # Third pass: Insert placeholder parent nodes for missing ancestors
-        # This ensures children are properly nested under their parents even when
-        # the parents themselves have no changes
-        root_diffs = self._insert_missing_ancestors(root_diffs, diff_by_path, old_index or {}, new_index or {})
-
-        return root_diffs
-
-    def _insert_missing_ancestors(
+    def _ensure_placeholder(
         self,
-        root_diffs: list[NodeDiff],
-        existing_diffs: dict[str, NodeDiff],
+        path: str,
         old_index: dict[str, TreeNode],
         new_index: dict[str, TreeNode],
-    ) -> list[NodeDiff]:
-        """Insert placeholder parent nodes for missing ancestors.
+        diff_by_path: dict[str, NodeDiff],
+        has_parent: set[str],
+    ) -> None:
+        """Recursively ensure a placeholder exists for a given path.
 
-        When a node has changes but its parent doesn't (and thus isn't in the diff
-        list), this method creates placeholder parent nodes with UNCHANGED state
-        to preserve the hierarchy. The type_id for placeholders is retrieved from
-        the old/new indices.
+        This method creates placeholder NodeDiff objects with UNCHANGED state for
+        paths that don't exist in the diff registry but are needed to maintain
+        hierarchy. It recursively ensures parent placeholders exist first.
 
         Args:
-            root_diffs: Current list of root NodeDiff objects
-            existing_diffs: Dictionary of all existing NodeDiff by path
+            path: The path to ensure exists in diff_by_path
+            old_index: Path index for the old snapshot (for type_id lookup)
+            new_index: Path index for the new snapshot (for type_id lookup)
+            diff_by_path: Registry of existing NodeDiff objects by path
+            has_parent: Set of paths that have been linked to a parent
+        """
+        # If path already exists, nothing to do
+        if path in diff_by_path:
+            return
+
+        # Recursively ensure parent exists first
+        parent_path = self._get_parent_path(path)
+        if parent_path:
+            self._ensure_placeholder(parent_path, old_index, new_index, diff_by_path, has_parent)
+
+        # Look up type_id from old or new index
+        old_node = old_index.get(path)
+        new_node = new_index.get(path)
+        type_id = old_node.type_id if old_node else (new_node.type_id if new_node else "Unknown")
+
+        # Create placeholder with UNCHANGED state
+        placeholder = NodeDiff(
+            path=path,
+            type_id=type_id,
+            property_diffs=[],
+            children=[],
+            _force_state=DiffState.UNCHANGED,
+        )
+        diff_by_path[path] = placeholder
+
+        # Link to parent if parent exists
+        if parent_path and parent_path in diff_by_path:
+            parent_diff = diff_by_path[parent_path]
+            object.__setattr__(parent_diff, "children", parent_diff.children + [placeholder])
+            has_parent.add(path)
+
+    def _build_hierarchical_diffs(
+        self,
+        sorted_paths: list[str],
+        added_paths: set[str],
+        deleted_paths: set[str],
+        old_index: dict[str, TreeNode],
+        new_index: dict[str, TreeNode],
+        excluded_properties: list[str],
+    ) -> tuple[dict[str, NodeDiff], set[str]]:
+        """Build hierarchical diffs in a single pass.
+
+        This method processes paths in sorted order (parents before children) and
+        builds the hierarchy incrementally as each NodeDiff is created. For each path:
+        1. Create the NodeDiff (added, deleted, or modified)
+        2. Ensure parent placeholder exists if needed
+        3. Link child to parent
+        4. Register in the diff registry
+
+        Args:
+            sorted_paths: List of paths sorted so parents come before children
+            added_paths: Set of paths that are additions
+            deleted_paths: Set of paths that are deletions
             old_index: Path index for the old snapshot
             new_index: Path index for the new snapshot
+            excluded_properties: List of property names to exclude from comparison
 
         Returns:
-            Updated list of root NodeDiff objects with placeholder ancestors inserted
+            Tuple of (diff_by_path dict, has_parent set)
         """
-        # Collect all paths that need to be represented (from current root_diffs)
-        all_paths: set[str] = set()
-
-        def collect_paths(nodes: list[NodeDiff]) -> None:
-            for node in nodes:
-                all_paths.add(node.path)
-                collect_paths(node.children)
-
-        collect_paths(root_diffs)
-
-        # For each path, check if all ancestors exist; if not, create placeholders
-        def ensure_ancestor_path(path: str) -> None:
-            """Ensure all ancestors of a path exist by creating placeholders."""
-            path_parts = [p for p in path.split("/") if p]  # Filter out empty segments
-            if len(path_parts) <= 1:
-                return
-
-            # Check each ancestor from root down to direct parent
-            for i in range(1, len(path_parts)):
-                ancestor_path = "/".join(path_parts[:i])
-                if ancestor_path not in all_paths and ancestor_path not in existing_diffs:
-                    # Need to create a placeholder for this ancestor
-                    # Get type_id from old or new index
-                    old_node = old_index.get(ancestor_path)
-                    new_node = new_index.get(ancestor_path)
-                    type_id = old_node.type_id if old_node else (new_node.type_id if new_node else "Unknown")
-
-                    placeholder = NodeDiff(
-                        path=ancestor_path,
-                        type_id=type_id,
-                        property_diffs=[],
-                        children=[],
-                        _force_state=DiffState.UNCHANGED,
-                    )
-                    existing_diffs[ancestor_path] = placeholder
-                    all_paths.add(ancestor_path)
-
-        # Process all paths to ensure ancestors exist
-        paths_to_process = list(all_paths)
-        for path in paths_to_process:
-            ensure_ancestor_path(path)
-
-        # Rebuild the hierarchy with placeholders included
-        # Re-sort to include new placeholders
-        all_diffs = list(existing_diffs.values())
-        sorted_diffs = sorted(all_diffs, key=lambda d: d.path.split("/"))
-
-        # Clear children and rebuild relationships
-        for diff in sorted_diffs:
-            object.__setattr__(diff, "children", [])
-
+        diff_by_path: dict[str, NodeDiff] = {}
         has_parent: set[str] = set()
-        for diff in sorted_diffs:
-            path_parts = diff.path.split("/")
-            if len(path_parts) > 1:
-                parent_path = "/".join(path_parts[:-1])
-                if parent_path in existing_diffs:
-                    parent_diff = existing_diffs[parent_path]
-                    object.__setattr__(parent_diff, "children", parent_diff.children + [diff])
-                    has_parent.add(diff.path)
 
-        # Collect final root nodes
-        final_roots: list[NodeDiff] = []
-        for diff in sorted_diffs:
-            if diff.path not in has_parent:
-                final_roots.append(diff)
+        Log.info(f"[COMPARATOR] Building hierarchical diffs for {len(sorted_paths)} paths")
+        Log.info(f"[COMPARATOR] Added paths: {added_paths}")
+        Log.info(f"[COMPARATOR] Deleted paths: {deleted_paths}")
 
-        return final_roots
+        for path in sorted_paths:
+            Log.info(f"[COMPARATOR] Processing path: {path}")
+            # a. CREATE NodeDiff for this path
+            node_diff: NodeDiff
+            if path in added_paths:
+                node = new_index[path]
+                node_diff = self._create_added_node_diff(path, node, excluded_properties)
+                Log.info(f"[COMPARATOR]   Created ADDED node: {path}, type={node_diff.type_id}")
+            elif path in deleted_paths:
+                node = old_index[path]
+                node_diff = self._create_deleted_node_diff(path, node, excluded_properties)
+                Log.info(f"[COMPARATOR]   Created DELETED node: {path}, type={node_diff.type_id}")
+            else:  # common path with changes
+                result = self._compare_nodes_by_path(path, old_index, new_index, excluded_properties)
+                # If no changes, skip (shouldn't happen for common_paths in sorted_paths, but safety check)
+                if result is None:
+                    Log.info(f"[COMPARATOR]   Skipping unchanged path: {path}")
+                    continue
+                node_diff = result
+                prop_count = len(node_diff.property_diffs)
+                Log.info(f"[COMPARATOR]   Created MODIFIED node: {path}, type={node_diff.type_id}, props={prop_count}")
+
+            # b. ENSURE PARENT EXISTS
+            parent_path = self._get_parent_path(path)
+            Log.info(f"[COMPARATOR]   Parent path for {path}: '{parent_path}'")
+            if parent_path:
+                if parent_path not in diff_by_path:
+                    Log.info(f"[COMPARATOR]   Parent '{parent_path}' not found, creating placeholder")
+                    self._ensure_placeholder(parent_path, old_index, new_index, diff_by_path, has_parent)
+                else:
+                    Log.info(f"[COMPARATOR]   Parent '{parent_path}' already exists in diff_by_path")
+
+                # c. LINK CHILD TO PARENT
+                if parent_path in diff_by_path:
+                    parent = diff_by_path[parent_path]
+                    object.__setattr__(parent, "children", parent.children + [node_diff])
+                    has_parent.add(path)
+                    Log.info(
+                        f"[COMPARATOR]   Linked {path} to parent {parent_path} "
+                        f"(parent now has {len(parent.children)} children)"
+                    )
+                else:
+                    Log.warning(
+                        f"[COMPARATOR]   WARNING: Parent '{parent_path}' still not in diff_by_path "
+                        "after ensure_placeholder!"
+                    )
+
+            # d. REGISTER IN INDEX
+            diff_by_path[path] = node_diff
+            Log.info(f"[COMPARATOR]   Registered {path} in diff_by_path (total: {len(diff_by_path)})")
+
+        Log.info(f"[COMPARATOR] Final: {len(diff_by_path)} nodes in diff_by_path, {len(has_parent)} have parents")
+        roots = [d for d in diff_by_path.values() if d.path not in has_parent]
+        Log.info(f"[COMPARATOR] Root nodes: {[r.path for r in roots]}")
+
+        return diff_by_path, has_parent
 
     def compare_snapshots(
         self,
@@ -389,6 +405,14 @@ class TreeComparator:
         indexing to achieve O(n+m) performance where n and m are the number
         of nodes in each snapshot.
 
+        The algorithm:
+        1. Build path indices for both snapshots
+        2. Find added, deleted, and common paths
+        3. For common paths, compare nodes and collect those with changes
+        4. Sort all changed paths (ensures parents before children)
+        5. Single-pass iteration: create diffs, ensure parents exist, link children
+        6. Return root nodes (those without parents)
+
         Args:
             old_root_nodes: Root nodes of the old snapshot
             new_root_nodes: Root nodes of the new snapshot
@@ -401,38 +425,47 @@ class TreeComparator:
         old_index = self._build_path_index(old_root_nodes)
         new_index = self._build_path_index(new_root_nodes)
 
+        Log.info(f"[COMPARATOR] Old index has {len(old_index)} paths: {sorted(old_index.keys())}")
+        Log.info(f"[COMPARATOR] New index has {len(new_index)} paths: {sorted(new_index.keys())}")
+
         # Find added, deleted, and common paths
         added_paths = self._find_added_paths(old_index, new_index)
         deleted_paths = self._find_deleted_paths(old_index, new_index)
         common_paths = self._find_common_paths(old_index, new_index)
 
-        # Collect all NodeDiff objects
-        all_node_diffs: list[NodeDiff] = []
+        Log.info(f"[COMPARATOR] Added: {added_paths}")
+        Log.info(f"[COMPARATOR] Deleted: {deleted_paths}")
+        Log.info(f"[COMPARATOR] Common: {len(common_paths)} paths")
 
-        # Create NodeDiff for added paths
-        for path in added_paths:
-            node = new_index[path]
-            all_node_diffs.append(self._create_added_node_diff(path, node, excluded_properties))
-
-        # Create NodeDiff for deleted paths
-        for path in deleted_paths:
-            node = old_index[path]
-            all_node_diffs.append(self._create_deleted_node_diff(path, node, excluded_properties))
-
-        # Compare common paths
+        # COLLECT ALL CHANGED PATHS
+        all_paths: set[str] = added_paths | deleted_paths
         for path in common_paths:
             node_diff = self._compare_nodes_by_path(path, old_index, new_index, excluded_properties)
             if node_diff is not None:
-                all_node_diffs.append(node_diff)
+                all_paths.add(path)
 
-        # Reconstruct hierarchy (pass indices for placeholder type resolution)
-        hierarchical_diffs = self._reconstruct_hierarchy(all_node_diffs, old_index, new_index)
+        Log.info(f"[COMPARATOR] All changed paths ({len(all_paths)}): {sorted(all_paths)}")
+
+        # SORT PATHS (ensures parents before children)
+        sorted_paths = sorted(all_paths, key=lambda p: p.split("/"))
+        Log.info(f"[COMPARATOR] Sorted paths: {sorted_paths}")
+
+        # SINGLE-PASS ITERATION to build hierarchical diffs
+        diff_by_path, has_parent = self._build_hierarchical_diffs(
+            sorted_paths, added_paths, deleted_paths, old_index, new_index, excluded_properties
+        )
+
+        # RETURN ROOT NODES (nodes without parents)
+        roots = [diff for diff in diff_by_path.values() if diff.path not in has_parent]
+        roots = sorted(roots, key=lambda d: d.path.split("/"))
+
+        Log.info(f"[COMPARATOR] Returning {len(roots)} root nodes: {[r.path for r in roots]}")
 
         return TreeDiffResult(
             added_paths=added_paths,
             deleted_paths=deleted_paths,
             common_paths=common_paths,
-            node_diffs=hierarchical_diffs,
+            node_diffs=roots,
         )
 
 

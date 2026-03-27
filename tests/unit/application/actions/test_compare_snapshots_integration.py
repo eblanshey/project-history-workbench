@@ -62,7 +62,7 @@ class TestCompareSnapshotsAction:
                     name="Part",
                     type_id="Part::Feature",
                     label="OldPart",
-                    path="/Part",
+                    path="Part",
                     is_root=True,
                     properties={"Label": Property(type_=PropertyType.STRING, value="OldPart")},
                     children=[],
@@ -81,7 +81,7 @@ class TestCompareSnapshotsAction:
                     name="Part",
                     type_id="Part::Feature",
                     label="NewPart",
-                    path="/Part",
+                    path="Part",
                     is_root=True,
                     properties={"Label": Property(type_=PropertyType.STRING, value="NewPart")},
                     children=[],
@@ -106,7 +106,7 @@ class TestCompareSnapshotsAction:
         # Verify the diff detected the Label property change
         assert len(result.diff_result.node_diffs) == 1
         node_diff = result.diff_result.node_diffs[0]
-        assert node_diff.path == "/Part"
+        assert node_diff.path == "Part"
         assert node_diff.state == DiffState.MODIFIED
         # Verify property changes
         assert len(node_diff.property_diffs) == 1
@@ -240,7 +240,7 @@ class TestCompareSnapshotsAction:
                     name="Origin",
                     type_id="App::Origin",  # Should be excluded
                     label="Origin",
-                    path="/Origin",
+                    path="Origin",
                     is_root=True,
                     properties={},
                     children=[],
@@ -258,7 +258,7 @@ class TestCompareSnapshotsAction:
                     name="Origin",
                     type_id="App::Origin",  # Should be excluded
                     label="Origin",
-                    path="/Origin",
+                    path="Origin",
                     is_root=True,
                     properties={},
                     children=[],
@@ -300,7 +300,7 @@ class TestCompareSnapshotsAction:
                     name="ExistingPart",
                     type_id="Part::Feature",
                     label="ExistingPart",
-                    path="/ExistingPart",
+                    path="ExistingPart",
                     is_root=True,
                     properties={},
                     children=[],
@@ -319,7 +319,7 @@ class TestCompareSnapshotsAction:
                     name="ExistingPart",
                     type_id="Part::Feature",
                     label="ExistingPart",
-                    path="/ExistingPart",
+                    path="ExistingPart",
                     is_root=True,
                     properties={},
                     children=[],
@@ -328,7 +328,7 @@ class TestCompareSnapshotsAction:
                     name="NewPart",
                     type_id="Part::Feature",
                     label="NewPart",
-                    path="/NewPart",
+                    path="NewPart",
                     is_root=True,
                     properties={},
                     children=[],
@@ -350,7 +350,7 @@ class TestCompareSnapshotsAction:
         assert result.success is True
         assert result.diff_result is not None
         # Find the NewPart node
-        new_part_diffs = [n for n in result.diff_result.node_diffs if n.path == "/NewPart"]
+        new_part_diffs = [n for n in result.diff_result.node_diffs if n.path == "NewPart"]
         assert len(new_part_diffs) == 1
         assert new_part_diffs[0].state == DiffState.ADDED
 
@@ -371,7 +371,7 @@ class TestCompareSnapshotsAction:
                     name="ExistingPart",
                     type_id="Part::Feature",
                     label="ExistingPart",
-                    path="/ExistingPart",
+                    path="ExistingPart",
                     is_root=True,
                     properties={},
                     children=[],
@@ -380,7 +380,7 @@ class TestCompareSnapshotsAction:
                     name="DeletedPart",
                     type_id="Part::Feature",
                     label="DeletedPart",
-                    path="/DeletedPart",
+                    path="DeletedPart",
                     is_root=True,
                     properties={},
                     children=[],
@@ -399,7 +399,7 @@ class TestCompareSnapshotsAction:
                     name="ExistingPart",
                     type_id="Part::Feature",
                     label="ExistingPart",
-                    path="/ExistingPart",
+                    path="ExistingPart",
                     is_root=True,
                     properties={},
                     children=[],
@@ -421,7 +421,7 @@ class TestCompareSnapshotsAction:
         assert result.success is True
         assert result.diff_result is not None
         # Find the DeletedPart node
-        deleted_part_diffs = [n for n in result.diff_result.node_diffs if n.path == "/DeletedPart"]
+        deleted_part_diffs = [n for n in result.diff_result.node_diffs if n.path == "DeletedPart"]
         assert len(deleted_part_diffs) == 1
         assert deleted_part_diffs[0].state == DiffState.DELETED
 
@@ -445,7 +445,7 @@ class TestCompareSnapshotsAction:
                     name="UnchangedPart",
                     type_id="Part::Feature",
                     label="UnchangedPart",
-                    path="/UnchangedPart",
+                    path="UnchangedPart",
                     is_root=True,
                     properties={"Label": Property(type_=PropertyType.STRING, value="UnchangedPart")},
                     children=[],
@@ -455,7 +455,7 @@ class TestCompareSnapshotsAction:
                     name="ModifiedPart",
                     type_id="Part::Feature",
                     label="ModifiedPart",
-                    path="/ModifiedPart",
+                    path="ModifiedPart",
                     is_root=True,
                     properties={"Label": Property(type_=PropertyType.STRING, value="ModifiedPart")},
                     children=[],
@@ -465,7 +465,7 @@ class TestCompareSnapshotsAction:
                     name="DeletedPart",
                     type_id="Part::Feature",
                     label="DeletedPart",
-                    path="/DeletedPart",
+                    path="DeletedPart",
                     is_root=True,
                     properties={},
                     children=[],
@@ -485,7 +485,7 @@ class TestCompareSnapshotsAction:
                     name="UnchangedPart",
                     type_id="Part::Feature",
                     label="UnchangedPart",
-                    path="/UnchangedPart",
+                    path="UnchangedPart",
                     is_root=True,
                     properties={"Label": Property(type_=PropertyType.STRING, value="UnchangedPart")},
                     children=[],
@@ -495,7 +495,7 @@ class TestCompareSnapshotsAction:
                     name="ModifiedPart",
                     type_id="Part::Feature",
                     label="NewLabel",
-                    path="/ModifiedPart",
+                    path="ModifiedPart",
                     is_root=True,
                     properties={"Label": Property(type_=PropertyType.STRING, value="NewLabel")},
                     children=[],
@@ -505,7 +505,7 @@ class TestCompareSnapshotsAction:
                     name="AddedPart",
                     type_id="Part::Feature",
                     label="AddedPart",
-                    path="/AddedPart",
+                    path="AddedPart",
                     is_root=True,
                     properties={},
                     children=[],
@@ -534,13 +534,13 @@ class TestCompareSnapshotsAction:
         assert result.diff_result.summary.unchanged_nodes == 0
         # Verify specific changes - total node diffs should be 3 (added, deleted, modified)
         assert len(result.diff_result.node_diffs) == 3
-        modified_parts = [n for n in result.diff_result.node_diffs if n.path == "/ModifiedPart"]
+        modified_parts = [n for n in result.diff_result.node_diffs if n.path == "ModifiedPart"]
         assert len(modified_parts) == 1
         assert modified_parts[0].state == DiffState.MODIFIED
-        added_parts = [n for n in result.diff_result.node_diffs if n.path == "/AddedPart"]
+        added_parts = [n for n in result.diff_result.node_diffs if n.path == "AddedPart"]
         assert len(added_parts) == 1
         assert added_parts[0].state == DiffState.ADDED
-        deleted_parts = [n for n in result.diff_result.node_diffs if n.path == "/DeletedPart"]
+        deleted_parts = [n for n in result.diff_result.node_diffs if n.path == "DeletedPart"]
         assert len(deleted_parts) == 1
         assert deleted_parts[0].state == DiffState.DELETED
 
@@ -563,7 +563,7 @@ class TestCompareSnapshotsAction:
                     name="Body",
                     type_id="PartDesign::Body",
                     label="Body",
-                    path="/Body",
+                    path="Body",
                     is_root=True,
                     properties={"Label": Property(type_=PropertyType.STRING, value="Body")},
                     children=[
@@ -571,7 +571,7 @@ class TestCompareSnapshotsAction:
                             name="Pad",
                             type_id="PartDesign::Pad",
                             label="Pad",
-                            path="/Body/Pad",
+                            path="Body/Pad",
                             is_root=False,
                             properties={"Label": Property(type_=PropertyType.STRING, value="Pad")},
                             children=[],
@@ -580,7 +580,7 @@ class TestCompareSnapshotsAction:
                             name="Pocket",
                             type_id="PartDesign::Pocket",
                             label="Pocket",
-                            path="/Body/Pocket",
+                            path="Body/Pocket",
                             is_root=False,
                             properties={"Label": Property(type_=PropertyType.STRING, value="Pocket")},
                             children=[],
@@ -601,7 +601,7 @@ class TestCompareSnapshotsAction:
                     name="Body",
                     type_id="PartDesign::Body",
                     label="Body",
-                    path="/Body",
+                    path="Body",
                     is_root=True,
                     properties={"Label": Property(type_=PropertyType.STRING, value="Body")},
                     children=[
@@ -610,7 +610,7 @@ class TestCompareSnapshotsAction:
                             name="Pad",
                             type_id="PartDesign::Pad",
                             label="NewPad",
-                            path="/Body/Pad",
+                            path="Body/Pad",
                             is_root=False,
                             properties={"Label": Property(type_=PropertyType.STRING, value="NewPad")},
                             children=[],
@@ -621,7 +621,7 @@ class TestCompareSnapshotsAction:
                             name="Fillet",
                             type_id="PartDesign::Fillet",
                             label="Fillet",
-                            path="/Body/Fillet",
+                            path="Body/Fillet",
                             is_root=False,
                             properties={"Label": Property(type_=PropertyType.STRING, value="Fillet")},
                             children=[],
@@ -686,7 +686,7 @@ class TestCompareSnapshotsAction:
                     name="Part",
                     type_id="Part::Feature",
                     label="Part",
-                    path="/Part",
+                    path="Part",
                     is_root=True,
                     properties={
                         "Label": Property(type_=PropertyType.STRING, value="OldLabel"),
@@ -709,7 +709,7 @@ class TestCompareSnapshotsAction:
                     name="Part",
                     type_id="Part::Feature",
                     label="Part",
-                    path="/Part",
+                    path="Part",
                     is_root=True,
                     properties={
                         "Label": Property(type_=PropertyType.STRING, value="NewLabel"),

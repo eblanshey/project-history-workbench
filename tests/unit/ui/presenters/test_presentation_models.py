@@ -19,7 +19,7 @@ class TestNodePresentation:
         """Verify immutability - frozen dataclass cannot be modified."""
         # Arrange
         node = NodePresentation(
-            path="/Part",
+            path="Part",
             type_id="Part::Feature",
             state="MODIFIED",
             has_changes=True,
@@ -33,14 +33,14 @@ class TestNodePresentation:
         """Verify all fields present in NodePresentation."""
         # Arrange & Act
         node = NodePresentation(
-            path="/Part/Body",
+            path="Part/Body",
             type_id="PartDesign::Body",
             state="ADDED",
             has_changes=False,
         )
 
         # Assert
-        assert node.path == "/Part/Body"
+        assert node.path == "Part/Body"
         assert node.type_id == "PartDesign::Body"
         assert node.state == "ADDED"
         assert node.has_changes is False
@@ -49,19 +49,19 @@ class TestNodePresentation:
         """Verify NodePresentation accepts children list parameter."""
         # Arrange & Act
         child1 = NodePresentation(
-            path="/Part/Body/Pad",
+            path="Part/Body/Pad",
             type_id="PartDesign::Pad",
             state="UNCHANGED",
             has_changes=False,
         )
         child2 = NodePresentation(
-            path="/Part/Body/Pocket",
+            path="Part/Body/Pocket",
             type_id="PartDesign::Pocket",
             state="MODIFIED",
             has_changes=True,
         )
         parent = NodePresentation(
-            path="/Part/Body",
+            path="Part/Body",
             type_id="PartDesign::Body",
             state="MODIFIED",
             has_changes=True,
@@ -72,14 +72,14 @@ class TestNodePresentation:
         assert len(parent.children) == 2
         assert parent.children[0] == child1
         assert parent.children[1] == child2
-        assert parent.children[0].path == "/Part/Body/Pad"
-        assert parent.children[1].path == "/Part/Body/Pocket"
+        assert parent.children[0].path == "Part/Body/Pad"
+        assert parent.children[1].path == "Part/Body/Pocket"
 
     def test_node_presentation_children_default_empty_list(self) -> None:
         """Verify children defaults to empty list when not provided."""
         # Arrange & Act
         node = NodePresentation(
-            path="/Part",
+            path="Part",
             type_id="Part::Feature",
             state="UNCHANGED",
             has_changes=False,
@@ -93,13 +93,13 @@ class TestNodePresentation:
         """Verify each instance gets its own children list (not shared)."""
         # Arrange & Act
         node1 = NodePresentation(
-            path="/Part1",
+            path="Part1",
             type_id="Part::Feature",
             state="UNCHANGED",
             has_changes=False,
         )
         node2 = NodePresentation(
-            path="/Part2",
+            path="Part2",
             type_id="Part::Feature",
             state="UNCHANGED",
             has_changes=False,
@@ -191,19 +191,19 @@ class TestPresentationModelsAreDataclasses:
         """Verify NodePresentation dataclass generates expected methods."""
         # Arrange
         node1 = NodePresentation(
-            path="/Part",
+            path="Part",
             type_id="Part::Feature",
             state="MODIFIED",
             has_changes=True,
         )
         node2 = NodePresentation(
-            path="/Part",
+            path="Part",
             type_id="Part::Feature",
             state="MODIFIED",
             has_changes=True,
         )
         node3 = NodePresentation(
-            path="/Part",
+            path="Part",
             type_id="Part::Feature",
             state="UNCHANGED",
             has_changes=False,

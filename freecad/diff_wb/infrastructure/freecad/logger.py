@@ -6,8 +6,8 @@ simple info/warning/error methods for domain layer consumption. No FreeCAD
 detection logic is needed - FreeCadPort handles all FreeCAD interactions.
 """
 
+from ...domain.ports import FreeCadPort
 from ...utils import Logger
-from .ports import FreeCadPort
 
 
 class FreeCADLogger(Logger):

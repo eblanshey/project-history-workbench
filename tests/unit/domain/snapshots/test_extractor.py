@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 # File responsibility: Unit tests for SnapshotExtractor using FakeFreeCadPort, including
-# tree extraction from documents, nested children, property extraction, and expression handling.
+# tree extraction from documents, nested children (via Group/OriginFeatures/InList),
+# property extraction, and expression handling.
 """Unit tests for SnapshotExtractor."""
 
 from unittest.mock import MagicMock
@@ -10,9 +11,23 @@ from freecad.diff_wb.domain.snapshots.models import Snapshot
 
 
 class MockFreeCADObject:
-    """Mock FreeCAD object for testing."""
+    """Mock FreeCAD object for testing.
 
-    def __init__(self, name, type_id, label, properties=None, children=None, sub_objects=None, expression_engine=None):
+    Uses Group + OriginFeatures + InList for hierarchy (matching the simplified
+    extractor logic), not OutList which represents dependencies not containment.
+    """
+
+    def __init__(
+        self,
+        name,
+        type_id,
+        label,
+        properties=None,
+        group=None,
+        origin_features=None,
+        in_list=None,
+        expression_engine=None,
+    ):
         """Initialize a mock FreeCAD object.
 
         Args:
@@ -20,16 +35,18 @@ class MockFreeCADObject:
             type_id: FreeCAD type ID
             label: Display label
             properties: List of property names
-            children: Child objects (for OutList)
-            sub_objects: Sub-object names (for getSubObjects)
+            group: Child objects in this container's Group
+            origin_features: Origin geometry objects
+            in_list: Objects that reference this one (for parent detection)
             expression_engine: List of [prop_name, expression] pairs
         """
         object.__setattr__(self, "_name", name)
         object.__setattr__(self, "_type_id", type_id)
         object.__setattr__(self, "_label", label)
         object.__setattr__(self, "_properties", properties or [])
-        object.__setattr__(self, "_children", children or [])
-        object.__setattr__(self, "_sub_objects", sub_objects or ())
+        object.__setattr__(self, "_group", group or [])
+        object.__setattr__(self, "_origin_features", origin_features or [])
+        object.__setattr__(self, "_in_list", in_list or [])
         object.__setattr__(self, "_expression_engine", expression_engine or [])
         object.__setattr__(self, "_properties_values", {})
 
@@ -50,34 +67,30 @@ class MockFreeCADObject:
         return object.__getattribute__(self, "_properties")
 
     @property
-    def OutList(self):
-        return object.__getattribute__(self, "_children")
+    def Group(self):
+        return object.__getattribute__(self, "_group")
+
+    @property
+    def OriginFeatures(self):
+        return object.__getattribute__(self, "_origin_features")
+
+    @property
+    def InList(self):
+        return object.__getattribute__(self, "_in_list")
 
     @property
     def ExpressionEngine(self):
         return object.__getattribute__(self, "_expression_engine")
 
-    def getSubObjects(self):
-        return object.__getattribute__(self, "_sub_objects")
-
-    def getObject(self, name):
-        for child in object.__getattribute__(self, "_children"):
-            if child.Name == name:
-                return child
-        return None
-
     def __getattr__(self, name):
-        # Return stored property values or default
         props = object.__getattribute__(self, "_properties_values")
         if name in props:
             return props[name]
-        # Default values based on property name
         if name == "Label":
             return object.__getattribute__(self, "_label")
         return None
 
     def __setattr__(self, name, value):
-        # Store property values
         props = object.__getattribute__(self, "_properties_values")
         props[name] = value
 
@@ -184,12 +197,12 @@ class TestSnapshotExtractor:
         assert result.root_nodes[0].name == "Body"
         assert result.root_nodes[0].type_id == "PartDesign::Body"
 
-    def test_extract_tree_with_nested_children(self):
-        """Test extraction with nested child objects via OutList."""
+    def test_extract_tree_with_nested_children_via_group(self):
+        """Test extraction with nested child objects via Group property."""
         mock_doc = MagicMock()
         mock_doc.Name = "TestDoc"
 
-        # Create parent object with children
+        # Create child object
         child_obj = MockFreeCADObject(
             name="Sketch",
             type_id="Sketcher::SketchObject",
@@ -198,19 +211,30 @@ class TestSnapshotExtractor:
         )
         child_obj.Label = "My Sketch"
 
+        # Create parent with child in Group (visual containment)
         parent_obj = MockFreeCADObject(
             name="Body",
             type_id="PartDesign::Body",
             label="My Body",
             properties=["Label"],
-            children=[child_obj],
+            group=[child_obj],
         )
         parent_obj.Label = "My Body"
 
-        mock_doc.Objects = [parent_obj]
+        # Both objects must be in doc.Objects for hierarchy detection
+        mock_doc.Objects = [parent_obj, child_obj]
 
         fake_port = FakePortAndLogger()
         fake_port.set_active_document(mock_doc)
+
+        def mock_get_object(doc, name):
+            if name == "Body":
+                return parent_obj
+            elif name == "Sketch":
+                return child_obj
+            return None
+
+        fake_port.get_object = mock_get_object
 
         extractor = SnapshotExtractor()
         result = extractor.extract_tree(fake_port)
@@ -294,19 +318,16 @@ class TestSnapshotExtractor:
         assert length_prop.expression == "Sketch.Length * 0.5"
         assert length_prop.value == 10.0
 
-    def test_extract_tree_discovers_sub_objects_via_getSubObjects(self):
-        """Test that getSubObjects() fallback discovers children not in OutList.
+    def test_extract_tree_discovers_children_via_group(self):
+        """Test that Group property discovers children correctly.
 
-        This tests the scenario where a container object (like Part) has:
-        - OutList = [Body] (direct child references)
-        - getSubObjects() = ("Body.", "VarSet.") (all sub-objects)
-
-        The VarSet is only discoverable via getSubObjects(), not OutList.
+        This tests the scenario where a Part container has Body and VarSet in its Group.
+        The hierarchy is built from Group/OriginFeatures, not OutList.
         """
         mock_doc = MagicMock()
         mock_doc.Name = "TestDoc"
 
-        # Create VarSet object (only discoverable via getSubObjects)
+        # Create VarSet object
         varset_obj = MockFreeCADObject(
             name="VarSet",
             type_id="App::VarSet",
@@ -315,7 +336,7 @@ class TestSnapshotExtractor:
         )
         varset_obj.Label = "Variable Set"
 
-        # Create Body object (in both OutList and getSubObjects)
+        # Create Body object
         body_obj = MockFreeCADObject(
             name="Body",
             type_id="PartDesign::Body",
@@ -324,27 +345,26 @@ class TestSnapshotExtractor:
         )
         body_obj.Label = "My Body"
 
-        # Create Part container with OutList=[Body] but getSubObjects=("Body.", "VarSet.")
+        # Create Part container with Group=[Body, VarSet]
         part_obj = MockFreeCADObject(
             name="Part",
             type_id="App::Part",
             label="My Part",
             properties=["Label"],
-            children=[body_obj],  # OutList only has Body
-            sub_objects=("Body.", "VarSet."),  # getSubObjects has both
+            group=[body_obj, varset_obj],
         )
         part_obj.Label = "My Part"
 
-        # Only Part is a root-level object; Body and VarSet are discovered via
-        # OutList and getSubObjects respectively
-        mock_doc.Objects = [part_obj]
+        # All objects must be in doc.Objects for hierarchy detection
+        mock_doc.Objects = [part_obj, body_obj, varset_obj]
 
         fake_port = FakePortAndLogger()
         fake_port.set_active_document(mock_doc)
 
-        # Configure get_object to return the correct objects
         def mock_get_object(doc, name):
-            if name == "Body":
+            if name == "Part":
+                return part_obj
+            elif name == "Body":
                 return body_obj
             elif name == "VarSet":
                 return varset_obj
@@ -359,56 +379,69 @@ class TestSnapshotExtractor:
         part_node = result.root_nodes[0]
         assert part_node.name == "Part"
 
-        # Should have both Body (from OutList) and VarSet (from getSubObjects)
+        # Should have both Body and VarSet from Group
         assert len(part_node.children) == 2
 
         child_names = {child.name for child in part_node.children}
         assert "Body" in child_names
         assert "VarSet" in child_names
 
-        # Verify VarSet was discovered via getSubObjects fallback
+        # Verify children paths
         varset_node = next(c for c in part_node.children if c.name == "VarSet")
         assert varset_node.type_id == "App::VarSet"
         assert varset_node.path == "Part/VarSet"
 
-    def test_extract_tree_avoids_duplicates_from_outlist_and_subobjects(self):
-        """Test that objects in both OutList and getSubObjects are not duplicated.
+    def test_extract_tree_handles_nested_hierarchy(self):
+        """Test nested hierarchy: Part -> Body -> Sketch.
 
-        When an object appears in both OutList and getSubObjects(), it should
-        only appear once in the children list.
+        This verifies that the three-pass parent detection correctly builds
+        multi-level hierarchies using Group and InList.
         """
         mock_doc = MagicMock()
         mock_doc.Name = "TestDoc"
 
-        # Create Body object
+        # Create leaf Sketch object
+        sketch_obj = MockFreeCADObject(
+            name="Sketch",
+            type_id="Sketcher::SketchObject",
+            label="My Sketch",
+            properties=["Label"],
+        )
+        sketch_obj.Label = "My Sketch"
+
+        # Create Body with Sketch in Group
         body_obj = MockFreeCADObject(
             name="Body",
             type_id="PartDesign::Body",
             label="My Body",
             properties=["Label"],
+            group=[sketch_obj],
         )
         body_obj.Label = "My Body"
 
-        # Create Part container where Body is in BOTH OutList and getSubObjects
+        # Create Part with Body in Group
         part_obj = MockFreeCADObject(
             name="Part",
             type_id="App::Part",
             label="My Part",
             properties=["Label"],
-            children=[body_obj],  # OutList has Body
-            sub_objects=("Body.",),  # getSubObjects also has Body
+            group=[body_obj],
         )
         part_obj.Label = "My Part"
 
-        # Only Part is a root-level object; Body is discovered via OutList
-        mock_doc.Objects = [part_obj]
+        # All objects must be in doc.Objects for hierarchy detection
+        mock_doc.Objects = [part_obj, body_obj, sketch_obj]
 
         fake_port = FakePortAndLogger()
         fake_port.set_active_document(mock_doc)
 
         def mock_get_object(doc, name):
-            if name == "Body":
+            if name == "Part":
+                return part_obj
+            elif name == "Body":
                 return body_obj
+            elif name == "Sketch":
+                return sketch_obj
             return None
 
         fake_port.get_object = mock_get_object
@@ -418,7 +451,82 @@ class TestSnapshotExtractor:
 
         assert len(result.root_nodes) == 1
         part_node = result.root_nodes[0]
+        assert part_node.name == "Part"
 
-        # Body should appear only once, not twice
+        # Part should have Body as child
         assert len(part_node.children) == 1
-        assert part_node.children[0].name == "Body"
+        body_node = part_node.children[0]
+        assert body_node.name == "Body"
+        assert body_node.path == "Part/Body"
+
+        # Body should have Sketch as child
+        assert len(body_node.children) == 1
+        sketch_node = body_node.children[0]
+        assert sketch_node.name == "Sketch"
+        assert sketch_node.path == "Part/Body/Sketch"
+
+    def test_extract_tree_handles_origin_features(self):
+        """Test that OriginFeatures property correctly identifies origin children.
+
+        App::Origin containers store their geometry (axes, planes, points) in
+        OriginFeatures instead of Group.
+        """
+        mock_doc = MagicMock()
+        mock_doc.Name = "TestDoc"
+
+        # Create origin geometry objects
+        x_axis_obj = MockFreeCADObject(
+            name="X_Axis",
+            type_id="App::Line",
+            label="X_Axis",
+            properties=["Label"],
+        )
+        x_axis_obj.Label = "X_Axis"
+
+        xy_plane_obj = MockFreeCADObject(
+            name="XY_Plane",
+            type_id="App::Plane",
+            label="XY_Plane",
+            properties=["Label"],
+        )
+        xy_plane_obj.Label = "XY_Plane"
+
+        # Create Origin container with geometry in OriginFeatures
+        origin_obj = MockFreeCADObject(
+            name="Origin",
+            type_id="App::Origin",
+            label="Origin",
+            properties=["Label"],
+            origin_features=[x_axis_obj, xy_plane_obj],
+        )
+        origin_obj.Label = "Origin"
+
+        # All objects must be in doc.Objects
+        mock_doc.Objects = [origin_obj, x_axis_obj, xy_plane_obj]
+
+        fake_port = FakePortAndLogger()
+        fake_port.set_active_document(mock_doc)
+
+        def mock_get_object(doc, name):
+            if name == "Origin":
+                return origin_obj
+            elif name == "X_Axis":
+                return x_axis_obj
+            elif name == "XY_Plane":
+                return xy_plane_obj
+            return None
+
+        fake_port.get_object = mock_get_object
+
+        extractor = SnapshotExtractor()
+        result = extractor.extract_tree(fake_port)
+
+        assert len(result.root_nodes) == 1
+        origin_node = result.root_nodes[0]
+        assert origin_node.name == "Origin"
+
+        # Origin should have X_Axis and XY_Plane as children
+        assert len(origin_node.children) == 2
+        child_names = {child.name for child in origin_node.children}
+        assert "X_Axis" in child_names
+        assert "XY_Plane" in child_names

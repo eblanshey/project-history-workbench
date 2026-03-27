@@ -8,9 +8,10 @@ from dataclasses import dataclass
 from typing import Any
 
 from ...domain.diff.engine import DiffEngine
+from ...domain.ports import AppPort, FreeCadContext, FreeCadPort
 from ...domain.snapshots.extractor import SnapshotExtractor
 from ...domain.snapshots.repository import InMemorySnapshotRepository
-from ...infrastructure.freecad.ports import AppPort, FreeCadContext, FreeCadPort, get_app_port, get_port
+from ...infrastructure.freecad.ports import get_app_port, get_port
 from ...infrastructure.freecad.settings_repo import FreeCADSettingsRepository
 from ...ui.presenters.diff_presenter import DiffPresenter
 from ...ui.presenters.snapshot_presenter import SnapshotPresenter

@@ -40,9 +40,11 @@ def find_common_paths(old_index, new_index):
     return _tree_comparator._find_common_paths(old_index, new_index)
 
 
-def reconstruct_hierarchy(node_diffs):
-    """Wrapper for testing."""
-    return _tree_comparator._reconstruct_hierarchy(node_diffs)
+def build_hierarchical_diffs(sorted_paths, added_paths, deleted_paths, old_index, new_index):
+    """Wrapper for testing with default excluded_properties."""
+    return _tree_comparator._build_hierarchical_diffs(
+        sorted_paths, added_paths, deleted_paths, old_index, new_index, EXCLUDED_PROPERTIES
+    )
 
 
 def compare_nodes_by_path(path, old_index, new_index):
@@ -421,325 +423,374 @@ class TestCreateDeletedNodeDiff:
         assert result.state == DiffState.DELETED
 
 
-class TestReconstructHierarchy:
-    """Tests for reconstruct_hierarchy function."""
+class TestBuildHierarchicalDiffs:
+    """Tests for _build_hierarchical_diffs method (single-pass hierarchy construction)."""
 
-    def test_hierarchy_order(self):
-        """Test that hierarchy is reconstructed in correct tree order.
+    def test_simple_case_one_changed_child_missing_parent_becomes_placeholder(self):
+        """Test simple case: one changed child, missing parent becomes placeholder.
 
-        Verifies that:
-        - Parents appear before their children
-        - Siblings are sorted alphabetically
+        This is the core scenario for single-pass hierarchy construction.
+        When a child has changes but its parent doesn't, the parent should be
+        created as a placeholder during iteration.
         """
-        from freecad.diff_wb.domain.diff import PropertyDiff
 
-        # Create NodeDiff objects in random/unsorted order
-        diffs = [
-            NodeDiff(
-                path="Body/Pad/ShapeSource",
-                type_id="Part::Feature",
-                property_diffs=[
-                    PropertyDiff(
-                        property_name="Placement",
-                        old_value=Property.create(PropertyType.VECTOR, (0, 0, 0)),
-                        new_value=Property.create(PropertyType.VECTOR, (1, 1, 1)),
-                    )
-                ],
-            ),
-            NodeDiff(
-                path="Body/Pocket",
-                type_id="PartDesign::Pocket",
-                property_diffs=[
-                    PropertyDiff(
-                        property_name="Depth",
-                        old_value=None,
-                        new_value=Property.create(PropertyType.FLOAT, 5.0),
-                    )
-                ],
-            ),
-            NodeDiff(
-                path="Body/Pad",
-                type_id="PartDesign::Pad",
-                property_diffs=[
-                    PropertyDiff(
-                        property_name="Length",
-                        old_value=Property.create(PropertyType.FLOAT, 10.0),
-                        new_value=None,
-                    )
-                ],
-            ),
-            NodeDiff(
-                path="Body",
+        # Setup: Body/Pocket has changes, Body does not
+        sorted_paths = ["Body", "Body/Pocket"]
+        added_paths = {"Body/Pocket"}
+        deleted_paths = set()
+
+        old_index: dict[str, TreeNode] = {
+            "Body": TreeNode(name="Body", type_id="PartDesign::Body", label="Body", path="Body")
+        }
+        new_index = {
+            "Body": TreeNode(
+                name="Body",
                 type_id="PartDesign::Body",
-                property_diffs=[
-                    PropertyDiff(
-                        property_name="Label",
-                        old_value=Property.create(PropertyType.STRING, "OldBody"),
-                        new_value=Property.create(PropertyType.STRING, "NewBody"),
-                    )
-                ],
-            ),
-            NodeDiff(
-                path="Cube",
-                type_id="Part::Box",
-                property_diffs=[
-                    PropertyDiff(
-                        property_name="Length",
-                        old_value=None,
-                        new_value=Property.create(PropertyType.FLOAT, 10.0),
-                    )
-                ],
-            ),
-        ]
-
-        result = reconstruct_hierarchy(diffs)
-
-        # Verify root nodes are in alphabetical order: Body, Cube
-        assert len(result) == 2
-        assert result[0].path == "Body"
-        assert result[1].path == "Cube"
-
-        # Verify Body's children are in order: Pad, Pocket (alphabetical)
-        assert len(result[0].children) == 2
-        assert result[0].children[0].path == "Body/Pad"
-        assert result[0].children[1].path == "Body/Pocket"
-
-        # Verify Pad has ShapeSource as child (parent before child)
-        assert len(result[0].children[0].children) == 1
-        assert result[0].children[0].children[0].path == "Body/Pad/ShapeSource"
-
-    def test_empty_list(self):
-        """Test reconstructing hierarchy from empty list."""
-        result = reconstruct_hierarchy([])
-        assert result == []
-
-    def test_single_root(self):
-        """Test reconstructing hierarchy with single root node."""
-        from freecad.diff_wb.domain.diff import PropertyDiff
-
-        diffs = [
-            NodeDiff(
+                label="Body",
                 path="Body",
-                type_id="PartDesign::Body",
-                property_diffs=[
-                    PropertyDiff(
-                        property_name="Label",
-                        old_value=None,
-                        new_value=Property.create(PropertyType.STRING, "Body"),
-                    )
-                ],
+                children=[TreeNode(name="Pocket", type_id="PartDesign::Pocket", label="Pocket", path="Body/Pocket")],
             ),
-        ]
+            "Body/Pocket": TreeNode(name="Pocket", type_id="PartDesign::Pocket", label="Pocket", path="Body/Pocket"),
+        }
 
-        result = reconstruct_hierarchy(diffs)
-
-        assert len(result) == 1
-        assert result[0].path == "Body"
-        assert len(result[0].children) == 0
-
-    def test_parent_child_relationship(self):
-        """Test that parent-child relationships are correctly reconstructed."""
-        from freecad.diff_wb.domain.diff import PropertyDiff
-
-        diffs = [
-            NodeDiff(
-                path="Body",
-                type_id="PartDesign::Body",
-                property_diffs=[
-                    PropertyDiff(
-                        property_name="Label",
-                        old_value=Property.create(PropertyType.STRING, "OldBody"),
-                        new_value=Property.create(PropertyType.STRING, "NewBody"),
-                    )
-                ],
-            ),
-            NodeDiff(
-                path="Body/Pad",
-                type_id="PartDesign::Pad",
-                property_diffs=[
-                    PropertyDiff(
-                        property_name="Length",
-                        old_value=None,
-                        new_value=Property.create(PropertyType.FLOAT, 10.0),
-                    )
-                ],
-            ),
-        ]
-
-        result = reconstruct_hierarchy(diffs)
-
-        assert len(result) == 1
-        assert result[0].path == "Body"
-        assert len(result[0].children) == 1
-        assert result[0].children[0].path == "Body/Pad"
-
-    def test_deep_nesting(self):
-        """Test reconstructing deeply nested hierarchy."""
-        from freecad.diff_wb.domain.diff import PropertyDiff
-
-        diffs = [
-            NodeDiff(
-                path="Body",
-                type_id="PartDesign::Body",
-                property_diffs=[
-                    PropertyDiff(
-                        property_name="Label",
-                        old_value=Property.create(PropertyType.STRING, "OldBody"),
-                        new_value=Property.create(PropertyType.STRING, "NewBody"),
-                    )
-                ],
-            ),
-            NodeDiff(
-                path="Body/Pad",
-                type_id="PartDesign::Pad",
-                property_diffs=[
-                    PropertyDiff(
-                        property_name="Length",
-                        old_value=None,
-                        new_value=Property.create(PropertyType.FLOAT, 10.0),
-                    )
-                ],
-            ),
-            NodeDiff(
-                path="Body/Pad/ShapeSource",
-                type_id="Part::Feature",
-                property_diffs=[
-                    PropertyDiff(
-                        property_name="Placement",
-                        old_value=None,
-                        new_value=Property.create(PropertyType.VECTOR, (0, 0, 0)),
-                    )
-                ],
-            ),
-        ]
-
-        result = reconstruct_hierarchy(diffs)
-
-        assert len(result) == 1
-        assert result[0].path == "Body"
-        assert len(result[0].children) == 1
-        assert result[0].children[0].path == "Body/Pad"
-        assert len(result[0].children[0].children) == 1
-        assert result[0].children[0].children[0].path == "Body/Pad/ShapeSource"
-
-    def test_multiple_roots(self):
-        """Test reconstructing hierarchy with multiple root nodes."""
-        from freecad.diff_wb.domain.diff import PropertyDiff
-
-        diffs = [
-            NodeDiff(
-                path="Body",
-                type_id="PartDesign::Body",
-                property_diffs=[
-                    PropertyDiff(
-                        property_name="Label",
-                        old_value=Property.create(PropertyType.STRING, "OldBody"),
-                        new_value=Property.create(PropertyType.STRING, "NewBody"),
-                    )
-                ],
-            ),
-            NodeDiff(
-                path="Cube",
-                type_id="Part::Box",
-                property_diffs=[
-                    PropertyDiff(
-                        property_name="Length",
-                        old_value=None,
-                        new_value=Property.create(PropertyType.FLOAT, 10.0),
-                    )
-                ],
-            ),
-        ]
-
-        result = reconstruct_hierarchy(diffs)
-
-        assert len(result) == 2
-        paths = {d.path for d in result}
-        assert paths == {"Body", "Cube"}
-
-    def test_inserts_missing_parent_nodes(self):
-        """Test that missing parent nodes are inserted to preserve hierarchy.
-
-        When a child node has changes but its parent doesn't (and thus isn't in
-        the diff list), placeholder parent nodes should be inserted so children
-        appear nested under their parents.
-        """
-        from freecad.diff_wb.domain.diff import PropertyDiff
-
-        # Only Body/Pocket has changes - Body itself is not in the diff list
-        # This simulates when Pocket was added but only its properties were compared
-        diffs = [
-            NodeDiff(
-                path="Body/Pocket",
-                type_id="PartDesign::Pocket",
-                property_diffs=[
-                    PropertyDiff(
-                        property_name="Depth",
-                        old_value=None,
-                        new_value=Property.create(PropertyType.FLOAT, 5.0),
-                    )
-                ],
-            ),
-        ]
-
-        # Create mock indices with type information
-        old_tree = TreeNode(name="Body", type_id="PartDesign::Body", label="Body", path="Body")
-        new_tree = TreeNode(
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            children=[
-                TreeNode(
-                    name="Pocket",
-                    type_id="PartDesign::Pocket",
-                    label="Pocket",
-                    path="Body/Pocket",
-                )
-            ],
+        diff_by_path, has_parent = build_hierarchical_diffs(
+            sorted_paths, added_paths, deleted_paths, old_index, new_index
         )
-        old_index = {"Body": old_tree}
-        new_index = {"Body": new_tree, "Body/Pocket": new_tree.children[0]}
 
-        result = _tree_comparator._reconstruct_hierarchy(diffs, old_index, new_index)
+        # Verify both Body and Body/Pocket exist
+        assert "Body" in diff_by_path
+        assert "Body/Pocket" in diff_by_path
 
-        # Should have Body as root (placeholder, UNCHANGED)
-        assert len(result) == 1
-        assert result[0].path == "Body"
-        assert result[0].state == DiffState.UNCHANGED
-        assert result[0].type_id == "PartDesign::Body"
+        # Body should be a placeholder (UNCHANGED)
+        assert diff_by_path["Body"].state == DiffState.UNCHANGED
+        assert diff_by_path["Body"].type_id == "PartDesign::Body"
 
-        # Body should have Pocket as child (MODIFIED because it has added properties)
-        assert len(result[0].children) == 1
-        assert result[0].children[0].path == "Body/Pocket"
-        # Note: State is MODIFIED because the node has property additions
-        assert result[0].children[0].state == DiffState.MODIFIED
+        # Body/Pocket should be ADDED
+        assert diff_by_path["Body/Pocket"].state == DiffState.ADDED
 
-    def test_inserts_missing_ancestor_chain(self):
-        """Test that entire ancestor chain is inserted when multiple levels are missing.
+        # Body should have Body/Pocket as child
+        assert len(diff_by_path["Body"].children) == 1
+        assert diff_by_path["Body"].children[0].path == "Body/Pocket"
 
-        When deeply nested nodes have changes but intermediate parents don't,
-        all missing ancestors should be inserted.
+        # Body/Pocket should be marked as having a parent
+        assert "Body/Pocket" in has_parent
+
+    def test_deep_nesting_multiple_missing_ancestors_all_created(self):
+        """Test deep nesting: multiple missing ancestors all created.
+
+        When deeply nested nodes have changes, all intermediate ancestors
+        should be created as placeholders.
         """
-        from freecad.diff_wb.domain.diff import PropertyDiff
 
-        # Only Body/Pad/Sketch has changes - Body and Pad are not in diff list
-        diffs = [
-            NodeDiff(
-                path="Body/Pad/Sketch",
-                type_id="PartDesign::Sketch",
-                property_diffs=[
-                    PropertyDiff(
-                        property_name="Name",
-                        old_value=None,
-                        new_value=Property.create(PropertyType.STRING, "NewSketch"),
-                    )
+        # Only Body/Pad/Sketch has changes - Body and Pad are missing
+        sorted_paths = ["Body", "Body/Pad", "Body/Pad/Sketch"]
+        added_paths = {"Body/Pad/Sketch"}
+        deleted_paths = set()
+
+        sketch = TreeNode(name="Sketch", type_id="PartDesign::Sketch", label="Sketch", path="Body/Pad/Sketch")
+        pad = TreeNode(name="Pad", type_id="PartDesign::Pad", label="Pad", path="Body/Pad", children=[sketch])
+        body = TreeNode(name="Body", type_id="PartDesign::Body", label="Body", path="Body", children=[pad])
+
+        old_index: dict[str, TreeNode] = {}
+        new_index = {"Body": body, "Body/Pad": pad, "Body/Pad/Sketch": sketch}
+
+        diff_by_path, has_parent = build_hierarchical_diffs(
+            sorted_paths, added_paths, deleted_paths, old_index, new_index
+        )
+
+        # All three paths should exist
+        assert "Body" in diff_by_path
+        assert "Body/Pad" in diff_by_path
+        assert "Body/Pad/Sketch" in diff_by_path
+
+        # Body and Body/Pad should be placeholders (UNCHANGED)
+        assert diff_by_path["Body"].state == DiffState.UNCHANGED
+        assert diff_by_path["Body/Pad"].state == DiffState.UNCHANGED
+
+        # Body/Pad/Sketch should be ADDED
+        assert diff_by_path["Body/Pad/Sketch"].state == DiffState.ADDED
+
+        # Verify hierarchy: Body -> Body/Pad -> Body/Pad/Sketch
+        assert len(diff_by_path["Body"].children) == 1
+        assert diff_by_path["Body"].children[0].path == "Body/Pad"
+
+        assert len(diff_by_path["Body/Pad"].children) == 1
+        assert diff_by_path["Body/Pad"].children[0].path == "Body/Pad/Sketch"
+
+        # Both Body/Pad and Body/Pad/Sketch should have parents
+        assert "Body/Pad" in has_parent
+        assert "Body/Pad/Sketch" in has_parent
+
+    def test_mixed_states_added_deleted_modified_properly_linked(self):
+        """Test mixed states: added, deleted, modified nodes properly linked.
+
+        Verifies that the single-pass approach correctly handles all three
+        state types and maintains proper parent-child relationships.
+        """
+
+        # Mixed scenario:
+        # - Body/Pocket: ADDED
+        # - Body/Pad: MODIFIED (property changed)
+        # - Body/DeletedNode: DELETED
+        sorted_paths = ["Body", "Body/Pad", "Body/DeletedNode", "Body/Pocket"]
+        added_paths = {"Body/Pocket"}
+        deleted_paths = {"Body/DeletedNode"}
+
+        old_pad = TreeNode(
+            name="Pad",
+            type_id="PartDesign::Pad",
+            label="Pad",
+            path="Body/Pad",
+            properties={"Length": Property.create(PropertyType.FLOAT, 10.0)},
+        )
+        new_pad = TreeNode(
+            name="Pad",
+            type_id="PartDesign::Pad",
+            label="Pad",
+            path="Body/Pad",
+            properties={"Length": Property.create(PropertyType.FLOAT, 20.0)},
+        )
+
+        old_index = {
+            "Body": TreeNode(name="Body", type_id="PartDesign::Body", label="Body", path="Body"),
+            "Body/Pad": old_pad,
+            "Body/DeletedNode": TreeNode(
+                name="DeletedNode", type_id="Part::Feature", label="Deleted", path="Body/DeletedNode"
+            ),
+        }
+        new_index = {
+            "Body": TreeNode(
+                name="Body",
+                type_id="PartDesign::Body",
+                label="Body",
+                path="Body",
+                children=[
+                    old_pad,
+                    TreeNode(name="Pocket", type_id="PartDesign::Pocket", label="Pocket", path="Body/Pocket"),
                 ],
             ),
-        ]
+            "Body/Pad": new_pad,
+            "Body/Pocket": TreeNode(name="Pocket", type_id="PartDesign::Pocket", label="Pocket", path="Body/Pocket"),
+        }
 
-        # Create mock indices with type information for the full hierarchy
-        sketch = TreeNode(name="Sketch", type_id="PartDesign::Sketch", label="Sketch", path="Body/Pad/Sketch")
+        diff_by_path, has_parent = build_hierarchical_diffs(
+            sorted_paths, added_paths, deleted_paths, old_index, new_index
+        )
+
+        # Verify all paths exist
+        assert len(diff_by_path) == 4
+
+        # Body should be placeholder (UNCHANGED)
+        assert diff_by_path["Body"].state == DiffState.UNCHANGED
+
+        # Body/Pad should be MODIFIED
+        assert diff_by_path["Body/Pad"].state == DiffState.MODIFIED
+
+        # Body/DeletedNode should be DELETED
+        assert diff_by_path["Body/DeletedNode"].state == DiffState.DELETED
+
+        # Body/Pocket should be ADDED
+        assert diff_by_path["Body/Pocket"].state == DiffState.ADDED
+
+        # All children should be linked to Body
+        assert len(diff_by_path["Body"].children) == 3
+
+    def test_path_format_preservation_leading_slashes_maintained(self):
+        """Test path format preservation: leading slashes maintained throughout.
+
+        Verifies that paths with leading slashes maintain their format
+        when creating placeholders and linking children.
+        """
+
+        # Use paths without leading slashes
+        sorted_paths = ["Body", "Body/Pocket"]
+        added_paths = {"Body/Pocket"}
+        deleted_paths = set()
+
+        old_index: dict[str, TreeNode] = {
+            "Body": TreeNode(name="Body", type_id="PartDesign::Body", label="Body", path="Body")
+        }
+        new_index = {
+            "Body": TreeNode(
+                name="Body",
+                type_id="PartDesign::Body",
+                label="Body",
+                path="Body",
+                children=[TreeNode(name="Pocket", type_id="PartDesign::Pocket", label="Pocket", path="Body/Pocket")],
+            ),
+            "Body/Pocket": TreeNode(name="Pocket", type_id="PartDesign::Pocket", label="Pocket", path="Body/Pocket"),
+        }
+
+        diff_by_path, has_parent = build_hierarchical_diffs(
+            sorted_paths, added_paths, deleted_paths, old_index, new_index
+        )
+
+        # Paths should be without leading slashes
+        assert "Body" in diff_by_path
+        assert "Body/Pocket" in diff_by_path
+
+        # Parent path should also be without leading slash
+        assert diff_by_path["Body"].path == "Body"
+        assert diff_by_path["Body/Pocket"].path == "Body/Pocket"
+
+    def test_empty_sorted_paths_returns_empty(self):
+        """Test that empty sorted_paths returns empty dicts."""
+        diff_by_path, has_parent = build_hierarchical_diffs([], set(), set(), {}, {})
+
+        assert diff_by_path == {}
+        assert has_parent == set()
+
+    def test_single_root_node_no_parent_needed(self):
+        """Test single root node - no parent needed since it's a root."""
+
+        sorted_paths = ["Body"]
+        added_paths = {"Body"}
+        deleted_paths = set()
+
+        old_index: dict[str, TreeNode] = {}
+        new_index = {"Body": TreeNode(name="Body", type_id="PartDesign::Body", label="Body", path="Body")}
+
+        diff_by_path, has_parent = build_hierarchical_diffs(
+            sorted_paths, added_paths, deleted_paths, old_index, new_index
+        )
+
+        # Body should exist and be ADDED
+        assert "Body" in diff_by_path
+        assert diff_by_path["Body"].state == DiffState.ADDED
+
+        # Body should not have a parent (it's a root)
+        assert "Body" not in has_parent
+
+
+class TestGetParentPath:
+    """Tests for _get_parent_path method."""
+
+    def test_parent_with_leading_slash(self):
+        """Test extracting parent from path with leading slash."""
+        result = _tree_comparator._get_parent_path("/Body/Pad")
+        assert result == "/Body"
+
+    def test_parent_without_leading_slash(self):
+        """Test extracting parent from path without leading slash."""
+        result = _tree_comparator._get_parent_path("Body/Pad")
+        assert result == "Body"
+
+    def test_root_with_leading_slash_returns_empty(self):
+        """Test that root node with leading slash returns empty string."""
+        result = _tree_comparator._get_parent_path("/Part")
+        assert result == ""
+
+    def test_root_without_leading_slash_returns_empty(self):
+        """Test that root node without leading slash returns empty string."""
+        result = _tree_comparator._get_parent_path("Part")
+        assert result == ""
+
+    def test_deep_nesting_with_leading_slash(self):
+        """Test extracting parent from deeply nested path with leading slash."""
+        result = _tree_comparator._get_parent_path("/A/B/C/D")
+        assert result == "/A/B/C"
+
+    def test_deep_nesting_without_leading_slash(self):
+        """Test extracting parent from deeply nested path without leading slash."""
+        result = _tree_comparator._get_parent_path("A/B/C/D")
+        assert result == "A/B/C"
+
+    def test_two_level_path_with_leading_slash(self):
+        """Test extracting parent from two-level path with leading slash."""
+        result = _tree_comparator._get_parent_path("/Body/Pad/Sketch")
+        assert result == "/Body/Pad"
+
+    def test_two_level_path_without_leading_slash(self):
+        """Test extracting parent from two-level path without leading slash."""
+        result = _tree_comparator._get_parent_path("Body/Pad/Sketch")
+        assert result == "Body/Pad"
+
+
+class TestEnsurePlaceholder:
+    """Tests for _ensure_placeholder method."""
+
+    def test_creates_placeholder_with_correct_type_id_from_new_index(self):
+        """Test that placeholder is created with correct type_id from new_index."""
+        diff_by_path: dict[str, NodeDiff] = {}
+        has_parent: set[str] = set()
+
+        old_index: dict[str, TreeNode] = {}
+        new_index = {
+            "Body/Pad": TreeNode(
+                name="Pad",
+                type_id="PartDesign::Pad",
+                label="Pad",
+                path="Body/Pad",
+            )
+        }
+
+        _tree_comparator._ensure_placeholder("Body/Pad", old_index, new_index, diff_by_path, has_parent)
+
+        assert "Body/Pad" in diff_by_path
+        assert diff_by_path["Body/Pad"].type_id == "PartDesign::Pad"
+        assert diff_by_path["Body/Pad"].state == DiffState.UNCHANGED
+
+    def test_creates_placeholder_with_correct_type_id_from_old_index(self):
+        """Test that placeholder is created with correct type_id from old_index."""
+        diff_by_path: dict[str, NodeDiff] = {}
+        has_parent: set[str] = set()
+
+        old_index = {
+            "Body/Pad": TreeNode(
+                name="Pad",
+                type_id="PartDesign::Pad",
+                label="Pad",
+                path="Body/Pad",
+            )
+        }
+        new_index: dict[str, TreeNode] = {}
+
+        _tree_comparator._ensure_placeholder("Body/Pad", old_index, new_index, diff_by_path, has_parent)
+
+        assert "Body/Pad" in diff_by_path
+        assert diff_by_path["Body/Pad"].type_id == "PartDesign::Pad"
+
+    def test_links_placeholder_to_parent(self):
+        """Test that placeholder is linked to its parent."""
+        diff_by_path: dict[str, NodeDiff] = {}
+        has_parent: set[str] = set()
+
+        # First create the parent
+        parent_node = TreeNode(name="Body", type_id="PartDesign::Body", label="Body", path="Body")
+        old_index = {"Body": parent_node}
+        new_index = {"Body": parent_node}
+
+        _tree_comparator._ensure_placeholder("Body", old_index, new_index, diff_by_path, has_parent)
+
+        # Now ensure child placeholder
+        child_node = TreeNode(
+            name="Pad",
+            type_id="PartDesign::Pad",
+            label="Pad",
+            path="Body/Pad",
+        )
+        old_index["Body/Pad"] = child_node
+        new_index["Body/Pad"] = child_node
+
+        _tree_comparator._ensure_placeholder("Body/Pad", old_index, new_index, diff_by_path, has_parent)
+
+        # Verify parent has child in its children list
+        assert len(diff_by_path["Body"].children) == 1
+        assert diff_by_path["Body"].children[0].path == "Body/Pad"
+        assert "Body/Pad" in has_parent
+
+    def test_recursively_creates_ancestor_chain(self):
+        """Test that entire ancestor chain is created recursively."""
+        diff_by_path: dict[str, NodeDiff] = {}
+        has_parent: set[str] = set()
+
+        # Create mock indices for full hierarchy
+        sketch = TreeNode(
+            name="Sketch",
+            type_id="PartDesign::Sketch",
+            label="Sketch",
+            path="Body/Pad/Sketch",
+        )
         pad = TreeNode(
             name="Pad",
             type_id="PartDesign::Pad",
@@ -758,21 +809,58 @@ class TestReconstructHierarchy:
         old_index: dict[str, TreeNode] = {}
         new_index = {"Body": body, "Body/Pad": pad, "Body/Pad/Sketch": sketch}
 
-        result = _tree_comparator._reconstruct_hierarchy(diffs, old_index, new_index)
+        # Ensure the deepest node exists (should recursively create Body and Body/Pad)
+        _tree_comparator._ensure_placeholder("Body/Pad/Sketch", old_index, new_index, diff_by_path, has_parent)
 
-        # Should have Body as root (placeholder, UNCHANGED)
-        assert len(result) == 1
-        assert result[0].path == "Body"
-        assert result[0].state == DiffState.UNCHANGED
+        # Verify all ancestors were created
+        assert "Body" in diff_by_path
+        assert "Body/Pad" in diff_by_path
+        assert "Body/Pad/Sketch" in diff_by_path
 
-        # Body -> Pad (placeholder, UNCHANGED) -> Sketch (MODIFIED)
-        assert len(result[0].children) == 1
-        assert result[0].children[0].path == "Body/Pad"
-        assert result[0].children[0].state == DiffState.UNCHANGED
+        # Verify hierarchy is correct
+        assert len(diff_by_path["Body"].children) == 1
+        assert diff_by_path["Body"].children[0].path == "Body/Pad"
+        assert len(diff_by_path["Body/Pad"].children) == 1
+        assert diff_by_path["Body/Pad"].children[0].path == "Body/Pad/Sketch"
 
-        assert len(result[0].children[0].children) == 1
-        assert result[0].children[0].children[0].path == "Body/Pad/Sketch"
-        assert result[0].children[0].children[0].state == DiffState.MODIFIED
+    def test_does_not_create_duplicate_if_already_exists(self):
+        """Test that existing diff is not overwritten."""
+        diff_by_path: dict[str, NodeDiff] = {}
+        has_parent: set[str] = set()
+
+        # First create a real diff (not placeholder)
+        from freecad.diff_wb.domain.diff import PropertyDiff
+
+        existing_diff = NodeDiff(
+            path="Body/Pad",
+            type_id="PartDesign::Pad",
+            property_diffs=[
+                PropertyDiff(
+                    property_name="Length",
+                    old_value=None,
+                    new_value=Property.create(PropertyType.FLOAT, 10.0),
+                )
+            ],
+            _force_state=DiffState.ADDED,
+        )
+        diff_by_path["Body/Pad"] = existing_diff
+
+        old_index: dict[str, TreeNode] = {}
+        new_index = {
+            "Body/Pad": TreeNode(
+                name="Pad",
+                type_id="PartDesign::Pad",
+                label="Pad",
+                path="Body/Pad",
+            )
+        }
+
+        # Try to ensure placeholder for same path
+        _tree_comparator._ensure_placeholder("Body/Pad", old_index, new_index, diff_by_path, has_parent)
+
+        # Verify original diff is unchanged
+        assert diff_by_path["Body/Pad"] is existing_diff
+        assert diff_by_path["Body/Pad"].state == DiffState.ADDED
 
 
 class TestCompareSnapshots:

@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 # File responsibility: This module contains the SnapshotExtractor class which extracts
 # tree structure from FreeCAD documents and converts them to Snapshot domain models.
-# It uses the unified Log class from utils for logging.
+# It uses simplified hierarchy detection (Group + OriginFeatures + InList) instead of
+# OutList traversal to correctly build visual containment hierarchy.
 """Snapshot extraction from FreeCAD documents."""
 
 from __future__ import annotations
@@ -9,26 +10,15 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 from ...utils import Log
+from ..ports import DocumentLike, FreeCadPort
 from ..tree import Property, TreeNode
 
 
 if TYPE_CHECKING:
     from .models import Snapshot
-
-
-class FreeCadPort(Protocol):
-    """Interface for FreeCAD document operations (defined in domain for type hints).
-
-    This Protocol defines the minimal set of FreeCAD operations needed
-    by the Diff Workbench, allowing for test doubles in unit tests.
-    """
-
-    def get_active_document(self) -> object | None: ...
-
-    def get_object(self, doc: object, name: str) -> object | None: ...
 
 
 def _get_expression_for_property(obj: object, prop_name: str) -> str | None:
@@ -88,64 +78,149 @@ def _extract_property_value(obj: object, prop_name: str) -> Property | None:
         return None
 
 
-def _add_sub_object_children(
-    obj: object,
-    sub_objects: tuple[str, ...],
-    children: list[TreeNode],
-    port: FreeCadPort,
-    doc: object,
-    parent_path: str,
-    name: str,
-) -> None:
-    """Add child nodes from getSubObjects() results.
-
-    This is needed because FreeCAD containers (like Part, Body) can have
-    nested sub-objects that are only discoverable via getSubObjects(), not
-    via OutList. For example, a Part container may have OutList=[Body] but
-    getSubObjects()=("Body.", "VarSet.") where VarSet is not in OutList.
+def _find_parent_via_group_and_origin(doc: DocumentLike, child_name: str, parent_map: dict[str, str]) -> None:
+    """Find parent for an object via Group and OriginFeatures properties.
 
     Args:
-        obj: The parent FreeCAD object
-        sub_objects: Tuple of sub-object name strings (e.g., ("Body.", "VarSet."))
-        children: Existing children list (from OutList) to append to
-        port: The FreeCadPort for object resolution
         doc: The FreeCAD document
-        parent_path: The path of the parent node
-        name: The name of the parent object
+        child_name: Name of the child object to find parent for
+        parent_map: Mutable dict to store found parent
     """
-    existing_names = {c.name for c in children}
-    for sub_name in sub_objects:
-        # Sub-object names like "Body." need resolution - strip trailing dot
-        base_name = sub_name.split(".")[0]
-        if not base_name or base_name == name:
+    if child_name in parent_map:
+        return
+
+    for container_obj in doc.Objects:
+        if not hasattr(container_obj, "Name"):
+            continue
+        container_name = container_obj.Name
+
+        # Check Group property (visual group contents for App::Part, App::VarSet, etc.)
+        group = getattr(container_obj, "Group", [])
+        group_names = [g.Name for g in group if hasattr(g, "Name")]
+        if child_name in group_names:
+            parent_map[child_name] = container_name
+            return
+
+        # Check OriginFeatures (origin geometry for App::Origin containers)
+        origin_features = getattr(container_obj, "OriginFeatures", [])
+        origin_feature_names = [f.Name for f in origin_features if hasattr(f, "Name")]
+        if child_name in origin_feature_names:
+            parent_map[child_name] = container_name
+            return
+
+
+def _find_parent_via_inlist(doc: DocumentLike, parent_map: dict[str, str]) -> None:
+    """Find parents for remaining objects via InList property.
+
+    This handles cases where Origins/Orphans reference their parent containers.
+    Only assigns parents that are container types (App::Part, PartDesign::Body).
+
+    Args:
+        doc: The FreeCAD document
+        parent_map: Mutable dict to store found parents
+    """
+    for obj_without_parent in doc.Objects:
+        if not hasattr(obj_without_parent, "Name"):
+            continue
+        obj_name = obj_without_parent.Name
+
+        if obj_name in parent_map:
             continue
 
-        child_obj = port.get_object(doc, base_name)
-        if child_obj is None:
-            continue
+        # Check InList for container references
+        in_list = getattr(obj_without_parent, "InList", [])
+        for parent_obj in in_list:
+            if hasattr(parent_obj, "Name"):
+                parent_name = parent_obj.Name
+                parent_type = getattr(parent_obj, "TypeId", "")
+                # Only assign parent if it's a container type (App::Part, PartDesign::Body)
+                if parent_type in ("App::Part", "PartDesign::Body"):
+                    parent_map[obj_name] = parent_name
+                    break
 
-        if base_name in existing_names:
-            continue
 
-        child_node = _build_tree_node(child_obj, port, doc, parent_path, is_root=False)
-        if child_node is not None:
-            children.append(child_node)
+def _build_children_map(doc: DocumentLike, parent_map: dict[str, str]) -> dict[str, list[str]]:
+    """Build children map from parent map, preserving doc.Objects iteration order.
+
+    This ensures children appear in the same order as they were created in the document.
+
+    Args:
+        doc: The FreeCAD document
+        parent_map: Dict of {child_name: parent_name}
+
+    Returns:
+        children_map: {parent_name: [child_name, ...]}
+    """
+    children_map: dict[str, list[str]] = {}
+
+    for obj_in_order in doc.Objects:
+        if not hasattr(obj_in_order, "Name"):
+            continue
+        obj_name = obj_in_order.Name
+        parent_name = parent_map.get(obj_name)
+
+        if parent_name:
+            if parent_name not in children_map:
+                children_map[parent_name] = []
+            children_map[parent_name].append(obj_name)
+
+    return children_map
+
+
+def _build_hierarchy_map(doc: DocumentLike) -> tuple[dict[str, str], dict[str, list[str]]]:
+    """Build parent and children maps using Group, OriginFeatures, and InList.
+
+    This uses simplified hierarchy detection instead of OutList traversal.
+    OutList represents ALL object references (dependencies), not visual containment
+    hierarchy, which caused bugs where nodes appeared at wrong levels.
+
+    Args:
+        doc: The FreeCAD document
+
+    Returns:
+        Tuple of (parent_map, children_map) where:
+        - parent_map: {child_name: parent_name}
+        - children_map: {parent_name: [child_name, ...]} preserving doc.Objects order
+    """
+    # First pass: determine parent for each object using Group and OriginFeatures
+    parent_map: dict[str, str] = {}
+
+    for child_obj in doc.Objects:
+        if not hasattr(child_obj, "Name"):
+            continue
+        child_name = child_obj.Name
+        _find_parent_via_group_and_origin(doc, child_name, parent_map)
+
+    # Second pass: check InList for objects still without parent
+    _find_parent_via_inlist(doc, parent_map)
+
+    # Third pass: Build children map preserving doc.Objects iteration order
+    children_map = _build_children_map(doc, parent_map)
+
+    return parent_map, children_map
 
 
 def _build_tree_node(
     obj: object,
     port: FreeCadPort,
-    doc: object,
-    parent_path: str = "",
+    doc: DocumentLike,
+    parent_path: str,
+    children_map: dict[str, list[str]],
     is_root: bool = True,
 ) -> TreeNode | None:  # noqa: C901
     """Build a TreeNode from a FreeCAD object.
+
+    Uses simplified hierarchy detection based on Group, OriginFeatures, and InList
+    instead of OutList traversal. OutList represents ALL object references (dependencies),
+    not visual containment hierarchy, which caused bugs where nodes appeared at wrong levels.
 
     Args:
         obj: The FreeCAD object to convert
         port: The FreeCadPort instance for object resolution
         doc: The FreeCAD document
         parent_path: The path of the parent node (for building full path)
+        children_map: Pre-built children map from _build_hierarchy_map().
+                     Must be provided - built once in extract_tree() for efficiency.
         is_root: Whether this is a root-level object
 
     Returns:
@@ -158,6 +233,7 @@ def _build_tree_node(
 
     # Build the full path
     path = f"{parent_path}/{name}" if parent_path else name
+    Log.info(f"[EXTRACTOR] Building node: name={name}, type={type_id}, parent_path='{parent_path}', full_path='{path}'")
 
     # Extract all properties (no filtering - snapshots capture everything)
     properties: dict[str, Property] = {}
@@ -171,35 +247,15 @@ def _build_tree_node(
         # If we can't read properties, continue with empty dict
         pass
 
-    # Build children from OutList (top-level hierarchy)
-    # OutList contains child objects referenced by this object.
-    # Example: Part.OutList -> [Origin, Body, VarSet]
-    #          Body.OutList -> [Pocket, Origin002, Sketch, Pad, Sketch001]
+    # Build children TreeNodes from the pre-built children map
     children: list[TreeNode] = []
-    try:
-        out_list = getattr(obj, "OutList", [])
-        for child_obj in out_list:
-            if hasattr(child_obj, "Name"):
-                child_node = _build_tree_node(child_obj, port, doc, path, is_root=False)
-                if child_node is not None:
-                    children.append(child_node)
-    except Exception:
-        # If OutList traversal fails, try getSubObjects as fallback
-        pass
-
-    # Also check getSubObjects for nested sub-objects within containers
-    # getSubObjects() returns tuple of sub-object name strings, NOT actual objects.
-    # Example: Part.getSubObjects() -> ("Body.", "VarSet.")
-    #          Body.getSubObjects() -> ("Sketch.", "Pad.", "Sketch001.")
-    # The trailing "." indicates a sub-object reference; we extract the base name
-    # and resolve it via the document (e.g., "Body." -> "Body" -> doc.getObject("Body"))
-    try:
-        sub_objects = getattr(obj, "getSubObjects", lambda: ())()
-    except Exception:
-        # getSubObjects failed, continue without it
-        pass
-    else:
-        _add_sub_object_children(obj, sub_objects, children, port, doc, path, name)
+    child_names = children_map.get(name, [])
+    for child_name in child_names:
+        child_obj = port.get_object(doc, child_name)
+        if child_obj is not None:
+            child_node = _build_tree_node(child_obj, port, doc, path, children_map, is_root=False)
+            if child_node is not None:
+                children.append(child_node)
 
     return TreeNode(
         name=name,
@@ -260,6 +316,10 @@ class SnapshotExtractor:
         try:
             # Get all top-level objects from the document
             objects = getattr(doc, "Objects", [])
+            Log.info(f"[EXTRACTOR] Document '{document_name}' has {len(objects)} top-level objects")
+
+            # Build hierarchy map once - used for both root filtering and child building
+            parent_map, children_map = _build_hierarchy_map(doc)
 
             for obj in objects:
                 if not hasattr(obj, "Name"):
@@ -267,15 +327,25 @@ class SnapshotExtractor:
                     Log.warning("Skipping object without Name attribute")
                     continue
 
-                node = _build_tree_node(obj, port, doc, "", is_root=True)
+                name = obj.Name
+                # Skip objects that have parents - they will be included as children
+                if name in parent_map:
+                    Log.info(f"[EXTRACTOR] Skipping {name} - it's a child of {parent_map[name]}")
+                    continue
+
+                node = _build_tree_node(obj, port, doc, "", children_map, is_root=True)
                 if node is not None:
                     root_nodes.append(node)
+                    Log.info(
+                        f"[EXTRACTOR] Added root node: {node.path} ({node.type_id}), children={len(node.children)}"
+                    )
 
         except Exception as e:
             Log.error(f"Error extracting document tree: {e}")
 
         # Use current time for timestamp
         timestamp = datetime.now()
+        Log.info(f"[EXTRACTOR] Extracted {len(root_nodes)} root nodes: {[r.path for r in root_nodes]}")
 
         return Snapshot(
             snapshot_id=str(uuid.uuid4()), document_name=document_name, timestamp=timestamp, root_nodes=root_nodes

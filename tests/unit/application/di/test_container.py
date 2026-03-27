@@ -10,8 +10,8 @@ from freecad.diff_wb.application.di.container import (
     ApplicationContainer,
     create_application_container,
 )
+from freecad.diff_wb.domain.ports import FreeCadContext
 from freecad.diff_wb.domain.snapshots.repository import InMemorySnapshotRepository
-from freecad.diff_wb.infrastructure.freecad.ports import FreeCadContext
 from tests.fakes import FakeDiffView, FakeSnapshotView
 
 

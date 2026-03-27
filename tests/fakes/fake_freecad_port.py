@@ -1,6 +1,6 @@
 """File responsibility: Fake FreeCAD port for testing."""
 
-from freecad.diff_wb.infrastructure.freecad.ports import FreeCadPort
+from freecad.diff_wb.domain.ports import FreeCadPort
 
 
 class FakeFreeCadPort(FreeCadPort):

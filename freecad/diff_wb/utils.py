@@ -15,6 +15,10 @@ class Logger(Protocol):
     the application. All logger implementations must conform to this interface.
     """
 
+    def debug(self, message: str) -> None:
+        """Log a debug message."""
+        ...
+
     def info(self, message: str) -> None:
         """Log an informational message."""
         ...
@@ -35,6 +39,10 @@ class StdoutLogger:
     production logger. Useful for testing or CLI scenarios where FreeCAD
     console is not available.
     """
+
+    def debug(self, message: str) -> None:
+        """Log a debug message to stdout."""
+        print(f"DEBUG: {message}")
 
     def info(self, message: str) -> None:
         """Log an informational message to stdout."""
@@ -77,7 +85,17 @@ class Log:
         Log.info("Informational message")
         Log.warning("Warning message")
         Log.error("Error message")
+        Log.debug("Debug message")
     """
+
+    @staticmethod
+    def debug(message: str) -> None:
+        """Log a debug message.
+
+        Args:
+            message: The message to log
+        """
+        _logger.debug(message)
 
     @staticmethod
     def info(message: str) -> None:
