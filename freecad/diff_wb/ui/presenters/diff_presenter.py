@@ -153,7 +153,7 @@ class DiffPresenter:
 
                 presentations.append(
                     PropertyPresentation(
-                        name=f"{prop_diff.property_name} (expr)",
+                        name="Expression",
                         old_display=old_expr_display,
                         new_display=new_expr_display,
                         state=expr_state,

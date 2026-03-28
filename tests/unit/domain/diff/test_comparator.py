@@ -1098,6 +1098,69 @@ class TestCompareSnapshots:
         # Should have Body/Pad (modified) and Body/Pocket (added)
         assert len(result.node_diffs) >= 1
 
+    def test_expression_only_change_marks_node_modified(self):
+        """Test that expression-only change (value unchanged) marks node as MODIFIED.
+
+        When a property's expression is changed but its value stays the same,
+        the node should still be marked as MODIFIED so it appears in the diff.
+        The expression row should show the expression change separately.
+        """
+        old_pad = TreeNode(
+            name="Pad",
+            type_id="PartDesign::Pad",
+            label="Pad",
+            path="Body/Pad",
+            properties={"Length": Property.create(PropertyType.FLOAT, 10.0, expression="Sketch.X")},
+        )
+        old_body = TreeNode(
+            name="Body",
+            type_id="PartDesign::Body",
+            label="Body",
+            path="Body",
+            children=[old_pad],
+        )
+        new_pad = TreeNode(
+            name="Pad",
+            type_id="PartDesign::Pad",
+            label="Pad",
+            path="Body/Pad",
+            properties={"Length": Property.create(PropertyType.FLOAT, 10.0, expression=None)},
+        )
+        new_body = TreeNode(
+            name="Body",
+            type_id="PartDesign::Body",
+            label="Body",
+            path="Body",
+            children=[new_pad],
+        )
+        old_snapshot = Snapshot(
+            snapshot_id="",
+            document_name="Test",
+            timestamp=datetime.now(),
+            root_nodes=[old_body],
+        )
+        new_snapshot = Snapshot(
+            snapshot_id="",
+            document_name="Test",
+            timestamp=datetime.now(),
+            root_nodes=[new_body],
+        )
+
+        result = compare_snapshots(old_snapshot, new_snapshot)
+
+        # Body should be a root node (placeholder), Body/Pad is its child
+        assert len(result.node_diffs) == 1
+        body_diff = result.node_diffs[0]
+        assert body_diff.path == "Body"
+        # Body/Pad is nested under Body
+        assert len(body_diff.children) == 1
+        pad_diff = body_diff.children[0]
+        # Node should be MODIFIED even though value is the same (expression changed)
+        assert pad_diff.state == DiffState.MODIFIED
+        # The property diff should be UNCHANGED (value same)
+        length_diff = next(p for p in pad_diff.property_diffs if p.property_name == "Length")
+        assert length_diff.state == DiffState.UNCHANGED
+
     def test_path_collision_different_paths(self):
         """Test that same name at different paths are handled correctly."""
         # Two objects with same name but different paths
@@ -1367,14 +1430,14 @@ class TestPropertyDiffState:
         )
         assert prop_diff.state == DiffState.UNCHANGED
 
-    def test_state_modified_same_value_different_expression(self):
-        """Test MODIFIED state when values are same but expressions differ."""
+    def test_state_unchanged_same_value_different_expression(self):
+        """Test UNCHANGED state when values are same (expression tracked separately)."""
         prop_diff = PropertyDiff(
             property_name="Length",
             old_value=Property.create(PropertyType.FLOAT, 10.0, expression="Body.Length"),
             new_value=Property.create(PropertyType.FLOAT, 10.0, expression="Cube.Size"),
         )
-        assert prop_diff.state == DiffState.MODIFIED
+        assert prop_diff.state == DiffState.UNCHANGED
 
 
 class TestCompareProperties:
@@ -1576,8 +1639,8 @@ class TestCompareProperties:
         assert "20.0" in str(modified)
         assert "->" in str(modified)
 
-    def test_same_value_different_expression_is_modified(self):
-        """Test that same value with different expression returns MODIFIED."""
+    def test_same_value_different_expression_is_unchanged(self):
+        """Test that same value with different expression returns UNCHANGED."""
         old_props = {
             "Length": Property.create(PropertyType.FLOAT, 10.0, expression="Body.Length"),
         }
@@ -1586,4 +1649,4 @@ class TestCompareProperties:
         }
         result = compare_properties(old_props, new_props)
         assert len(result) == 1
-        assert result[0].state == DiffState.MODIFIED
+        assert result[0].state == DiffState.UNCHANGED

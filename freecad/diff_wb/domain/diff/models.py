@@ -9,7 +9,7 @@
 from dataclasses import dataclass, field
 from enum import Enum, auto
 
-from ..tree import Property
+from ..tree import Property, PropertyType
 
 
 class DiffState(Enum):
@@ -28,8 +28,29 @@ class DiffState(Enum):
     UNCHANGED = auto()
 
 
+def _values_are_equal_ignoring_expression(old_value: Property, new_value: Property) -> bool:
+    """Compare two property values ignoring expressions.
+
+    Args:
+        old_value: Value in the old snapshot
+        new_value: Value in the new snapshot
+
+    Returns:
+        True if values are equal ignoring expression differences
+    """
+    if old_value.type_ != new_value.type_:
+        return False
+    if old_value.type_ == PropertyType.FLOAT:
+        tolerance = 1e-9
+        return bool(abs(old_value.value - new_value.value) < tolerance)
+    return bool(old_value.value == new_value.value)
+
+
 def _calculate_property_diff_state(old_value: Property | None, new_value: Property | None) -> "DiffState":
     """Calculate the diff state for a property based on old and new values.
+
+    Note: Expression changes are tracked separately. This function compares
+    only the actual values (ignoring expressions) to determine if the value changed.
 
     Args:
         old_value: Value in the old snapshot (None if added)
@@ -44,11 +65,18 @@ def _calculate_property_diff_state(old_value: Property | None, new_value: Proper
     # If new_value is None, property was deleted
     if new_value is None:
         return DiffState.DELETED
-    # If values are equal (including expressions), unchanged
-    if old_value == new_value:
+    # If values are equal (ignoring expressions), unchanged
+    if _values_are_equal_ignoring_expression(old_value, new_value):
         return DiffState.UNCHANGED
     # Otherwise, modified
     return DiffState.MODIFIED
+
+
+def _has_expression_change(old_value: Property | None, new_value: Property | None) -> bool:
+    """Check if there's an expression change between two property values."""
+    if old_value is None or new_value is None:
+        return True
+    return old_value.expression != new_value.expression
 
 
 def _are_properties_modified(property_diffs: list["PropertyDiff"], children: list["NodeDiff"]) -> bool:
@@ -57,6 +85,7 @@ def _are_properties_modified(property_diffs: list["PropertyDiff"], children: lis
     A node's properties are considered modified if:
     - Any child has state != DiffState.UNCHANGED
     - Any property has state != DiffState.UNCHANGED (includes ADDED, DELETED, MODIFIED)
+    - Any property has an expression change (even if value is unchanged)
 
     Args:
         property_diffs: List of property diffs for this node
@@ -70,7 +99,11 @@ def _are_properties_modified(property_diffs: list["PropertyDiff"], children: lis
         return True
 
     # Check if any property has changed (ADDED, DELETED, or MODIFIED)
-    return any(prop_diff.state != DiffState.UNCHANGED for prop_diff in property_diffs)
+    if any(prop_diff.state != DiffState.UNCHANGED for prop_diff in property_diffs):
+        return True
+
+    # Check if any property has expression changes (value may be unchanged but expression changed)
+    return any(_has_expression_change(prop_diff.old_value, prop_diff.new_value) for prop_diff in property_diffs)
 
 
 @dataclass(frozen=True)

@@ -204,8 +204,8 @@ class DiffPanelView(QWidget):
         splitter.addWidget(tree_container)
         splitter.addWidget(self.properties_table)
 
-        # Set initial sizes (equal thirds)
-        splitter.setSizes([200, 200, 200])
+        # Set initial sizes: narrower snapshot, narrower tree, wider property table
+        splitter.setSizes([150, 150, 400])
 
         # Set minimum size for the panel
         self.setMinimumSize(450, 200)
@@ -403,6 +403,7 @@ class DiffPanelView(QWidget):
             properties: List of PropertyPresentation objects to display.
                        Each row shows: Property Name | Value
                        Color coding: green=added, red=deleted, blue=modified, gray=unchanged
+                       Expression rows are shown as child rows with → prefix.
         """
         # Clear existing rows
         self.properties_table.setRowCount(0)
@@ -415,10 +416,9 @@ class DiffPanelView(QWidget):
 
         # Populate rows
         for row, prop in enumerate(all_properties):
-            # Property name column (column 0)
-            name_item = QTableWidgetItem(prop.name)
+            is_expression = prop.name == "Expression"
 
-            # Determine color based on state
+            # Build value text based on state
             if prop.state == "ADDED":
                 bg_color = self.ADDED_COLOR
                 value_text = f"+ {prop.new_display}"
@@ -430,18 +430,26 @@ class DiffPanelView(QWidget):
                 value_text = f"{prop.old_display} → {prop.new_display}"
             else:  # UNCHANGED
                 bg_color = self.UNCHANGED_COLOR
-                value_text = prop.new_display  # Just the value, no arrows
+                value_text = prop.new_display
 
-            # Value column (column 1)
-            value_item = QTableWidgetItem(value_text)
+            if is_expression:
+                # Expression row shows → Expression in key column, uses its own state color
+                name_item = QTableWidgetItem("→ Expression")
+                value_item = QTableWidgetItem(value_text)
+                name_item.setBackground(QBrush(bg_color))
+                value_item.setBackground(QBrush(bg_color))
+                self.properties_table.setItem(row, 0, name_item)
+                self.properties_table.setItem(row, 1, value_item)
+            else:
+                # Regular property rows
+                name_item = QTableWidgetItem(prop.name)
+                value_item = QTableWidgetItem(value_text)
 
-            # Apply background color to both cells
-            name_item.setBackground(QBrush(bg_color))
-            value_item.setBackground(QBrush(bg_color))
+                name_item.setBackground(QBrush(bg_color))
+                value_item.setBackground(QBrush(bg_color))
 
-            # Add items to table
-            self.properties_table.setItem(row, 0, name_item)
-            self.properties_table.setItem(row, 1, value_item)
+                self.properties_table.setItem(row, 0, name_item)
+                self.properties_table.setItem(row, 1, value_item)
 
     # Selection management methods
     def _get_default_background(self) -> QColor:

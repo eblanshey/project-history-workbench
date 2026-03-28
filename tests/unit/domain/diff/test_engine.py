@@ -55,12 +55,11 @@ class TestPropertyDiff:
     # =====================================================================
 
     def test_expression_only_change_detected(self):
-        """Test that expression-only change is detected as modified."""
+        """Test that expression-only change shows as UNCHANGED (expression tracked separately)."""
         old_val = Property.create(PropertyType.FLOAT, 10.0)
         new_val = Property.create(PropertyType.FLOAT, 10.0, expression="Sketch001.X")
         diff = PropertyDiff(property_name="Length", old_value=old_val, new_value=new_val)
-        assert diff.state == DiffState.MODIFIED
-        assert "10.0 -> 10.0" in str(diff)  # Values same but expression changed
+        assert diff.state == DiffState.UNCHANGED  # Value unchanged, expression tracked separately
 
     def test_value_only_change_detected(self):
         """Test that value-only change is detected as modified."""
@@ -84,25 +83,25 @@ class TestPropertyDiff:
         assert "15.0" in str(diff)
 
     def test_expression_changed_to_none(self):
-        """Test that removing an expression is detected as modified."""
+        """Test that removing expression with same value shows UNCHANGED."""
         old_val = Property.create(PropertyType.STRING, "test", expression="Doc.Name")
         new_val = Property.create(PropertyType.STRING, "test")
         diff = PropertyDiff(property_name="Name", old_value=old_val, new_value=new_val)
-        assert diff.state == DiffState.MODIFIED
+        assert diff.state == DiffState.UNCHANGED  # Value unchanged, expression tracked separately
 
     def test_expression_added_from_none(self):
-        """Test that adding an expression is detected as modified."""
+        """Test that adding expression with same value shows UNCHANGED."""
         old_val = Property.create(PropertyType.INT, 42)
         new_val = Property.create(PropertyType.INT, 42, expression="Some.Expr")
         diff = PropertyDiff(property_name="Value", old_value=old_val, new_value=new_val)
-        assert diff.state == DiffState.MODIFIED
+        assert diff.state == DiffState.UNCHANGED  # Value unchanged, expression tracked separately
 
     def test_different_expressions_same_value(self):
-        """Test different expressions with same value detected as modified."""
+        """Test different expressions with same value shows UNCHANGED."""
         old_val = Property.create(PropertyType.VECTOR, (1.0, 2.0, 3.0), expression="Sketch001.X")
         new_val = Property.create(PropertyType.VECTOR, (1.0, 2.0, 3.0), expression="Sketch002.X")
         diff = PropertyDiff(property_name="Position", old_value=old_val, new_value=new_val)
-        assert diff.state == DiffState.MODIFIED
+        assert diff.state == DiffState.UNCHANGED  # Value unchanged, expression tracked separately
 
 
 class TestNodeDiff:

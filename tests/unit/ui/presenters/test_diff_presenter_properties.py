@@ -148,7 +148,63 @@ class TestDiffPresenterPropertyHandling:
 
         # Second row is expression row
         expr_pres = properties[1]
-        assert expr_pres.name == "Length (expr)"
+        assert expr_pres.name == "Expression"
+        assert expr_pres.state == "DELETED"
+        assert "Sketch.X" in expr_pres.old_display
+        assert "(none)" in expr_pres.new_display
+
+    def test_property_presentation_when_expression_removed_but_value_same(self) -> None:
+        """When expression is removed but value stays same, value row shows UNCHANGED.
+
+        Scenario: Pad length had expression "Sketch.X" evaluating to 3mm. Expression is
+        removed but value is manually set to 3mm. The value should show UNCHANGED,
+        only the expression row should show DELETED.
+        """
+        # Arrange
+        fake_view = FakeDiffView()
+        presenter = DiffPresenter(fake_view)
+
+        # Old property has expression, new property has same value but no expression
+        old_prop = Property.create(PropertyType.FLOAT, 3.0, expression="Sketch.X")
+        new_prop = Property.create(PropertyType.FLOAT, 3.0, expression=None)
+        node_diff = NodeDiff(
+            path="Part",
+            type_id="Part::Feature",
+            property_diffs=[
+                PropertyDiff(property_name="Length", old_value=old_prop, new_value=new_prop),
+            ],
+            _force_state=DiffState.MODIFIED,
+        )
+        diff_result = DiffResult(
+            old_snapshot_name="v1",
+            new_snapshot_name="v2",
+            node_diffs=[node_diff],
+        )
+
+        presenter.present_diff(diff_result)
+
+        # Act
+        presenter.on_node_selected("Part")
+
+        # Assert
+        calls = fake_view.get_calls()
+        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        assert prop_call is not None
+
+        properties = prop_call["properties"]
+        # Should have 2 rows: value row + expression row
+        assert len(properties) == 2
+
+        # Value row should be UNCHANGED (value is the same)
+        value_pres = properties[0]
+        assert value_pres.name == "Length"
+        assert value_pres.state == "UNCHANGED"
+        assert "3.0" in value_pres.old_display
+        assert "3.0" in value_pres.new_display
+
+        # Expression row should show DELETED
+        expr_pres = properties[1]
+        assert expr_pres.name == "Expression"
         assert expr_pres.state == "DELETED"
         assert "Sketch.X" in expr_pres.old_display
         assert "(none)" in expr_pres.new_display
