@@ -421,10 +421,10 @@ class DiffPanelView(QWidget):
             # Build value text based on state
             if prop.state == "ADDED":
                 bg_color = self.ADDED_COLOR
-                value_text = f"+ {prop.new_display}"
+                value_text = f"{prop.new_display}"
             elif prop.state == "DELETED":
                 bg_color = self.DELETED_COLOR
-                value_text = f"- {prop.old_display}"
+                value_text = f"{prop.old_display}"
             elif prop.state == "MODIFIED":
                 bg_color = self.MODIFIED_COLOR
                 value_text = f"{prop.old_display} → {prop.new_display}"

@@ -86,7 +86,7 @@ class TestDiffPanelViewShowProperties:
         # Check value column (column 1) - should show "+ value" format
         value_item = panel.properties_table.item(0, 1)
         assert value_item is not None
-        assert value_item.text() == "+ 25.0"
+        assert value_item.text() == "25.0"
 
         # Check green background color
         assert name_item.background().color() == QColor(200, 255, 200)
@@ -122,7 +122,7 @@ class TestDiffPanelViewShowProperties:
         # Check value column (column 1) - should show "- value" format
         value_item = panel.properties_table.item(0, 1)
         assert value_item is not None
-        assert value_item.text() == "- 15.0"
+        assert value_item.text() == "15.0"
 
         # Check red background color
         assert name_item.background().color() == QColor(255, 200, 200)
@@ -218,8 +218,8 @@ class TestDiffPanelViewShowProperties:
         assert panel.properties_table.rowCount() == 3
 
         # Verify each row using helper
-        self._verify_row(panel, 0, "AddedProp", "+ 100.0", (200, 255, 200))
-        self._verify_row(panel, 1, "DeletedProp", "- 50.0", (255, 200, 200))
+        self._verify_row(panel, 0, "AddedProp", "100.0", (200, 255, 200))
+        self._verify_row(panel, 1, "DeletedProp", "50.0", (255, 200, 200))
         self._verify_row(panel, 2, "ModifiedProp", "10.0 → 20.0", (200, 200, 255))
 
     def test_property_with_no_changes_included_in_list(self, panel) -> None:  # type: ignore[no-untyped-def]
