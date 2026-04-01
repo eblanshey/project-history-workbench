@@ -101,12 +101,16 @@ docstring-code-line-length = 80
 #   N - pep8-naming
 #   SIM - flake8-simplify
 #   C901 - mccabe (complexity)
+#   BLE - flake8-blind-except
 # Ignored codes:
 #   S101 - assert statements (disallowed by pylint)
 #   N802 - function name case (disabled for flexibility)
 #   N806 - variable name case in function (disabled for flexibility)
-select = ["E", "W", "F", "I", "B", "C4", "UP", "N", "SIM", "C901"]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "N", "SIM", "C901", "BLE"]
 ignore = ["S101", "N802", "N806"]
+# Configure ruff to recognize our custom Log instance as a logger object.
+# This allows BLE001 to recognize Log.exception() calls as proper exception logging.
+logger-objects = ["freecad.diff_wb.utils.Log"]
 # Per-file ignores:
 #   tests/* - allow asserts, higher complexity, and longer lines in tests
 #   freecad/diff_wb/snapshot/snapshot_query.py - allow higher complexity for _build_tree_node

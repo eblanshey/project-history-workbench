@@ -5,6 +5,7 @@ import datetime
 from ....domain.ports import FreeCadPort
 from ....domain.snapshots.gui_extractor import SnapshotExtractor
 from ....domain.snapshots.repository import SnapshotRepository
+from ....utils import Log
 from ..result_models import SnapshotResult
 
 
@@ -77,6 +78,7 @@ class TakeSnapshotAction:
         except Exception as e:
             # Catch-all for unexpected errors during extraction
             error_msg = f"Unexpected error during snapshot extraction: {str(e)}"
+            Log.exception(error_msg)
             self._freecad_port.message(error_msg)
             return SnapshotResult(
                 success=False,
@@ -100,6 +102,7 @@ class TakeSnapshotAction:
         except Exception as e:
             # Catch-all for unexpected errors during save
             error_msg = f"Unexpected error during snapshot save: {str(e)}"
+            Log.exception(error_msg)
             self._freecad_port.message(error_msg)
             return SnapshotResult(
                 success=False,

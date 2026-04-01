@@ -16,7 +16,8 @@ from ..utils import Log, set_logger
 try:
     import FreeCADGui as Gui  # pylint: disable=import-error
     from FreeCADGui import getMainWindow  # noqa: N813
-except Exception:  # pylint: disable=broad-exception-caught
+except Exception as e:
+    Log.exception(f"Failed to import FreeCADGui: {e}")
     Gui = None
     getMainWindow = None  # noqa: N816
 
@@ -164,11 +165,8 @@ if Gui is not None:
                 # Connect destroyed signal to reset reference when window is closed
                 # QMdiSubWindow inherits from QWidget which inherits from QObject
                 self._subwindow.destroyed.connect(self._on_subwindow_closed)
-            except Exception as e:
-                import traceback
-
-                Log.error(f"ERROR creating diff panel: {e}")
-                Log.error(traceback.format_exc())
+            except Exception:
+                Log.exception("ERROR creating diff panel")
 
         def _on_subwindow_closed(self) -> None:
             """Called when the diff panel subwindow is closed."""

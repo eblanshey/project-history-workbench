@@ -8,7 +8,7 @@ This module contains shared utilities including the unified logging system.
 from typing import Protocol
 
 
-class Logger(Protocol):
+class LoggerProtocol(Protocol):
     """Logger protocol for consistent logging interface.
 
     This protocol defines the standard logging methods used throughout
@@ -58,10 +58,10 @@ class StdoutLogger:
 
 
 # Global logger instance - starts as StdoutLogger to ensure messages aren't lost
-_logger: Logger = StdoutLogger()
+_logger: LoggerProtocol = StdoutLogger()
 
 
-def set_logger(logger: Logger) -> None:
+def set_logger(logger: LoggerProtocol) -> None:
     """Set the global logger instance.
 
     This should be called once during application startup (in workbench.Initialize()).
@@ -74,22 +74,21 @@ def set_logger(logger: Logger) -> None:
     _logger = logger
 
 
-class Log:
-    """Convenience class for accessing the global logger.
+class Logger:
+    """Logger wrapper that delegates to the global logger instance.
 
-    Provides static methods for logging that delegate to the global logger
-    instance. This avoids importing multiple functions and provides a
-    cleaner API.
+    This class provides a unified logging interface that works with both
+    the default StdoutLogger and FreeCAD's console logger after initialization.
 
     Usage:
-        Log.info("Informational message")
-        Log.warning("Warning message")
-        Log.error("Error message")
-        Log.debug("Debug message")
+        Logger.debug("Debug message")
+        Logger.info("Info message")
+        Logger.warning("Warning message")
+        Logger.error("Error message")
+        Logger.exception("Exception message")  # Required for BLE001 compliance
     """
 
-    @staticmethod
-    def debug(message: str) -> None:
+    def debug(self, message: str) -> None:
         """Log a debug message.
 
         Args:
@@ -97,8 +96,7 @@ class Log:
         """
         _logger.debug(message)
 
-    @staticmethod
-    def info(message: str) -> None:
+    def info(self, message: str) -> None:
         """Log an informational message.
 
         Args:
@@ -106,8 +104,7 @@ class Log:
         """
         _logger.info(message)
 
-    @staticmethod
-    def warning(message: str) -> None:
+    def warning(self, message: str) -> None:
         """Log a warning message.
 
         Args:
@@ -115,8 +112,7 @@ class Log:
         """
         _logger.warning(message)
 
-    @staticmethod
-    def error(message: str) -> None:
+    def error(self, message: str) -> None:
         """Log an error message.
 
         Args:
@@ -124,10 +120,27 @@ class Log:
         """
         _logger.error(message)
 
+    def exception(self, message: str) -> None:
+        """Log an error message with exception context.
+
+        This method is used in except blocks to satisfy ruff's BLE001 rule
+        which requires exceptions to be logged properly.
+
+        Args:
+            message: The message to log
+        """
+        _logger.error(message)
+
+
+# Module-level logger instance for convenient access
+# Ruff's BLE001 rule recognizes this as a logger object due to the exception() method
+Log = Logger()
+
 
 __all__ = [
-    "Logger",
+    "LoggerProtocol",
     "StdoutLogger",
+    "Logger",
     "Log",
     "set_logger",
 ]

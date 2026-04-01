@@ -173,8 +173,8 @@ def _get_claimed_children(vp: Any) -> list[str]:
             elif hasattr(child, "name"):
                 result.append(child.name)
         return result
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        Log.warning(f"claimChildren() raised: {e}")
+    except Exception as e:
+        Log.exception(f"claimChildren() raised: {e}")
         return []
 
 
@@ -337,16 +337,10 @@ def _build_hierarchy_map(doc: DocumentLike, gui_doc: Any) -> tuple[dict[str, str
 
 
 def _get_expression_for_property(obj: object, prop_name: str) -> str | None:
-    """Extract the expression for a specific property from ExpressionEngine.
+    """Get the expression string for a property from ExpressionEngine.
 
-    FreeCAD stores expressions (e.g., "Pad.Length * 2") in the ExpressionEngine
-    property as a list of [property_name, expression_string] pairs. This function
-    searches that list for the given property and returns its expression.
-
-    Example ExpressionEngine value:
+    The ExpressionEngine attribute (when present) is a list of lists like:
         [
-            ["Length", "Pad.Length * 2"],
-            ["Width", "Sketch.X"],
             ["Height", "10 mm"]
         ]
 
@@ -357,14 +351,12 @@ def _get_expression_for_property(obj: object, prop_name: str) -> str | None:
     Returns:
         The expression string if found (e.g., "Pad.Length * 2"), None otherwise
     """
-    try:
-        expr_engine = getattr(obj, "ExpressionEngine", [])
-        if isinstance(expr_engine, list):
-            for entry in expr_engine:
-                if isinstance(entry, (list, tuple)) and len(entry) >= 2 and entry[0] == prop_name:
-                    return str(entry[1])
-    except Exception:
-        pass
+    expr_engine = getattr(obj, "ExpressionEngine", [])
+    if not isinstance(expr_engine, list):
+        return None
+    for entry in expr_engine:
+        if isinstance(entry, (list, tuple)) and len(entry) >= 2 and entry[0] == prop_name:
+            return str(entry[1])
     return None
 
 
@@ -410,7 +402,7 @@ def _extract_property_value(obj: object, prop_name: str) -> Property | None:
         group = _get_property_group(obj, prop_name)
         return Property.from_freecad_property(prop_name, value, expression=expression, group=group)
     except Exception as e:
-        Log.warning(f"Failed to extract property {prop_name}: {e}")
+        Log.exception(f"Failed to extract property {prop_name}: {e}")
         return None
 
 
@@ -449,10 +441,10 @@ def _is_property_hidden(obj: object, prop_name: str) -> tuple[bool, str]:  # noq
     if get_editor_mode is not None:
         try:
             editor_mode = get_editor_mode(prop_name)
-            if "Hidden" in editor_mode:
+            if isinstance(editor_mode, list) and "Hidden" in editor_mode:
                 return True, "editor_mode_hidden"
-        except Exception:
-            pass
+        except Exception as e:
+            Log.exception(f"Failed to get editor mode for {prop_name}: {e}")
 
     # Check 2: getPropertyStatus() contains "Hidden" string or integer 26
     # From FreeCAD source (src/App/PropertyContainerPyImp.cpp line 311-356):
@@ -474,31 +466,31 @@ def _is_property_hidden(obj: object, prop_name: str) -> tuple[bool, str]:  # noq
             status = get_property_status(prop_name)
             if isinstance(status, list) and ("Hidden" in status or 26 in status):
                 return True, "prop_hidden_bit"
-        except Exception:
-            pass
+        except Exception as e:
+            Log.exception(f"Failed to get property status for {prop_name}: {e}")
 
     # Check 3: getTypeOfProperty() returns a list containing 'Hidden'
     get_type_of_property = getattr(obj, "getTypeOfProperty", None)
     if get_type_of_property is not None:
         try:
             prop_types = get_type_of_property(prop_name)
-            if "Hidden" in prop_types:
+            if isinstance(prop_types, list) and "Hidden" in prop_types:
                 return True, "type_hidden"
-        except Exception:
-            pass
+        except Exception as e:
+            Log.exception(f"Failed to get type of property {prop_name}: {e}")
 
     # Check 4: Property type has no editor (workaround for missing getEditorName())
     # In FreeCAD C++, properties are hidden if getEditorName() returns ""
     # Since this method isn't available in Python, we check the TypeId against
     # NO_EDITOR_PROPERTY_TYPES which contains all property types without editors
-    try:
-        get_type_id = getattr(obj, "getTypeIdOfProperty", None)
-        if get_type_id is not None:
+    get_type_id = getattr(obj, "getTypeIdOfProperty", None)
+    if get_type_id is not None:
+        try:
             type_id = get_type_id(prop_name)
-            if type_id in _ALL_NO_EDITOR_TYPES:
+            if isinstance(type_id, str) and type_id in _ALL_NO_EDITOR_TYPES:
                 return True, f"{type_id.lower()}_no_editor"
-    except Exception:
-        pass
+        except Exception as e:
+            Log.exception(f"Failed to get type ID of property {prop_name}: {e}")
 
     return False, ""
 
@@ -584,7 +576,7 @@ def _build_tree_node(
     try:
         properties = _extract_visible_properties(obj, name)
     except Exception as e:
-        Log.warning(f"[EXTRACTOR] {name}: error extracting properties: {e}")
+        Log.exception(f"[EXTRACTOR] {name}: error extracting properties: {e}")
 
     # Build children TreeNodes from the pre-built children map
     children: list[TreeNode] = []
@@ -684,7 +676,7 @@ class SnapshotExtractor:
                     )
 
         except Exception as e:
-            Log.error(f"Error extracting document tree: {e}")
+            Log.exception(f"Error extracting document tree: {e}")
 
         # Use current time for timestamp
         timestamp = datetime.now()

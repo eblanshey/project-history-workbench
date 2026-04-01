@@ -88,6 +88,7 @@ class SnapshotPresenter:
             snapshots = self._list_snapshots_action.execute()
             self._view.show_snapshots(snapshots)
         except Exception as e:
+            Log.exception(f"Failed to load snapshots: {e}")
             self._view.show_error(str(e))
 
     def refresh_snapshots(self) -> None:

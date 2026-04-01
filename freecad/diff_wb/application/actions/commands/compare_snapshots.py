@@ -94,7 +94,7 @@ class CompareSnapshotsAction:
         except Exception as e:
             # Catch-all for unexpected errors during diff computation
             error_msg = f"Unexpected error during diff computation: {str(e)}"
-            Log.error(error_msg)
+            Log.exception(error_msg)
             return CompareResult(
                 success=False,
                 diff_result=None,

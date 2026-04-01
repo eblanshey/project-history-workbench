@@ -5,7 +5,10 @@ class with FreeCAD. No container creation, no command registration, no global st
 
 try:
     import FreeCADGui as Gui
-except Exception:  # pylint: disable=broad-exception-caught
+except Exception as e:
+    from .utils import Log
+
+    Log.exception(f"Failed to import FreeCADGui: {e}")
     Gui = None
 
 if Gui is not None:
