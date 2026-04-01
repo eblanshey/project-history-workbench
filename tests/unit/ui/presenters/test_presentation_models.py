@@ -5,6 +5,7 @@ from dataclasses import is_dataclass
 
 import pytest
 
+from freecad.diff_wb.domain.diff.models import DiffState
 from freecad.diff_wb.ui.presenters.presentation_models import (
     NodePresentation,
     PropertyPresentation,
@@ -21,28 +22,28 @@ class TestNodePresentation:
         node = NodePresentation(
             path="Part",
             type_id="Part::Feature",
-            state="MODIFIED",
+            state=DiffState.MODIFIED,
             has_changes=True,
         )
 
         # Act & Assert - attempting to modify should raise FrozenInstanceError
         with pytest.raises(dataclasses.FrozenInstanceError):
-            node.state = "UNCHANGED"  # type: ignore[misc]
+            node.state = DiffState.UNCHANGED  # type: ignore[misc]
 
-    def test_property_presentation_fields(self) -> None:
+    def test_node_presentation_fields(self) -> None:
         """Verify all fields present in NodePresentation."""
         # Arrange & Act
         node = NodePresentation(
             path="Part/Body",
             type_id="PartDesign::Body",
-            state="ADDED",
+            state=DiffState.ADDED,
             has_changes=False,
         )
 
         # Assert
         assert node.path == "Part/Body"
         assert node.type_id == "PartDesign::Body"
-        assert node.state == "ADDED"
+        assert node.state == DiffState.ADDED
         assert node.has_changes is False
 
     def test_node_presentation_accepts_children_list_parameter(self) -> None:
@@ -51,19 +52,19 @@ class TestNodePresentation:
         child1 = NodePresentation(
             path="Part/Body/Pad",
             type_id="PartDesign::Pad",
-            state="UNCHANGED",
+            state=DiffState.UNCHANGED,
             has_changes=False,
         )
         child2 = NodePresentation(
             path="Part/Body/Pocket",
             type_id="PartDesign::Pocket",
-            state="MODIFIED",
+            state=DiffState.MODIFIED,
             has_changes=True,
         )
         parent = NodePresentation(
             path="Part/Body",
             type_id="PartDesign::Body",
-            state="MODIFIED",
+            state=DiffState.MODIFIED,
             has_changes=True,
             children=[child1, child2],
         )
@@ -81,7 +82,7 @@ class TestNodePresentation:
         node = NodePresentation(
             path="Part",
             type_id="Part::Feature",
-            state="UNCHANGED",
+            state=DiffState.UNCHANGED,
             has_changes=False,
         )
 
@@ -95,13 +96,13 @@ class TestNodePresentation:
         node1 = NodePresentation(
             path="Part1",
             type_id="Part::Feature",
-            state="UNCHANGED",
+            state=DiffState.UNCHANGED,
             has_changes=False,
         )
         node2 = NodePresentation(
             path="Part2",
             type_id="Part::Feature",
-            state="UNCHANGED",
+            state=DiffState.UNCHANGED,
             has_changes=False,
         )
 
@@ -117,30 +118,125 @@ class TestPropertyPresentation:
         # Arrange
         prop = PropertyPresentation(
             name="Length",
-            old_display="10.0",
-            new_display="20.0",
-            state="MODIFIED",
+            state=DiffState.MODIFIED,
         )
 
         # Act & Assert - attempting to modify should raise FrozenInstanceError
         with pytest.raises(dataclasses.FrozenInstanceError):
-            prop.new_display = "30.0"  # type: ignore[misc]
+            prop.state = DiffState.UNCHANGED  # type: ignore[misc]
 
     def test_property_presentation_fields(self) -> None:
         """Verify all fields present in PropertyPresentation."""
         # Arrange & Act
         prop = PropertyPresentation(
             name="Width",
-            old_display="5.0 (via Sketch.X)",
-            new_display="15.0",
-            state="MODIFIED",
+            state=DiffState.MODIFIED,
         )
 
         # Assert
         assert prop.name == "Width"
-        assert prop.old_display == "5.0 (via Sketch.X)"
-        assert prop.new_display == "15.0"
-        assert prop.state == "MODIFIED"
+        assert prop.state == DiffState.MODIFIED
+
+    def test_property_presentation_old_value_field(self) -> None:
+        """Verify old_value field is present and can be set."""
+        # Arrange & Act
+        old_dict = {"x": 1.0, "y": 2.0}
+        prop = PropertyPresentation(
+            name="Vector",
+            state=DiffState.MODIFIED,
+            old_value=old_dict,
+        )
+
+        # Assert
+        assert prop.old_value == old_dict
+
+    def test_property_presentation_new_value_field(self) -> None:
+        """Verify new_value field is present and can be set."""
+        # Arrange & Act
+        new_dict = {"x": 3.0, "y": 4.0}
+        prop = PropertyPresentation(
+            name="Vector",
+            state=DiffState.MODIFIED,
+            new_value=new_dict,
+        )
+
+        # Assert
+        assert prop.new_value == new_dict
+
+    def test_property_presentation_old_and_new_values_together(self) -> None:
+        """Verify both old_value and new_value can be set simultaneously."""
+        # Arrange & Act
+        old_dict = {"x": 1.0, "y": 2.0}
+        new_dict = {"x": 3.0, "y": 4.0}
+        prop = PropertyPresentation(
+            name="Vector",
+            state=DiffState.MODIFIED,
+            old_value=old_dict,
+            new_value=new_dict,
+        )
+
+        # Assert
+        assert prop.old_value == old_dict
+        assert prop.new_value == new_dict
+
+    def test_property_presentation_old_value_defaults_to_none(self) -> None:
+        """Verify old_value defaults to None when not provided."""
+        # Arrange & Act
+        prop = PropertyPresentation(
+            name="Length",
+            state=DiffState.MODIFIED,
+        )
+
+        # Assert
+        assert prop.old_value is None
+
+    def test_property_presentation_new_value_defaults_to_none(self) -> None:
+        """Verify new_value defaults to None when not provided."""
+        # Arrange & Act
+        prop = PropertyPresentation(
+            name="Length",
+            state=DiffState.MODIFIED,
+        )
+
+        # Assert
+        assert prop.new_value is None
+
+    def test_property_presentation_no_display_fields(self) -> None:
+        """Verify old_display and new_display fields have been removed."""
+        # Arrange & Act
+        prop = PropertyPresentation(
+            name="Length",
+            state=DiffState.MODIFIED,
+        )
+
+        # Assert - these fields should not exist
+        field_names = [f.name for f in dataclasses.fields(prop)]
+        assert "old_display" not in field_names
+        assert "new_display" not in field_names
+
+    def test_property_presentation_no_deprecated_value_field(self) -> None:
+        """Verify deprecated value field has been removed."""
+        # Arrange & Act
+        prop = PropertyPresentation(
+            name="Length",
+            state=DiffState.MODIFIED,
+        )
+
+        # Assert - this field should not exist
+        field_names = [f.name for f in dataclasses.fields(prop)]
+        assert "value" not in field_names
+
+    def test_property_presentation_uses_diffstate_enum(self) -> None:
+        """Verify state field uses DiffState enum type."""
+        # Arrange & Act
+        prop = PropertyPresentation(
+            name="Length",
+            state=DiffState.ADDED,
+        )
+
+        # Assert
+        assert isinstance(prop.state, DiffState)
+        assert prop.state == DiffState.ADDED
 
 
 class TestSnapshotPresentation:
@@ -193,19 +289,19 @@ class TestPresentationModelsAreDataclasses:
         node1 = NodePresentation(
             path="Part",
             type_id="Part::Feature",
-            state="MODIFIED",
+            state=DiffState.MODIFIED,
             has_changes=True,
         )
         node2 = NodePresentation(
             path="Part",
             type_id="Part::Feature",
-            state="MODIFIED",
+            state=DiffState.MODIFIED,
             has_changes=True,
         )
         node3 = NodePresentation(
             path="Part",
             type_id="Part::Feature",
-            state="UNCHANGED",
+            state=DiffState.UNCHANGED,
             has_changes=False,
         )
 
@@ -219,15 +315,11 @@ class TestPresentationModelsAreDataclasses:
         # Arrange
         prop1 = PropertyPresentation(
             name="Length",
-            old_display="10.0",
-            new_display="20.0",
-            state="MODIFIED",
+            state=DiffState.MODIFIED,
         )
         prop2 = PropertyPresentation(
             name="Length",
-            old_display="10.0",
-            new_display="20.0",
-            state="MODIFIED",
+            state=DiffState.MODIFIED,
         )
 
         # Assert

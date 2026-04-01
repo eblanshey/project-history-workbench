@@ -25,13 +25,14 @@ from PySide6.QtWidgets import (
 )
 
 from ...application.actions.result_models import SnapshotSummary
+from ...domain.diff.models import DiffState
 from ..presenters.presentation_models import NodePresentation, PropertyPresentation
 from ..translation_strings import (
     DIFF_SUMMARY_ADDED_LABEL,
     DIFF_SUMMARY_DELETED_LABEL,
     DIFF_SUMMARY_MODIFIED_LABEL,
 )
-from .property_tree import _camelcase_to_spaces, get_property_children, is_expandable
+from .property_tree import _camelcase_to_spaces, get_property_children
 
 
 @dataclass
@@ -189,8 +190,8 @@ class DiffPanelView(QWidget):
 
         # Column 3: Properties tree widget (replaces QTableWidget)
         self.properties_tree = QTreeWidget()
-        self.properties_tree.setColumnCount(2)
-        self.properties_tree.setHeaderLabels(["Property", "Value"])
+        self.properties_tree.setColumnCount(3)
+        self.properties_tree.setHeaderLabels(["Property", "Value Left", "Value Right"])
         self.properties_tree.header().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.properties_tree.header().setStretchLastSection(True)
         # self.properties_tree.hide()  # Hide until data available
@@ -354,11 +355,11 @@ class DiffPanelView(QWidget):
         item.setData(0, Qt.ItemDataRole.UserRole + 1, node.has_changes)
 
         # Apply color based on state (only for changed nodes)
-        if node.state == "ADDED":
+        if node.state == DiffState.ADDED:
             item.setBackground(0, QBrush(self.ADDED_COLOR))
-        elif node.state == "DELETED":
+        elif node.state == DiffState.DELETED:
             item.setBackground(0, QBrush(self.DELETED_COLOR))
-        elif node.state == "MODIFIED":
+        elif node.state == DiffState.MODIFIED:
             item.setBackground(0, QBrush(self.MODIFIED_COLOR))
         # UNCHANGED: no color (use default background)
 
@@ -445,21 +446,28 @@ class DiffPanelView(QWidget):
         # Gray background for group headers (similar to FreeCAD's property panel)
         GROUP_HEADER_COLOR = QColor(220, 220, 220)
 
-        item = QTreeWidgetItem([group_name, ""])
+        item = QTreeWidgetItem([group_name, "", ""])
         # Make header non-selectable
         item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsSelectable)
-        # Apply gray background to both columns
+        # Apply gray background to all 3 columns
         item.setBackground(0, QBrush(GROUP_HEADER_COLOR))
         item.setBackground(1, QBrush(GROUP_HEADER_COLOR))
+        item.setBackground(2, QBrush(GROUP_HEADER_COLOR))
         # Make the group header bold
         font = item.font(0)
         font.setBold(True)
         item.setFont(0, font)
         item.setFont(1, font)
+        item.setFont(2, font)
         return item
 
     def _create_property_tree_item(self, prop: PropertyPresentation) -> QTreeWidgetItem:
         """Create a property tree item with diff coloring and expandability.
+
+        For expandable properties, children are compared between old_value and new_value
+        to determine their individual state (MODIFIED/ADDED/DELETED/UNCHANGED).
+        Only changed children receive background coloring; unchanged children use default.
+        If any child has changes, the parent row is colored blue (MODIFIED).
 
         Args:
             prop: The PropertyPresentation to display.
@@ -467,42 +475,166 @@ class DiffPanelView(QWidget):
         Returns:
             QTreeWidgetItem with text, color, and children if expandable.
         """
-        # Determine background color based on state
-        if prop.state == "ADDED":
-            bg_color = self.ADDED_COLOR
-            value_text = prop.new_display
-        elif prop.state == "DELETED":
-            bg_color = self.DELETED_COLOR
-            value_text = prop.old_display
-        elif prop.state == "MODIFIED":
-            bg_color = self.MODIFIED_COLOR
-            value_text = f"{prop.old_display} → {prop.new_display}"
-        else:  # UNCHANGED
-            bg_color = self.UNCHANGED_COLOR
-            value_text = prop.new_display
+        # Get display values based on state
+        bg_color, left_value, right_value = self._get_property_display_values(prop.state, prop)
 
         # Convert CamelCase to spaced name for display
         display_name = _camelcase_to_spaces(prop.name)
 
-        item = QTreeWidgetItem([display_name, value_text])
+        item = QTreeWidgetItem([display_name, left_value, right_value])
 
-        # Apply diff coloring to both columns
-        item.setBackground(0, QBrush(bg_color))
-        item.setBackground(1, QBrush(bg_color))
+        # Check if the property value is expandable and add children with diff comparison
+        has_changed_children = self._add_child_items_with_diffs(item, prop)
 
-        # Check if the property value is expandable and add children
-        if prop.value is not None and is_expandable(prop.value):
-            children = get_property_children(prop.name, prop.value)
-            for child_name, child_value in children:
-                child_display_name = _camelcase_to_spaces(child_name)
-                child_value_text = str(child_value) if child_value is not None else ""
-                child_item = QTreeWidgetItem([child_display_name, child_value_text])
-                # Apply same background color to children
-                child_item.setBackground(0, QBrush(bg_color))
-                child_item.setBackground(1, QBrush(bg_color))
-                item.addChild(child_item)
+        # If any child has MODIFIED/ADDED/DELETED state, color the parent row blue
+        if has_changed_children:
+            self._apply_background_to_all_columns(item, self.MODIFIED_COLOR)
+        else:
+            # Apply original diff coloring to all 3 columns
+            self._apply_background_to_all_columns(item, bg_color)
 
         return item
+
+    def _get_property_display_values(
+        self,
+        state: DiffState,
+        prop: PropertyPresentation,
+    ) -> tuple[QColor, str, str]:
+        """Get background color and display values based on property state.
+
+        Args:
+            state: The property state (DiffState enum).
+            prop: The PropertyPresentation object.
+
+        Returns:
+            Tuple of (background_color, left_column_value, right_column_value).
+        """
+        if state == DiffState.ADDED:
+            return self.ADDED_COLOR, "", str(prop.new_value) if prop.new_value is not None else ""
+        if state == DiffState.DELETED:
+            return self.DELETED_COLOR, str(prop.old_value) if prop.old_value is not None else "", ""
+        if state == DiffState.MODIFIED:
+            old_str = str(prop.old_value) if prop.old_value is not None else ""
+            new_str = str(prop.new_value) if prop.new_value is not None else ""
+            return self.MODIFIED_COLOR, old_str, new_str
+        # UNCHANGED
+        new_str = str(prop.new_value) if prop.new_value is not None else ""
+        return self.UNCHANGED_COLOR, new_str, new_str
+
+    def _add_child_items_with_diffs(self, parent_item: QTreeWidgetItem, prop: PropertyPresentation) -> bool:
+        """Add child items with diff comparison for expandable properties.
+
+        Compares old_value and new_value children to determine individual child states.
+        Only changed children receive background coloring; unchanged children use default.
+
+        Args:
+            parent_item: The parent QTreeWidgetItem to add children to.
+            prop: The PropertyPresentation object with old_value and new_value.
+
+        Returns:
+            True if any child has MODIFIED/ADDED/DELETED state, False otherwise.
+        """
+        has_changed_children = False
+
+        # Get children from both old and new values
+        old_children = get_property_children(prop.name, prop.old_value) if prop.old_value is not None else []
+        new_children = get_property_children(prop.name, prop.new_value) if prop.new_value is not None else []
+
+        # Create dictionaries for easy lookup by child name
+        old_child_map = dict(old_children)
+        new_child_map = dict(new_children)
+
+        # Get all unique child names
+        all_child_names = set(old_child_map.keys()) | set(new_child_map.keys())
+
+        for child_name in sorted(all_child_names):
+            old_child_value = old_child_map.get(child_name)
+            new_child_value = new_child_map.get(child_name)
+
+            # Determine child state by comparing old and new values
+            child_state = self._determine_child_state(old_child_value, new_child_value)
+
+            # Track if any child has changes
+            if child_state in (DiffState.MODIFIED, DiffState.ADDED, DiffState.DELETED):
+                has_changed_children = True
+
+            # Format child values for display
+            old_value_str = str(old_child_value) if old_child_value is not None else ""
+            new_value_str = str(new_child_value) if new_child_value is not None else ""
+
+            # Create child item with 3 columns: name, old_value, new_value
+            child_display_name = _camelcase_to_spaces(child_name)
+            child_item = QTreeWidgetItem([child_display_name, old_value_str, new_value_str])
+
+            # Apply background color only if child state is MODIFIED/ADDED/DELETED
+            self._apply_child_background(child_item, child_state)
+
+            parent_item.addChild(child_item)
+
+        return has_changed_children
+
+    def _apply_background_to_all_columns(self, item: QTreeWidgetItem, color: QColor) -> None:
+        """Apply background color to all 3 columns of a tree item.
+
+        Args:
+            item: The QTreeWidgetItem to apply background to.
+            color: The QColor to use as background.
+        """
+        item.setBackground(0, QBrush(color))
+        item.setBackground(1, QBrush(color))
+        item.setBackground(2, QBrush(color))
+
+    def _apply_child_background(self, child_item: QTreeWidgetItem, child_state: DiffState) -> None:
+        """Apply background color to a child item based on its state.
+
+        Only applies color for MODIFIED/ADDED/DELETED states.
+        UNCHANGED children use default background (no coloring).
+
+        Args:
+            child_item: The child QTreeWidgetItem.
+            child_state: The state of the child (DiffState enum).
+        """
+        if child_state == DiffState.ADDED:
+            self._apply_background_to_all_columns(child_item, self.ADDED_COLOR)
+        elif child_state == DiffState.DELETED:
+            self._apply_background_to_all_columns(child_item, self.DELETED_COLOR)
+        elif child_state == DiffState.MODIFIED:
+            self._apply_background_to_all_columns(child_item, self.MODIFIED_COLOR)
+        # UNCHANGED: no background color (use default)
+
+    def _determine_child_state(self, old_value: Any, new_value: Any) -> DiffState:
+        """Determine the state of a child property by comparing old and new values.
+
+        Args:
+            old_value: The old child value (None if not present).
+            new_value: The new child value (None if not present).
+
+        Returns:
+            DiffState enum value.
+        """
+        # Both None: should not happen in normal usage
+        if old_value is None and new_value is None:
+            return DiffState.UNCHANGED
+
+        # Old is None but new has value: ADDED
+        if old_value is None and new_value is not None:
+            return DiffState.ADDED
+
+        # New is None but old has value: DELETED
+        if old_value is not None and new_value is None:
+            return DiffState.DELETED
+
+        # Both have values: compare them
+        # Use equality comparison for simple types
+        if old_value == new_value:
+            return DiffState.UNCHANGED
+
+        # For complex objects, check if they're the same object
+        if old_value is new_value:
+            return DiffState.UNCHANGED
+
+        # Values differ: MODIFIED
+        return DiffState.MODIFIED
 
     # Selection management methods
     def _get_default_background(self) -> QColor:

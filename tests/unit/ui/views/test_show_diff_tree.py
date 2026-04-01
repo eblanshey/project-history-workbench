@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pytest
 
+from freecad.diff_wb.domain.diff.models import DiffState
 from freecad.diff_wb.ui.views.diff_panel_view import DiffPanelView
 
 
@@ -40,7 +41,7 @@ class TestShowDiffTreeEmptyList:
         root_node = NodePresentation(
             path="Body/Pad",
             type_id="PartDesign::Pad",
-            state="ADDED",
+            state=DiffState.ADDED,
             has_changes=True,
             children=[],
         )
@@ -67,7 +68,7 @@ class TestShowDiffTreeMixedStates:
         added_node = NodePresentation(
             path="Body/NewPad",
             type_id="PartDesign::Pad",
-            state="ADDED",
+            state=DiffState.ADDED,
             has_changes=True,
             children=[],
         )
@@ -91,7 +92,7 @@ class TestShowDiffTreeMixedStates:
         deleted_node = NodePresentation(
             path="Body/OldPad",
             type_id="PartDesign::Pad",
-            state="DELETED",
+            state=DiffState.DELETED,
             has_changes=True,
             children=[],
         )
@@ -115,7 +116,7 @@ class TestShowDiffTreeMixedStates:
         modified_node = NodePresentation(
             path="Body/ModifiedPad",
             type_id="PartDesign::Pad",
-            state="MODIFIED",
+            state=DiffState.MODIFIED,
             has_changes=True,
             children=[],
         )
@@ -139,7 +140,7 @@ class TestShowDiffTreeMixedStates:
         unchanged_node = NodePresentation(
             path="Body/BasePart",
             type_id="PartDesign::Body",
-            state="UNCHANGED",
+            state=DiffState.UNCHANGED,
             has_changes=False,
             children=[],
         )
@@ -166,7 +167,7 @@ class TestShowDiffTreeMixedStates:
         test_node = NodePresentation(
             path="Body/Pad/Length",
             type_id="PropertyLength",
-            state="MODIFIED",
+            state=DiffState.MODIFIED,
             has_changes=True,
             children=[],
         )
@@ -192,7 +193,7 @@ class TestDisplayNameExtractionEdgeCases:
         node = NodePresentation(
             path="",
             type_id="PartDesign::Body",
-            state="UNCHANGED",
+            state=DiffState.UNCHANGED,
             has_changes=False,
             children=[],
         )
@@ -213,7 +214,7 @@ class TestDisplayNameExtractionEdgeCases:
         node = NodePresentation(
             path="Body/Pad/",
             type_id="PartDesign::Pad",
-            state="UNCHANGED",
+            state=DiffState.UNCHANGED,
             has_changes=False,
             children=[],
         )
@@ -234,7 +235,7 @@ class TestDisplayNameExtractionEdgeCases:
         node = NodePresentation(
             path="Body",
             type_id="PartDesign::Body",
-            state="UNCHANGED",
+            state=DiffState.UNCHANGED,
             has_changes=False,
             children=[],
         )
@@ -259,21 +260,21 @@ class TestShowDiffTreeHierarchy:
         child1 = NodePresentation(
             path="Body/Pad/Length",
             type_id="PropertyLength",
-            state="MODIFIED",
+            state=DiffState.MODIFIED,
             has_changes=True,
             children=[],
         )
         child2 = NodePresentation(
             path="Body/Pad/Width",
             type_id="PropertyLength",
-            state="ADDED",
+            state=DiffState.ADDED,
             has_changes=True,
             children=[],
         )
         parent = NodePresentation(
             path="Body/Pad",
             type_id="PartDesign::Pad",
-            state="MODIFIED",
+            state=DiffState.MODIFIED,
             has_changes=True,
             children=[child1, child2],
         )
@@ -297,21 +298,21 @@ class TestShowDiffTreeHierarchy:
         grandchild = NodePresentation(
             path="Body/Pad/Sketch/Constraint",
             type_id="PropertyConstraint",
-            state="MODIFIED",
+            state=DiffState.MODIFIED,
             has_changes=True,
             children=[],
         )
         child = NodePresentation(
             path="Body/Pad/Sketch",
             type_id="PartDesign::Sketch",
-            state="MODIFIED",
+            state=DiffState.MODIFIED,
             has_changes=True,
             children=[grandchild],
         )
         parent = NodePresentation(
             path="Body/Pad",
             type_id="PartDesign::Pad",
-            state="MODIFIED",
+            state=DiffState.MODIFIED,
             has_changes=True,
             children=[child],
         )
@@ -337,14 +338,14 @@ class TestShowDiffTreeHierarchy:
         root1 = NodePresentation(
             path="Body/Pad",
             type_id="PartDesign::Pad",
-            state="ADDED",
+            state=DiffState.ADDED,
             has_changes=True,
             children=[],
         )
         root2 = NodePresentation(
             path="Pocket/Hole",
             type_id="PartDesign::Hole",
-            state="DELETED",
+            state=DiffState.DELETED,
             has_changes=True,
             children=[],
         )
@@ -369,14 +370,14 @@ class TestShowDiffTreeExpandCollapse:
         child = NodePresentation(
             path="Body/Pad/Length",
             type_id="PropertyLength",
-            state="MODIFIED",
+            state=DiffState.MODIFIED,
             has_changes=True,
             children=[],
         )
         parent = NodePresentation(
             path="Body/Pad",
             type_id="PartDesign::Pad",
-            state="MODIFIED",
+            state=DiffState.MODIFIED,
             has_changes=True,
             children=[child],
         )
@@ -405,7 +406,7 @@ class TestShowDiffTreeScrolling:
             NodePresentation(
                 path=f"Body/Feature{i}",
                 type_id="PartDesign::Feature",
-                state="ADDED" if i % 2 == 0 else "MODIFIED",
+                state=DiffState.ADDED if i % 2 == 0 else "MODIFIED",
                 has_changes=True,
                 children=[],
             )

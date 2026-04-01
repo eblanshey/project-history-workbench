@@ -3,7 +3,7 @@
 from typing import Any
 
 from ...domain.diff.engine import DiffResult
-from ...domain.diff.models import NodeDiff
+from ...domain.diff.models import DiffState, NodeDiff
 from ...domain.tree import Property
 from ..protocols.diff_view import DiffView
 from .presentation_models import NodePresentation, PropertyPresentation
@@ -61,7 +61,7 @@ class DiffPresenter:
         return NodePresentation(
             path=node_diff.path,
             type_id=node_diff.type_id,
-            state=node_diff.state.name,
+            state=node_diff.state,
             has_changes=node_diff.has_changes,
             children=[self._format_node(child) for child in node_diff.children],
         )
@@ -120,34 +120,23 @@ class DiffPresenter:
         presentations = []
 
         for prop_diff in node_diff.property_diffs:
-            # Process all properties (including unchanged)
-
-            # Format display strings
-            old_display = self._format_property_value(prop_diff.old_value)
-            new_display = self._format_property_value(prop_diff.new_value)
-
-            # Determine value to pass for expandable properties
-            # Extract .value from Property object so UI expands the actual value,
-            # not the Property wrapper (which would show type_, value, expression, group)
-            # Use new_value if available (for ADDED/MODIFIED/UNCHANGED), otherwise old_value (for DELETED)
-            value = self._extract_property_value(
-                prop_diff.new_value if prop_diff.new_value is not None else prop_diff.old_value
-            )
-
             # Determine group from the property value
             # Use new_value's group if available, otherwise old_value's group
             group = self._extract_property_group(
                 prop_diff.new_value if prop_diff.new_value is not None else prop_diff.old_value
             )
 
+            # Extract old_value and new_value for expandable properties
+            old_value = self._extract_property_value(prop_diff.old_value)
+            new_value = self._extract_property_value(prop_diff.new_value)
+
             # Create main property row
             presentations.append(
                 PropertyPresentation(
                     name=prop_diff.property_name,
-                    old_display=old_display,
-                    new_display=new_display,
-                    state=prop_diff.state.name,
-                    value=value,
+                    state=prop_diff.state,
+                    old_value=old_value,
+                    new_value=new_value,
                     group=group,
                 )
             )
@@ -157,41 +146,27 @@ class DiffPresenter:
             new_expr = getattr(prop_diff.new_value, "expression", None) if prop_diff.new_value else None
 
             if old_expr or new_expr:
-                old_expr_display = old_expr if old_expr else "(none)"
-                new_expr_display = new_expr if new_expr else "(none)"
-
+                # Determine expression state using DiffState enum
                 if old_expr and not new_expr:
-                    expr_state = "DELETED"
+                    expr_state = DiffState.DELETED
                 elif not old_expr and new_expr:
-                    expr_state = "ADDED"
+                    expr_state = DiffState.ADDED
                 elif old_expr == new_expr:
-                    expr_state = "UNCHANGED"
+                    expr_state = DiffState.UNCHANGED
                 else:
-                    expr_state = "MODIFIED"
+                    expr_state = DiffState.MODIFIED
 
                 presentations.append(
                     PropertyPresentation(
-                        name="Expression",
-                        old_display=old_expr_display,
-                        new_display=new_expr_display,
+                        name="-> Expression",
                         state=expr_state,
+                        old_value=old_expr,
+                        new_value=new_expr,
+                        group=group,  # Inherit group from parent property
                     )
                 )
 
         return presentations
-
-    def _format_property_value(self, prop: Property | None) -> str:
-        """Format property value for display.
-
-        Args:
-            prop: Property object or None
-
-        Returns:
-            Formatted string suitable for display
-        """
-        if prop is None:
-            return ""
-        return str(prop)
 
     def _extract_property_value(self, prop: Property | None) -> Any:
         """Extract the underlying value from a Property object."""

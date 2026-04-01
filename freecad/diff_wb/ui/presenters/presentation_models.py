@@ -1,11 +1,9 @@
 """File responsibility: UI-friendly presentation models for diff display."""
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-
-if TYPE_CHECKING:
-    pass
+from ...domain.diff.models import DiffState
 
 
 __all__ = ["NodePresentation", "PropertyPresentation", "SnapshotPresentation"]
@@ -17,20 +15,28 @@ class NodePresentation:
 
     path: str
     type_id: str
-    state: str  # "ADDED", "DELETED", "MODIFIED", "UNCHANGED"
+    state: DiffState
     has_changes: bool
     children: list["NodePresentation"] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
 class PropertyPresentation:
-    """UI-friendly format for property differences."""
+    """UI-friendly format for property differences.
 
+    This model stores raw values for computing sub-property diffs when expanded.
+    Display formatting is performed on-demand in the view layer using str().
+    """
+
+    # Core identification
     name: str
-    old_display: str  # Formatted string like "10.0 (via Sketch.X)"
-    new_display: str  # Formatted string like "20.0"
-    state: str  # "ADDED", "DELETED", "MODIFIED", "UNCHANGED"
-    value: Any = None  # Actual value for expandable properties (optional)
+    state: DiffState
+
+    # Value fields - raw values for computing sub-property diffs when expanded
+    old_value: Any = None  # Actual old value for expandable properties
+    new_value: Any = None  # Actual new value for expandable properties
+
+    # Grouping
     group: str | None = None  # Group name for grouping (e.g., "Base", "Format")
 
 

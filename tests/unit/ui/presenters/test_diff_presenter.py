@@ -60,7 +60,7 @@ class TestDiffPresenter:
         assert isinstance(presentation, NodePresentation)
         assert presentation.path == "Part001"
         assert presentation.type_id == "Part::Feature"
-        assert presentation.state == "MODIFIED"
+        assert presentation.state == DiffState.MODIFIED
         assert presentation.has_changes is True
 
     def test_formats_property_changes(self) -> None:
@@ -90,7 +90,7 @@ class TestDiffPresenter:
         nodes = calls[0]["nodes"]
         presentation = nodes[0]
         assert presentation.has_changes is True
-        assert presentation.state == "MODIFIED"
+        assert presentation.state == DiffState.MODIFIED
 
     def test_handles_empty_diff(self) -> None:
         """Handles case with no changes."""
@@ -248,30 +248,30 @@ class TestDiffPresenterFormatsChildren:
         assert len(presentations) == 1
         root = presentations[0]
         assert root.path == "Part"
-        assert root.state == "MODIFIED"
+        assert root.state == DiffState.MODIFIED
         assert len(root.children) == 2
 
         # First branch - Body with two leaves
         body_pres = root.children[0]
         assert body_pres.path == "Part/Body"
-        assert body_pres.state == "MODIFIED"
+        assert body_pres.state == DiffState.MODIFIED
         assert len(body_pres.children) == 2
 
         # Body's children
         pad_pres = body_pres.children[0]
         assert pad_pres.path == "Part/Body/Pad"
-        assert pad_pres.state == "ADDED"
+        assert pad_pres.state == DiffState.ADDED
         assert pad_pres.has_changes is True
 
         pocket_pres = body_pres.children[1]
         assert pocket_pres.path == "Part/Body/Pocket"
-        assert pocket_pres.state == "DELETED"
+        assert pocket_pres.state == DiffState.DELETED
         assert pocket_pres.has_changes is True
 
         # Second branch - Sketch (unchanged leaf)
         sketch_pres = root.children[1]
         assert sketch_pres.path == "Part/Sketch"
-        assert sketch_pres.state == "UNCHANGED"
+        assert sketch_pres.state == DiffState.UNCHANGED
         assert sketch_pres.has_changes is False
         assert len(sketch_pres.children) == 0
 
