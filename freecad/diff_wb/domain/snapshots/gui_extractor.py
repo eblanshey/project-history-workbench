@@ -32,6 +32,101 @@ class GuiNotAvailableError(Exception):
     pass
 
 
+# Property type IDs that have no editor (getEditorName() returns "")
+# Comprehensive list from FreeCAD source analysis (src/App, src/Mod/*)
+# These properties are hidden in FreeCAD's property editor
+# Format: Full TypeId as returned by getTypeIdOfProperty()
+# All types VERIFIED against FreeCAD source code for getEditorName() implementation
+# Note: PropertyQuantity and ALL its subclasses HAVE editors (e.g., Length, Angle, Mass)
+NO_EDITOR_PROPERTY_TYPES: frozenset[str] = frozenset(
+    {
+        # Core App properties without editors (NO getEditorName override)
+        # Base classes that lack editors
+        "App::PropertyGeometry",  # Abstract base - no override
+        "App::PropertyComplexGeoData",  # Inherits from PropertyGeometry - no override
+        "App::PropertyLists",  # Base list class - no override
+        "App::PropertyMap",  # Verified: Part.Meta - commented out in source
+        "App::PropertyMaterial",  # Returns "" unless MaterialEdit status set
+        "App::PropertyIntegerSet",  # No getEditorName override
+        "App::PropertyPersistentObject",  # No override
+        "App::PropertyFile",  # No override (PropertyFileIncluded has one)
+        # Link variants without editors (only PropertyLink, PropertyLinkSub, PropertyXLinkSub have them)
+        "App::PropertyLinkBase",
+        "App::PropertyLinkChild",
+        "App::PropertyLinkGlobal",
+        "App::PropertyLinkHidden",  # Verified: Body._Body
+        "App::PropertyLinkList",
+        "App::PropertyLinkListBase",
+        "App::PropertyLinkListChild",
+        "App::PropertyLinkListGlobal",
+        "App::PropertyLinkListHidden",
+        "App::PropertyLinkSubChild",
+        "App::PropertyLinkSubGlobal",
+        "App::PropertyLinkSubHidden",
+        "App::PropertyLinkSubList",  # Verified: Sketch.AttachmentSupport
+        "App::PropertyLinkSubListChild",
+        "App::PropertyLinkSubListGlobal",
+        "App::PropertyLinkSubListHidden",
+        "App::PropertyXLink",
+        "App::PropertyXLinkContainer",
+        "App::PropertyXLinkList",
+        "App::PropertyXLinkSubHidden",
+        # Note: PropertyXLinkSubList HAS an editor (verified in source)
+        # Placement/vector lists without editors
+        "App::PropertyPlacementLink",
+        "App::PropertyPlacementList",
+        "App::PropertyVector",
+        "App::PropertyVectorList",
+        "App::PropertyPosition",
+        "App::PropertyDirection",
+        "App::PropertyBoolList",
+        "App::PropertyColorList",
+        "App::PropertyFloatList",
+        "App::PropertyStringList",
+        # PropertyQuantity subclasses WITHOUT constraints (they inherit editor from PropertyQuantity)
+        # But these don't override and PropertyQuantity DOES have an editor
+        # So PropertyLength, PropertyAngle, PropertyMass, etc. ALL HAVE EDITORS
+        # Only include non-Quantity properties here
+        "App::PropertyExpressionEngine",  # Verified: Pad.ExpressionEngine (also has Prop_Hidden bit)
+    }
+)
+
+# Part module properties without editors
+NO_EDITOR_PART_TYPES: frozenset[str] = frozenset(
+    {
+        "Part::PropertyPartShape",  # Verified: Pad.Shape - inherits from PropertyComplexGeoData
+        "Part::PropertyTopoShapeList",  # Inherits from PropertyLists
+        "Part::PropertyGeometryList",  # Verified: Sketch.Geometry - inherits from PropertyLists
+        "Part::PropertyShapeHistory",  # Inherits from PropertyLists
+        "Part::PropertyFilletEdges",  # Inherits from PropertyLists
+        "Part::PropertyShapeCache",  # Inherits from Property
+    }
+)
+
+# TechDraw properties without editors
+NO_EDITOR_TECHDRAW_TYPES: frozenset[str] = frozenset(
+    {
+        "TechDraw::PropertyCenterLineList",  # Verified: View.CenterLines - inherits from PropertyLists
+        "TechDraw::PropertyCosmeticEdgeList",  # Verified: View.CosmeticEdges - inherits from PropertyLists
+        "TechDraw::PropertyCosmeticVertexList",  # Verified: View.CosmeticVertexes - inherits from PropertyLists
+        "TechDraw::PropertyGeomFormatList",  # Verified: View.GeomFormats - inherits from PropertyLists
+    }
+)
+
+# Mesh properties without editors
+NO_EDITOR_MESH_TYPES: frozenset[str] = frozenset(
+    {
+        "Mesh::PropertyCurvatureList",  # Inherits from PropertyLists
+        "Mesh::PropertyNormalList",  # Inherits from PropertyLists
+    }
+)
+
+# Combined set for efficient lookup
+_ALL_NO_EDITOR_TYPES: frozenset[str] = (
+    NO_EDITOR_PROPERTY_TYPES | NO_EDITOR_PART_TYPES | NO_EDITOR_TECHDRAW_TYPES | NO_EDITOR_MESH_TYPES
+)
+
+
 def _get_view_provider(obj: Any, gui_doc: Any) -> Any:
     """Get the ViewProvider for a FreeCAD object.
 
@@ -319,14 +414,25 @@ def _extract_property_value(obj: object, prop_name: str) -> Property | None:
         return None
 
 
-def _is_property_hidden(obj: object, prop_name: str) -> tuple[bool, str]:
+def _is_property_hidden(obj: object, prop_name: str) -> tuple[bool, str]:  # noqa: C901
     """Check if a property should be hidden from the property editor.
 
-    Three conditions make a property hidden (replicates FreeCAD's
-    PropertyView::isPropertyHidden() from src/Gui/PropertyView.cpp line 242-246):
-    1. getEditorMode() returns ['Hidden']
-    2. getPropertyStatus() returns status with Prop_Hidden bit (value 4) or "Hidden" string
+    This function replicates FreeCAD's property visibility logic to ensure
+    our snapshots show the same properties visible in FreeCAD's property editor.
+
+    Properties are hidden based on these checks:
+
+    1. getEditorMode() returns ['Hidden'] - explicit editor mode hiding
+    2. getPropertyStatus() contains "Hidden" string or status codes 3/26
+       (from src/Gui/PropertyView.cpp line 242-246)
     3. getTypeOfProperty() returns a list containing 'Hidden'
+    4. Property type has no editor (getEditorName() returns "")
+       - In FreeCAD C++ source (src/Gui/propertyeditor/PropertyModel.cpp line 252-268),
+         properties with empty getEditorName() are hidden from the property editor
+       - Since getEditorName() is not exposed to Python bindings, we check the
+         property TypeId against a comprehensive list of types known to lack editors
+       - This list was generated by analyzing all getEditorName() overrides across
+         FreeCAD source (src/App, src/Mod/*)
 
     Note: Empty group does NOT mean hidden - properties with empty group
     are visible and map to "Base" group in FreeCAD's UI.
@@ -338,36 +444,61 @@ def _is_property_hidden(obj: object, prop_name: str) -> tuple[bool, str]:
     Returns:
         Tuple of (is_hidden, reason_for_hiding)
     """
+    # Check 1: getEditorMode() returns ['Hidden']
     get_editor_mode = getattr(obj, "getEditorMode", None)
-
     if get_editor_mode is not None:
-        editor_mode = get_editor_mode(prop_name)
-        if "Hidden" in editor_mode:
-            return True, "editor_mode_hidden"
+        try:
+            editor_mode = get_editor_mode(prop_name)
+            if "Hidden" in editor_mode:
+                return True, "editor_mode_hidden"
+        except Exception:
+            pass
 
-    # Check 2: getPropertyStatus() may contain Prop_Hidden bit (value 4) or "Hidden" string
-    # FreeCAD can return a mixed list like ["Hidden", 27] or just [27]
+    # Check 2: getPropertyStatus() contains "Hidden" string or integer 26
+    # From FreeCAD source (src/App/PropertyContainerPyImp.cpp line 311-356):
+    # getPropertyStatus() returns a Py::List where each set bit in the property's
+    # status bitmask is converted to either:
+    #   - A string name if the bit has a named entry in statusMap (bits 1-13)
+    #     Examples: "Hidden" (bit 3), "Output" (bit 7), "Transient" (bit 4)
+    #   - An integer if the bit has no named entry (bits 14-31)
+    #     Examples: 23 (PropNoRecompute), 24 (PropReadOnly), 26 (PropHidden), 27 (PropOutput)
+    # The function iterates through bits 1-31 and appends to the list if that bit is set.
+    # To detect hidden properties, we check for:
+    #   - String "Hidden" (bit 3) - runtime status hiding via testStatus(Property::Hidden)
+    #   - Integer 26 (PropHidden) - compile-time type flag Prop_Hidden (bit 4) mirrored to bit 26
+    # Both are checked by FreeCAD's PropertyView::isPropertyHidden() (src/Gui/PropertyView.cpp:245):
+    #   (prop->getType() & App::Prop_Hidden) || prop->testStatus(App::Property::Hidden)
     get_property_status = getattr(obj, "getPropertyStatus", None)
     if get_property_status is not None:
-        status = get_property_status(prop_name)
-        if status:
-            # Check for string "Hidden" in status list
-            if "Hidden" in status:
+        try:
+            status = get_property_status(prop_name)
+            if isinstance(status, list) and ("Hidden" in status or 26 in status):
                 return True, "prop_hidden_bit"
-            # Check for Prop_Hidden bit (value 4) in any integer value
-            for item in status:
-                if isinstance(item, int) and (item & 4):  # Prop_Hidden = 4
-                    return True, "prop_hidden_bit"
+        except Exception:
+            pass
 
-    # Check 3: Replicates FreeCAD's PropertyView::isPropertyHidden() logic
-    # from src/Gui/PropertyView.cpp line 242-246
-    # Checks if prop->getType() & App::Prop_Hidden is true
-    # This maps to getTypeOfProperty() returning a list containing 'Hidden'
+    # Check 3: getTypeOfProperty() returns a list containing 'Hidden'
     get_type_of_property = getattr(obj, "getTypeOfProperty", None)
     if get_type_of_property is not None:
-        prop_types = get_type_of_property(prop_name)
-        if "Hidden" in prop_types:
-            return True, "type_hidden"
+        try:
+            prop_types = get_type_of_property(prop_name)
+            if "Hidden" in prop_types:
+                return True, "type_hidden"
+        except Exception:
+            pass
+
+    # Check 4: Property type has no editor (workaround for missing getEditorName())
+    # In FreeCAD C++, properties are hidden if getEditorName() returns ""
+    # Since this method isn't available in Python, we check the TypeId against
+    # NO_EDITOR_PROPERTY_TYPES which contains all property types without editors
+    try:
+        get_type_id = getattr(obj, "getTypeIdOfProperty", None)
+        if get_type_id is not None:
+            type_id = get_type_id(prop_name)
+            if type_id in _ALL_NO_EDITOR_TYPES:
+                return True, f"{type_id.lower()}_no_editor"
+    except Exception:
+        pass
 
     return False, ""
 

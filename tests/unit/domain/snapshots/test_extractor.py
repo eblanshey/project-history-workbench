@@ -72,11 +72,14 @@ class MockFreeCADObject:
                 e.g., {"HiddenProp": ["Hidden"], "VisibleProp": []}
             property_groups: Dict mapping property name to group name
                 e.g., {"Shape": "", "Length": "Side1"}
-            property_status: Dict mapping property name to status integer
-                e.g., {"SavedGeometry": 4} for Prop_Hidden bit (value 4)
-                See FreeCAD's Prop_Hidden constant (value 4)
-            property_types: Dict mapping property name to type list from getTypeOfProperty()
-                e.g., {"Shape": ["Hidden", "Link"], "Label": ["App::Property"]}
+            property_status: Dict mapping property name to status value(s)
+                Can be an integer (wrapped in list) or a list of strings/integers.
+                From FreeCAD source: each set bit becomes either a string name (if in statusMap)
+                or an integer (bit position if not in map).
+                e.g., {"HiddenProp": ["Hidden"], "MixedProp": ["Hidden", 27]}
+            property_types: Dict mapping property name to type info
+                For getTypeOfProperty(): list of strings, e.g., {"Shape": ["Hidden", "Link"]}
+                For getTypeIdOfProperty(): single string type ID, e.g., {"Shape": "Part::PropertyPartShape"}
         """
         object.__setattr__(self, "_name", name)
         object.__setattr__(self, "_type_id", type_id)
@@ -134,18 +137,25 @@ class MockFreeCADObject:
         return groups.get(prop_name, "")
 
     def getPropertyStatus(self, prop_name):
-        """Get property status bits.
+        """Get property status.
+
+        From FreeCAD source (src/App/PropertyContainerPyImp.cpp line 311-356):
+        Returns a list where each set bit is converted to either a string name
+        (if in statusMap) or an integer (bit position if not in map).
 
         Args:
             prop_name: Name of the property
 
         Returns:
-            List containing status integer, or empty list if not found.
-            Prop_Hidden = 4 (bit value for hidden properties like SavedGeometry)
+            List of strings/integers representing set status bits, or empty list.
+            Example: ["Hidden", 27] means bit 3 (Hidden) and bit 27 (PropOutput) are set.
         """
         status_dict = object.__getattribute__(self, "_property_status")
         status_value = status_dict.get(prop_name, None)
         if status_value is not None:
+            # Return as-is if already a list, otherwise wrap in list
+            if isinstance(status_value, list):
+                return status_value
             return [status_value]
         return []
 
@@ -164,6 +174,23 @@ class MockFreeCADObject:
         """
         types_dict = object.__getattribute__(self, "_property_types")
         return types_dict.get(prop_name, [])
+
+    def getTypeIdOfProperty(self, prop_name):
+        """Get property type ID from getTypeIdOfProperty().
+
+        This replicates FreeCAD's getTypeIdOfProperty() which returns a string
+        representing the exact property type, e.g., "Part::PropertyPartShape"
+        or "App::PropertyBool". Used to detect properties without editors.
+
+        Args:
+            prop_name: Name of the property
+
+        Returns:
+            Type ID string, e.g., "Part::PropertyPartShape" or empty string if not found
+        """
+        # Reuse _property_types but interpret differently - it can hold type IDs too
+        types_dict = object.__getattribute__(self, "_property_types")
+        return types_dict.get(prop_name, "")
 
     def __getattr__(self, name):
         props = object.__getattribute__(self, "_properties_values")
@@ -1306,21 +1333,22 @@ class TestSnapshotExtractor:
 class TestIsPropertyHidden:
     """Tests for hidden property detection logic."""
 
-    def test_hidden_property_detection_savedgeometry_has_prop_hidden_bit(self):
-        """Test that SavedGeometry is detected as hidden via Prop_Hidden bit.
+    def test_hidden_property_detection_savedgeometry_no_editor(self):
+        """Test that SavedGeometry is detected as hidden because it has no editor.
 
-        SavedGeometry has Prop_Hidden bit set (value 4), which should be detected
-        by checking getPropertyStatus().
+        SavedGeometry is a Part::PropertyTopoShapeList which doesn't override
+        getEditorName(), so it returns "" and FreeCAD hides it from the property editor.
+        We detect this by checking the TypeId contains "TopoShapeList".
         """
 
-        # Create object with SavedGeometry having Prop_Hidden bit (value 4)
+        # Create object with SavedGeometry (Part::PropertyTopoShapeList type)
         obj = MockFreeCADObject(
             name="TestObj",
             type_id="App::DocumentObject",
             label="Test",
             properties=["Label", "SavedGeometry", "Placement"],
-            property_status={
-                "SavedGeometry": 4,  # Prop_Hidden = 4
+            property_types={
+                "SavedGeometry": "Part::PropertyTopoShapeList",  # No editor
             },
             # SavedGeometry has empty group in real FreeCAD (maps to "Base")
             property_groups={
@@ -1333,10 +1361,10 @@ class TestIsPropertyHidden:
         obj.SavedGeometry = "geometry_data"
         obj.Placement = "placement"
 
-        # SavedGeometry should be hidden due to Prop_Hidden bit
+        # SavedGeometry should be hidden because it has no editor
         is_hidden, reason = _is_property_hidden(obj, "SavedGeometry")
-        assert is_hidden, "SavedGeometry should be hidden (has Prop_Hidden bit)"
-        assert "prop_hidden_bit" in reason, f"Reason should mention prop_hidden_bit, got: {reason}"
+        assert is_hidden, "SavedGeometry should be hidden (no editor)"
+        assert "toposhapelist" in reason, f"Reason should mention toposhapelist, got: {reason}"
 
     def test_hidden_property_detection_label_is_visible(self):
         """Test that Label is visible (no Prop_Hidden bit, no Hidden editor mode)."""
@@ -1387,6 +1415,51 @@ class TestIsPropertyHidden:
         is_hidden_label, _ = _is_property_hidden(obj, "Label")
         assert not is_hidden_label, "Label should be visible"
 
+    def test_hidden_property_detection_prop_hidden_bit_26(self):
+        """Test that properties with Prop_Hidden flag (bit 26) are hidden.
+
+        When a property is declared with Prop_Hidden (bit 4), FreeCAD mirrors
+        it to bit 26 (PropHidden) in the status field. Since bit 26 has no named
+        entry in statusMap, getPropertyStatus() returns it as integer 26.
+
+        Examples from actual FreeCAD:
+        - ExpressionEngine: [26]  (only Prop_Hidden)
+        - Label2: ['Output', 26]  (Prop_Output + Prop_Hidden)
+        """
+
+        obj = MockFreeCADObject(
+            name="TestObj",
+            type_id="App::DocumentObject",
+            label="Test",
+            properties=["Label", "ExpressionEngine", "Label2"],
+            property_status={
+                "ExpressionEngine": [26],  # Only Prop_Hidden (bit 26)
+                "Label2": ["Output", 26],  # Prop_Output + Prop_Hidden
+            },
+            property_groups={
+                "Label": "Base",
+                "ExpressionEngine": "Base",
+                "Label2": "Base",
+            },
+        )
+        obj.Label = "Test"
+        obj.ExpressionEngine = None
+        obj.Label2 = ""
+
+        # ExpressionEngine with [26] should be hidden
+        is_hidden, reason = _is_property_hidden(obj, "ExpressionEngine")
+        assert is_hidden, "ExpressionEngine should be hidden (Prop_Hidden bit 26)"
+        assert "prop_hidden" in reason.lower(), f"Reason should mention prop_hidden, got: {reason}"
+
+        # Label2 with ['Output', 26] should also be hidden
+        is_hidden_label2, reason2 = _is_property_hidden(obj, "Label2")
+        assert is_hidden_label2, "Label2 should be hidden (has Prop_Hidden bit 26)"
+        assert "prop_hidden" in reason2.lower(), f"Reason should mention prop_hidden, got: {reason2}"
+
+        # Label without any hidden flag should be visible
+        is_hidden_label, _ = _is_property_hidden(obj, "Label")
+        assert not is_hidden_label, "Label should be visible"
+
     def test_hidden_property_detection_empty_group_is_visible(self):
         """Test that properties with empty group are VISIBLE (not hidden).
 
@@ -1417,9 +1490,9 @@ class TestIsPropertyHidden:
         assert reason == "", f"Reason should be empty for visible property, got: {reason}"
 
     def test_hidden_property_detection_combined_conditions(self):
-        """Test detection when both editor mode and property status are checked."""
+        """Test detection when multiple hiding conditions apply."""
 
-        # Object with both hidden by editor mode and hidden by Prop_Hidden bit
+        # Object with properties hidden by different mechanisms
         obj = MockFreeCADObject(
             name="TestObj",
             type_id="App::DocumentObject",
@@ -1429,14 +1502,17 @@ class TestIsPropertyHidden:
                 "Visibility": ["Hidden"],
             },
             property_status={
-                "SavedGeometry": 4,  # Prop_Hidden
+                "SavedGeometry": ["Hidden"],  # Hidden string in status
+            },
+            property_types={
+                "Shape": "Part::PropertyPartShape",  # No editor
             },
             property_groups={
                 "Label": "Base",
                 "SavedGeometry": "",
                 "Visibility": "Base",
                 "Placement": "Base",
-                "Shape": "",  # Empty but no Prop_Hidden - should be visible
+                "Shape": "",  # Empty group is fine - but Shape has no editor
             },
         )
         obj.Label = "Test"
@@ -1445,34 +1521,38 @@ class TestIsPropertyHidden:
         is_hidden, reason = _is_property_hidden(obj, "Label")
         assert not is_hidden, "Label should be visible"
 
-        # SavedGeometry: hidden by Prop_Hidden bit
+        # SavedGeometry: hidden by "Hidden" string in status
         is_hidden, reason = _is_property_hidden(obj, "SavedGeometry")
-        assert is_hidden, "SavedGeometry should be hidden (Prop_Hidden bit)"
+        assert is_hidden, "SavedGeometry should be hidden (Hidden in status)"
 
         # Visibility: hidden by editor mode
         is_hidden, reason = _is_property_hidden(obj, "Visibility")
         assert is_hidden, "Visibility should be hidden (editor mode)"
 
-        # Shape: empty group but no Prop_Hidden - should be VISIBLE
+        # Shape: hidden because it has no editor (PartShape)
         is_hidden, reason = _is_property_hidden(obj, "Shape")
-        assert not is_hidden, "Shape with empty group but no Prop_Hidden should be visible"
+        assert is_hidden, "Shape should be hidden (no editor)"
 
-    def test_hidden_property_detection_prop_hidden_bit_value(self):
-        """Test that Prop_Hidden bit (value 4) is correctly detected.
+    def test_hidden_property_detection_hidden_string_in_status(self):
+        """Test that 'Hidden' string in status list is correctly detected.
 
-        FreeCAD's Prop_Hidden constant has value 4. Properties with this bit
-        set in their status should be hidden.
+        From FreeCAD source (src/App/PropertyContainerPyImp.cpp line 311-356):
+        getPropertyStatus() returns a list where each set bit is converted to:
+          - A string name if it has a named entry (e.g., "Hidden" for bit 3)
+          - An integer if it has no named entry (e.g., 27 for PropOutput)
+
+        The "Hidden" string corresponds to Property::Hidden (bit 3).
         """
 
-        # Test with Prop_Hidden bit set (value 4)
+        # Test with "Hidden" string in status list
         obj = MockFreeCADObject(
             name="TestObj",
             type_id="App::DocumentObject",
             label="Test",
             properties=["Label", "HiddenProp", "VisibleProp"],
             property_status={
-                "HiddenProp": 4,  # Prop_Hidden = 4
-                "VisibleProp": 0,  # No bits set
+                "HiddenProp": ["Hidden"],  # Bit 3 set → "Hidden" string
+                "VisibleProp": [],  # No bits set
             },
             property_groups={
                 "Label": "Base",
@@ -1481,13 +1561,13 @@ class TestIsPropertyHidden:
             },
         )
 
-        # Property with status=4 should be hidden
+        # Property with "Hidden" in status should be hidden
         is_hidden, reason = _is_property_hidden(obj, "HiddenProp")
-        assert is_hidden, "Property with status=4 (Prop_Hidden) should be hidden"
+        assert is_hidden, "Property with 'Hidden' in status should be hidden"
 
-        # Property with status=0 should be visible
+        # Property with empty status should be visible
         is_hidden, reason = _is_property_hidden(obj, "VisibleProp")
-        assert not is_hidden, "Property with status=0 should be visible"
+        assert not is_hidden, "Property with empty status should be visible"
 
     def test_hidden_property_detection_no_getpropertystatus(self):
         """Test behavior when getPropertyStatus is not available."""
@@ -1515,17 +1595,22 @@ class TestIsPropertyHidden:
     def test_hidden_property_detection_mixed_status_list(self):
         """Test detection with mixed list containing both strings and integers.
 
-        FreeCAD can return a mixed list like ["Hidden", 27] or just [27].
-        The function should handle both cases.
+        From FreeCAD source (src/App/PropertyContainerPyImp.cpp line 311-356):
+        getPropertyStatus() returns a list where each set bit position is converted to:
+          - A string name if it has an entry in statusMap (bits 1-13)
+          - An integer (the bit position) if no named entry exists (bits 14-31)
+
+        Example: ["Hidden", 27] means bit 3 (Hidden) and bit 27 (PropOutput) are set.
+        The function should detect the "Hidden" string regardless of other values.
         """
         from freecad.diff_wb.domain.snapshots.gui_extractor import _is_property_hidden
 
-        # Update mock to return lists with mixed content
+        # Create mock to return realistic mixed status lists
         class MockObjectWithMixedStatus:
-            """Mock object returning mixed status lists."""
+            """Mock object returning mixed status lists like FreeCAD does."""
 
             def __init__(self):
-                self._properties = ["Label", "HiddenByString", "HiddenByBit", "Visible"]
+                self._properties = ["Label", "HiddenWithOtherFlags", "JustIntegers", "Visible"]
 
             @property
             def PropertiesList(self):
@@ -1538,27 +1623,27 @@ class TestIsPropertyHidden:
                 return "Base"
 
             def getPropertyStatus(self, prop_name):
-                # FreeCAD can return mixed lists like ["Hidden", 27]
+                # Realistic FreeCAD status lists
                 status_map = {
-                    "HiddenByString": ["Hidden", 27],
-                    "HiddenByBit": [28],  # 28 = 16 + 8 + 4 (Prop_Hidden is 4)
-                    "Visible": [0],
+                    "HiddenWithOtherFlags": ["Hidden", 27],  # Bit 3=Hidden, Bit 27=PropOutput
+                    "JustIntegers": [23, 24],  # Bits 23, 24 (no "Hidden" string)
+                    "Visible": [],  # No bits set
                 }
                 return status_map.get(prop_name, [])
 
         obj = MockObjectWithMixedStatus()
 
-        # HiddenByString: should be hidden due to string "Hidden"
-        is_hidden, reason = _is_property_hidden(obj, "HiddenByString")
-        assert is_hidden, "Property with 'Hidden' string in status should be hidden"
+        # HiddenWithOtherFlags: should be hidden due to "Hidden" string
+        is_hidden, reason = _is_property_hidden(obj, "HiddenWithOtherFlags")
+        assert is_hidden, "Property with 'Hidden' in status should be hidden"
 
-        # HiddenByBit: should be hidden due to Prop_Hidden bit (value 4)
-        is_hidden, reason = _is_property_hidden(obj, "HiddenByBit")
-        assert is_hidden, "Property with Prop_Hidden bit should be hidden"
+        # JustIntegers: should be visible (no "Hidden" string)
+        is_hidden, reason = _is_property_hidden(obj, "JustIntegers")
+        assert not is_hidden, "Property without 'Hidden' in status should be visible"
 
         # Visible: should be visible
         is_hidden, reason = _is_property_hidden(obj, "Visible")
-        assert not is_hidden, "Property with no hidden bits should be visible"
+        assert not is_hidden, "Property with empty status should be visible"
 
     def test_hidden_property_detection_gettypeofproperty_returns_hidden(self):
         """Test that properties with getTypeOfProperty returning ['Hidden'] are detected as hidden.
