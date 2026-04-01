@@ -448,5 +448,80 @@ class Property:
             # For complex types (dict, custom objects), default to UNKNOWN to preserve the object
             return PropertyType.UNKNOWN
 
+    def get_children(self) -> list[tuple[str, Any]]:
+        """Get child properties for expandable property types.
+
+        Returns list of (child_name, child_value) tuples for:
+        - Placement: [("Position", position), ("Rotation", rotation)]
+        - Rotation (inside Placement): [("Angle", angle), ("Axis", axis)]
+        - Vector-like (x,y,z): [("x", x), ("y", y), ("z", z)]
+        - List/tuple: [("0", item0), ("1", item1), ...]
+        - Dict: [("key1", value1), ("key2", value2), ...]
+
+        Returns empty list for primitive types and non-expandable objects.
+
+        Note: Rotation is not a separate PropertyType - it's a value object inside
+        Placement. We detect it by checking if the value has angle/axis attributes.
+        """
+        if self.value is None:
+            return []
+
+        if self.type_ == PropertyType.PLACEMENT:
+            return self._get_placement_children()
+
+        if self._is_rotation_value():
+            return self._get_rotation_children()
+
+        if self._is_vector_like():
+            return self._get_vector_children()
+
+        if isinstance(self.value, (list, tuple)) and self.value:
+            return [(str(i), v) for i, v in enumerate(self.value)]
+
+        if isinstance(self.value, dict) and self.value:
+            return [(str(k), v) for k, v in self.value.items()]
+
+        return []
+
+    def _get_placement_children(self) -> list[tuple[str, Any]]:
+        """Get children for Placement type."""
+        result = []
+        if hasattr(self.value, "position") and self.value.position is not None:
+            result.append(("Position", self.value.position))
+        elif hasattr(self.value, "Base") and self.value.Base is not None:
+            result.append(("Base", self.value.Base))
+        if hasattr(self.value, "rotation") and self.value.rotation is not None:
+            result.append(("Rotation", self.value.rotation))
+        elif hasattr(self.value, "Rotation") and self.value.Rotation is not None:
+            result.append(("Rotation", self.value.Rotation))
+        return result
+
+    def _is_rotation_value(self) -> bool:
+        """Check if value is a Rotation-like object with angle/axis."""
+        has_angle = hasattr(self.value, "angle") or hasattr(self.value, "Angle")
+        has_axis = hasattr(self.value, "axis") or hasattr(self.value, "Axis")
+        return has_angle and has_axis
+
+    def _get_rotation_children(self) -> list[tuple[str, Any]]:
+        """Get children for Rotation value object."""
+        result = []
+        if hasattr(self.value, "angle") and self.value.angle is not None:
+            result.append(("Angle", self.value.angle))
+        elif hasattr(self.value, "Angle") and self.value.Angle is not None:
+            result.append(("Angle", self.value.Angle))
+        if hasattr(self.value, "axis") and self.value.axis is not None:
+            result.append(("Axis", self.value.axis))
+        elif hasattr(self.value, "Axis") and self.value.Axis is not None:
+            result.append(("Axis", self.value.Axis))
+        return result
+
+    def _is_vector_like(self) -> bool:
+        """Check if value has x, y, z attributes."""
+        return hasattr(self.value, "x") and hasattr(self.value, "y") and hasattr(self.value, "z")
+
+    def _get_vector_children(self) -> list[tuple[str, Any]]:
+        """Get children for Vector-like objects."""
+        return [("x", self.value.x), ("y", self.value.y), ("z", self.value.z)]
+
 
 __all__ = ["Property", "PropertyType", "Vector", "Rotation", "Placement"]

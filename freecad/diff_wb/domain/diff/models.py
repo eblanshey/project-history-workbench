@@ -6,8 +6,11 @@
 # It depends on domain/tree/property.py but has no circular dependencies.
 """Domain models for diff results."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import Enum, auto
+from typing import Any
 
 from ..tree import Property, PropertyType
 
@@ -48,7 +51,7 @@ def _values_are_equal_ignoring_expression(old_value: Property, new_value: Proper
     return bool(old_value.value == new_value.value)
 
 
-def _calculate_property_diff_state(old_value: Property | None, new_value: Property | None) -> "DiffState":
+def _calculate_property_diff_state(old_value: Property | None, new_value: Property | None) -> DiffState:
     """Calculate the diff state for a property based on old and new values.
 
     Note: Expression changes are tracked separately. This function compares
@@ -74,6 +77,115 @@ def _calculate_property_diff_state(old_value: Property | None, new_value: Proper
     return DiffState.MODIFIED
 
 
+def _is_vector_like(value: Any) -> bool:
+    """Check if value is Vector-like (has x, y, z attributes)."""
+    return hasattr(value, "x") and hasattr(value, "y") and hasattr(value, "z") and not isinstance(value, (int, float))
+
+
+def _is_rotation_like(value: Any) -> bool:
+    """Check if value is Rotation-like (has angle and axis)."""
+    has_angle = hasattr(value, "angle") or hasattr(value, "Angle")
+    has_axis = hasattr(value, "axis") or hasattr(value, "Axis")
+    return has_angle and has_axis
+
+
+def _is_placement_like(value: Any) -> bool:
+    """Check if value is Placement-like (has position and rotation)."""
+    return hasattr(value, "position") and hasattr(value, "rotation")
+
+
+def _get_property_type_for_primitive(value: Any) -> PropertyType:
+    """Infer PropertyType for primitive Python types."""
+    if isinstance(value, bool):
+        return PropertyType.BOOL
+    if isinstance(value, int):
+        return PropertyType.INT
+    if isinstance(value, float):
+        return PropertyType.FLOAT
+    if isinstance(value, str):
+        return PropertyType.STRING
+    return PropertyType.UNKNOWN
+
+
+def _create_property_from_child_value(value: Any, group: str = "Base") -> Property:
+    """Create a Property from a raw child value.
+
+    This wraps raw values from get_children() into Property objects.
+    The type is inferred from the value structure.
+
+    Args:
+        value: The raw value (Vector, float, Rotation, etc.)
+        group: The property group
+
+    Returns:
+        A Property object with inferred type
+    """
+    if value is None:
+        return Property(type_=PropertyType.UNKNOWN, value=None, group=group)
+
+    # Check if it's a Vector object
+    if _is_vector_like(value):
+        return Property(type_=PropertyType.VECTOR, value=value, group=group)
+
+    # Check if it's a Rotation-like object (has angle and axis)
+    if _is_rotation_like(value):
+        return Property(type_=PropertyType.PLACEMENT, value=value, group=group)
+
+    # Check if it's a Placement object
+    if _is_placement_like(value):
+        return Property(type_=PropertyType.PLACEMENT, value=value, group=group)
+
+    # Check if it's a list or tuple
+    if isinstance(value, (list, tuple)):
+        return Property(type_=PropertyType.LIST, value=value, group=group)
+
+    # Check if it's a dict
+    if isinstance(value, dict):
+        return Property(type_=PropertyType.UNKNOWN, value=value, group=group)
+
+    # For primitives, infer type from Python type
+    prop_type = _get_property_type_for_primitive(value)
+    return Property(type_=prop_type, value=value, group=group)
+
+
+def _compute_property_children(old_value: Property | None, new_value: Property | None) -> list[PropertyDiff]:
+    """Compute child property diffs for expandable properties.
+
+    Args:
+        old_value: Value in the old snapshot (None if added)
+        new_value: Value in the new snapshot (None if deleted)
+
+    Returns:
+        List of PropertyDiff for child properties
+    """
+    children: list[PropertyDiff] = []
+
+    old_children = old_value.get_children() if old_value else []
+    new_children = new_value.get_children() if new_value else []
+
+    old_child_map = dict(old_children)
+    new_child_map = dict(new_children)
+
+    all_child_names = set(old_child_map.keys()) | set(new_child_map.keys())
+
+    for child_name in sorted(all_child_names):
+        raw_old_child = old_child_map.get(child_name)
+        raw_new_child = new_child_map.get(child_name)
+
+        # Wrap raw values in Property objects
+        old_child_prop = _create_property_from_child_value(raw_old_child) if raw_old_child is not None else None
+        new_child_prop = _create_property_from_child_value(raw_new_child) if raw_new_child is not None else None
+
+        child_diff = PropertyDiff(
+            property_name=child_name,
+            old_value=old_child_prop,
+            new_value=new_child_prop,
+        )
+        children.append(child_diff)
+
+    return children
+
+
 def _has_expression_change(old_value: Property | None, new_value: Property | None) -> bool:
     """Check if there's an expression change between two property values."""
     if old_value is None or new_value is None:
@@ -81,7 +193,7 @@ def _has_expression_change(old_value: Property | None, new_value: Property | Non
     return old_value.expression != new_value.expression
 
 
-def _are_properties_modified(property_diffs: list["PropertyDiff"], children: list["NodeDiff"]) -> bool:
+def _are_properties_modified(property_diffs: list[PropertyDiff], children: list[NodeDiff]) -> bool:
     """Check if any properties or children have modifications.
 
     A node's properties are considered modified if:
@@ -121,17 +233,21 @@ class PropertyDiff:
         old_value: Value in the old snapshot (None if added)
         new_value: Value in the new snapshot (None if deleted)
         state: The diff state (ADDED, DELETED, MODIFIED, UNCHANGED) - auto-calculated
+        children: List of child property diffs for expandable properties
     """
 
     property_name: str
     old_value: Property | None
     new_value: Property | None
     state: DiffState = field(init=False)
+    children: list[PropertyDiff] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        """Calculate state based on old and new values."""
+        """Calculate state and children based on old and new values."""
         # Use object.__setattr__ since the dataclass is frozen
         object.__setattr__(self, "state", _calculate_property_diff_state(self.old_value, self.new_value))
+        # Compute children for expandable properties
+        object.__setattr__(self, "children", _compute_property_children(self.old_value, self.new_value))
 
     def __str__(self) -> str:
         if self.state == DiffState.ADDED:
@@ -174,7 +290,7 @@ class NodeDiff:
     type_id: str
     state: DiffState = field(init=False)
     property_diffs: list[PropertyDiff] = field(default_factory=list)
-    children: list["NodeDiff"] = field(default_factory=list)
+    children: list[NodeDiff] = field(default_factory=list)
     _force_state: DiffState | None = field(default=None, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -240,7 +356,7 @@ class DiffSummary:
         )
 
     @classmethod
-    def compute(cls, diff_result: "DiffResult") -> "DiffSummary":
+    def compute(cls, diff_result: DiffResult) -> DiffSummary:
         """Compute a summary from a diff result.
 
         Args:
@@ -275,7 +391,7 @@ class DiffSummary:
         )
 
     @staticmethod
-    def _count_node(node: "NodeDiff") -> dict[str, int]:
+    def _count_node(node: NodeDiff) -> dict[str, int]:
         """Recursively count node states and property changes.
 
         Returns:
@@ -367,7 +483,7 @@ class DiffResult:
             self._collect_changed_paths(node_diff, changed_paths)
         return changed_paths
 
-    def _collect_changed_paths(self, node: "NodeDiff", result: list[str]) -> None:
+    def _collect_changed_paths(self, node: NodeDiff, result: list[str]) -> None:
         """Recursively collect paths with changes."""
         if node.has_changes:
             result.append(node.path)

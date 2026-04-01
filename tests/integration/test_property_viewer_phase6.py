@@ -173,7 +173,7 @@ class TestPropertyViewerPhase6:
 
         Placement should expand to Position and Rotation.
         """
-        from freecad.diff_wb.ui.views.property_tree import get_property_children, is_expandable
+        from freecad.diff_wb.domain.tree.property import Property
 
         # Open BasicFile
         doc_path = Path(project_root) / "tests/freecad/BasicFile.FCStd"
@@ -185,11 +185,12 @@ class TestPropertyViewerPhase6:
                 if hasattr(obj, "Placement") and obj.Placement is not None:
                     placement = obj.Placement
 
-                    # Check it's expandable
-                    assert is_expandable(placement), "Placement should be expandable"
+                    # Create Property from FreeCAD value
+                    prop = Property.from_freecad_property("Placement", placement)
 
-                    # Get children
-                    children = get_property_children("Placement", placement)
+                    # Check it's expandable
+                    children = prop.get_children()
+                    assert len(children) > 0, "Placement should be expandable"
 
                     # Should have Position and Rotation (or Angle, Axis)
                     child_names = [c[0] for c in children]
@@ -205,7 +206,7 @@ class TestPropertyViewerPhase6:
 
     def test_expandable_vector_property(self, freecad_app: AppLike, project_root: object) -> None:
         """Verify vector properties expand to x, y, z (Phase 4)."""
-        from freecad.diff_wb.ui.views.property_tree import get_property_children, is_expandable
+        from freecad.diff_wb.domain.tree.property import Property
 
         # Open BasicFile
         doc_path = Path(project_root) / "tests/freecad/BasicFile.FCStd"
@@ -219,11 +220,12 @@ class TestPropertyViewerPhase6:
                     if hasattr(placement, "Base") and placement.Base is not None:
                         position = placement.Base
 
-                        # Check it's expandable
-                        assert is_expandable(position), "Position should be expandable"
+                        # Create Property from FreeCAD value
+                        prop = Property.from_freecad_property("Position", position)
 
-                        # Get children
-                        children = get_property_children("Position", position)
+                        # Check it's expandable
+                        children = prop.get_children()
+                        assert len(children) > 0, "Position should be expandable"
 
                         # Should have x, y, z
                         child_names = [c[0] for c in children]
@@ -239,7 +241,7 @@ class TestPropertyViewerPhase6:
 
     def test_camelcase_to_spaces_conversion(self) -> None:
         """Verify CamelCase property names are converted to spaced names (Phase 3)."""
-        from freecad.diff_wb.ui.views.property_tree import _camelcase_to_spaces
+        from freecad.diff_wb.ui.views.diff_panel_view import _camelcase_to_spaces
 
         # Test cases
         test_cases = [
@@ -317,15 +319,16 @@ class TestPropertyViewerPhase6:
                 pytest.skip("No nodes with properties found")
 
             # Convert to PropertyPresentation
+            from freecad.diff_wb.domain.diff.models import DiffState
+
             properties = []
             for prop_name, prop in test_node.properties.items():
                 properties.append(
                     PropertyPresentation(
                         name=prop_name,
-                        old_display=str(prop.value) if prop.value else "",
-                        new_display=str(prop.value) if prop.value else "",
-                        state="UNCHANGED",
-                        value=prop.value,
+                        old_value=prop.value,
+                        new_value=prop.value,
+                        state=DiffState.UNCHANGED,
                         group=prop.group,
                     )
                 )

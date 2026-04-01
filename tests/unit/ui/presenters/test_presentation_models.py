@@ -238,6 +238,80 @@ class TestPropertyPresentation:
         assert isinstance(prop.state, DiffState)
         assert prop.state == DiffState.ADDED
 
+    def test_property_presentation_has_children(self) -> None:
+        """Verify children field is present and can be set."""
+        # Arrange
+        child = PropertyPresentation(
+            name="x",
+            state=DiffState.MODIFIED,
+        )
+        parent = PropertyPresentation(
+            name="Placement",
+            state=DiffState.MODIFIED,
+            children=[child],
+        )
+
+        # Assert
+        assert len(parent.children) == 1
+        assert parent.children[0] == child
+
+    def test_property_presentation_empty_children_for_leaf(self) -> None:
+        """Verify children defaults to empty list for leaf properties."""
+        # Arrange & Act
+        prop = PropertyPresentation(
+            name="Length",
+            state=DiffState.MODIFIED,
+        )
+
+        # Assert
+        assert prop.children == []
+        assert isinstance(prop.children, list)
+
+    def test_property_presentation_children_with_parent_values(self) -> None:
+        """Verify both parent values and children can coexist."""
+        # Arrange
+        child_x = PropertyPresentation(
+            name="x",
+            state=DiffState.MODIFIED,
+            old_value=1.0,
+            new_value=2.0,
+        )
+        child_y = PropertyPresentation(
+            name="y",
+            state=DiffState.MODIFIED,
+            old_value=3.0,
+            new_value=4.0,
+        )
+        parent = PropertyPresentation(
+            name="Placement",
+            state=DiffState.MODIFIED,
+            old_value="old_placement",
+            new_value="new_placement",
+            children=[child_x, child_y],
+        )
+
+        # Assert - verify parent has both values and children
+        assert parent.old_value == "old_placement"
+        assert parent.new_value == "new_placement"
+        assert len(parent.children) == 2
+        assert parent.children[0].name == "x"
+        assert parent.children[1].name == "y"
+
+    def test_property_presentation_children_are_independent_instances(self) -> None:
+        """Verify each instance gets its own children list (not shared)."""
+        # Arrange & Act
+        prop1 = PropertyPresentation(
+            name="Length1",
+            state=DiffState.MODIFIED,
+        )
+        prop2 = PropertyPresentation(
+            name="Length2",
+            state=DiffState.MODIFIED,
+        )
+
+        # Each should have its own list
+        assert prop1.children is not prop2.children
+
 
 class TestSnapshotPresentation:
     """Tests for SnapshotPresentation dataclass."""

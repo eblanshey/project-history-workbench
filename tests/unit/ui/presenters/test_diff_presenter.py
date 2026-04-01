@@ -3,7 +3,7 @@
 from freecad.diff_wb.domain.diff.models import DiffResult, DiffState, NodeDiff, PropertyDiff
 from freecad.diff_wb.domain.tree import Property, PropertyType
 from freecad.diff_wb.ui.presenters.diff_presenter import DiffPresenter
-from freecad.diff_wb.ui.presenters.presentation_models import NodePresentation
+from freecad.diff_wb.ui.presenters.presentation_models import NodePresentation, PropertyPresentation
 from tests.fakes.fake_diff_view import FakeDiffView
 
 
@@ -301,3 +301,215 @@ class TestDiffPresenterFormatsChildren:
         assert len(presentations) == 1
         assert presentations[0].path == "Part/Leaf"
         assert presentations[0].children == []
+
+
+class TestTransformPropertyDiffsWithChildren:
+    """Tests for _transform_property_diffs() including children transformation."""
+
+    def test_transform_property_diffs_includes_children(self) -> None:
+        """Test that property diffs with children are transformed correctly."""
+        # Arrange
+        fake_view = FakeDiffView()
+        presenter = DiffPresenter(fake_view)
+
+        # Create property with children (simulating Placement with Position/Rotation)
+        old_placement = Property.create(
+            PropertyType.PLACEMENT,
+            {"position": (0.0, 0.0, 0.0), "rotation": (0.0, 0.0, 1.0, 0.0)},
+        )
+        new_placement = Property.create(
+            PropertyType.PLACEMENT,
+            {"position": (10.0, 0.0, 0.0), "rotation": (0.0, 0.0, 1.0, 45.0)},
+        )
+
+        prop_diff = PropertyDiff(
+            property_name="Placement",
+            old_value=old_placement,
+            new_value=new_placement,
+        )
+
+        node_diff = NodeDiff(
+            path="Part",
+            type_id="Part::Feature",
+            property_diffs=[prop_diff],
+            _force_state=DiffState.MODIFIED,
+        )
+        diff_result = DiffResult(
+            old_snapshot_name="v1",
+            new_snapshot_name="v2",
+            node_diffs=[node_diff],
+        )
+        presenter.present_diff(diff_result)
+
+        # Act - use on_node_selected to trigger the transform
+        presenter.on_node_selected("Part")
+
+        # Assert
+        calls = fake_view.get_calls()
+        # Find show_properties call
+        show_props_call = None
+        for call in calls:
+            if call["method"] == "show_properties":
+                show_props_call = call
+                break
+
+        assert show_props_call is not None
+        properties = show_props_call["properties"]
+        assert len(properties) == 1
+
+        prop_presentation = properties[0]
+        assert isinstance(prop_presentation, PropertyPresentation)
+        assert prop_presentation.name == "Placement"
+        # Children should be populated from domain PropertyDiff
+        assert len(prop_presentation.children) > 0
+
+    def test_transform_children_recursive(self) -> None:
+        """Test that children are transformed recursively."""
+        # Arrange
+        fake_view = FakeDiffView()
+        presenter = DiffPresenter(fake_view)
+
+        # Create a property with nested children (e.g., Position with x, y, z)
+        old_position = Property.create(PropertyType.VECTOR, (0.0, 0.0, 0.0))
+        new_position = Property.create(PropertyType.VECTOR, (10.0, 20.0, 30.0))
+
+        prop_diff = PropertyDiff(
+            property_name="Position",
+            old_value=old_position,
+            new_value=new_position,
+        )
+
+        node_diff = NodeDiff(
+            path="Part",
+            type_id="Part::Feature",
+            property_diffs=[prop_diff],
+            _force_state=DiffState.MODIFIED,
+        )
+        diff_result = DiffResult(
+            old_snapshot_name="v1",
+            new_snapshot_name="v2",
+            node_diffs=[node_diff],
+        )
+        presenter.present_diff(diff_result)
+
+        # Act
+        presenter.on_node_selected("Part")
+
+        # Assert
+        calls = fake_view.get_calls()
+        # Find show_properties call
+        show_props_call = None
+        for call in calls:
+            if call["method"] == "show_properties":
+                show_props_call = call
+                break
+
+        assert show_props_call is not None
+        properties = show_props_call["properties"]
+        position_pres = properties[0]
+
+        # Should have children (x, y, z)
+        assert len(position_pres.children) > 0
+        child_names = {child.name for child in position_pres.children}
+        assert "x" in child_names or "y" in child_names or "z" in child_names
+
+    def test_transform_children_preserves_parent_values(self) -> None:
+        """Test that parent old_value and new_value are preserved alongside children."""
+        # Arrange
+        fake_view = FakeDiffView()
+        presenter = DiffPresenter(fake_view)
+
+        # Create a property with both parent value and children
+        old_placement = Property.create(
+            PropertyType.PLACEMENT,
+            {"position": (0.0, 0.0, 0.0), "rotation": (0.0, 0.0, 1.0, 0.0)},
+        )
+        new_placement = Property.create(
+            PropertyType.PLACEMENT,
+            {"position": (10.0, 0.0, 0.0), "rotation": (0.0, 0.0, 1.0, 45.0)},
+        )
+
+        prop_diff = PropertyDiff(
+            property_name="Placement",
+            old_value=old_placement,
+            new_value=new_placement,
+        )
+
+        node_diff = NodeDiff(
+            path="Part",
+            type_id="Part::Feature",
+            property_diffs=[prop_diff],
+            _force_state=DiffState.MODIFIED,
+        )
+        diff_result = DiffResult(
+            old_snapshot_name="v1",
+            new_snapshot_name="v2",
+            node_diffs=[node_diff],
+        )
+        presenter.present_diff(diff_result)
+
+        # Act
+        presenter.on_node_selected("Part")
+
+        # Assert
+        calls = fake_view.get_calls()
+        # Find show_properties call
+        show_props_call = None
+        for call in calls:
+            if call["method"] == "show_properties":
+                show_props_call = call
+                break
+
+        assert show_props_call is not None
+        properties = show_props_call["properties"]
+        prop_pres = properties[0]
+
+        # Parent should still have old_value and new_value for display
+        assert prop_pres.old_value is not None
+        assert prop_pres.new_value is not None
+
+    def test_transform_children_empty_for_primitives(self) -> None:
+        """Test that primitive properties have empty children list."""
+        # Arrange
+        fake_view = FakeDiffView()
+        presenter = DiffPresenter(fake_view)
+
+        # Need to set up a diff_result first because on_node_selected requires it
+        old_prop = Property.create(PropertyType.FLOAT, 10.0)
+        new_prop = Property.create(PropertyType.FLOAT, 20.0)
+        prop_diff = PropertyDiff(
+            property_name="Length",
+            old_value=old_prop,
+            new_value=new_prop,
+        )
+        node_diff = NodeDiff(
+            path="Part",
+            type_id="Part::Feature",
+            property_diffs=[prop_diff],
+            _force_state=DiffState.MODIFIED,
+        )
+        diff_result = DiffResult(
+            old_snapshot_name="v1",
+            new_snapshot_name="v2",
+            node_diffs=[node_diff],
+        )
+        presenter.present_diff(diff_result)
+
+        # Act
+        presenter.on_node_selected("Part")
+
+        # Assert
+        calls = fake_view.get_calls()
+        # Find the show_properties call
+        show_props_call = None
+        for call in calls:
+            if call["method"] == "show_properties":
+                show_props_call = call
+                break
+
+        assert show_props_call is not None
+        properties = show_props_call["properties"]
+        prop_pres = properties[0]
+
+        # Primitive should have empty children
+        assert prop_pres.children == []

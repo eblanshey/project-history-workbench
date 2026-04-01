@@ -33,7 +33,55 @@ from ..translation_strings import (
     DIFF_SUMMARY_DELETED_LABEL,
     DIFF_SUMMARY_MODIFIED_LABEL,
 )
-from .property_tree import _camelcase_to_spaces, get_property_children, is_expandable
+
+
+def _camelcase_to_spaces(name: str) -> str:
+    """Insert spaces before uppercase letters and digits, matching FreeCAD display.
+
+    This function converts CamelCase property names to space-separated names
+    to match how FreeCAD displays property names in its UI (e.g., "Saved Geometry"
+    instead of "SavedGeometry").
+
+    Args:
+        name: The CamelCase property name to convert.
+
+    Returns:
+        The property name with spaces inserted before uppercase letters or digits
+        (except at the start or when following another uppercase or digit).
+    """
+    if not name:
+        return name
+
+    result = [name[0]]  # Start with first character
+    upper_sequence_start = 0 if name[0].isupper() else -1
+
+    for i in range(1, len(name)):
+        char = name[i]
+        prev_char = name[i - 1]
+
+        if char.isupper():
+            # If we hit an uppercase after lowercase, add space (e.g., "SavedGeometry" -> before G)
+            if prev_char.islower():
+                result.append(" ")
+            # If we were in an uppercase sequence and now at end of sequence (next is lowercase),
+            # add space. This handles "XMLDoc" -> "XML Doc"
+            elif upper_sequence_start >= 0 and i + 1 < len(name) and name[i + 1].islower():
+                result.append(" ")
+                upper_sequence_start = -1  # Reset
+            upper_sequence_start = i
+        elif char.islower():
+            upper_sequence_start = -1
+        elif char.isdigit():
+            # Add space before digit if preceded by letter
+            if prev_char.isalpha():
+                result.append(" ")
+            upper_sequence_start = -1
+        else:
+            upper_sequence_start = -1
+
+        result.append(char)
+
+    return "".join(result)
 
 
 @dataclass
@@ -488,13 +536,8 @@ class DiffPanelView(QWidget):
 
         item = QTreeWidgetItem([display_name, left_value, right_value])
 
-        # Check if the property value is expandable and add children with diff comparison
-        has_changed_children = self._add_child_items_with_diffs(
-            item,
-            prop.name,
-            prop.old_value,
-            prop.new_value,
-        )
+        # Use pre-computed children from domain instead of computing diffs
+        has_changed_children = self._add_child_items(item, prop.children)
 
         # Always expand property items so their content is visible
         item.setExpanded(True)
@@ -534,121 +577,86 @@ class DiffPanelView(QWidget):
         new_str = str(prop.new_value) if prop.new_value is not None else ""
         return self.UNCHANGED_COLOR, new_str, new_str
 
-    def _add_child_items_with_diffs(
+    def _add_child_items(
         self,
         parent_item: QTreeWidgetItem,
-        child_name: str,
-        old_value: Any,
-        new_value: Any,
-        visited: set[int] | None = None,
-        depth: int = 0,
+        children: list[PropertyPresentation],
     ) -> bool:
-        """Add child items with diff comparison for expandable properties.
-
-        Recursively expands children that are themselves expandable (e.g., Placement -> Base -> x,y,z).
+        """Add pre-computed child items to the tree.
 
         Args:
             parent_item: The parent QTreeWidgetItem to add children to.
-            child_name: The name of the property/child to expand.
-            old_value: The old value to expand.
-            new_value: The new value to expand.
-            visited: Set of object IDs already visited (to prevent circular references).
-            depth: Current recursion depth.
+            children: Pre-computed PropertyPresentation children from domain.
 
         Returns:
             True if any child has MODIFIED/ADDED/DELETED state, False otherwise.
         """
-        # Max depth to prevent infinite recursion (safety limit)
-        MAX_DEPTH = 10
-        if depth >= MAX_DEPTH:
-            Log.debug("[DEBUG] _add_child_items_with_diffs: max depth reached")
-            return False
-
-        Log.debug(f"[DEBUG] _add_child_items_with_diffs: property={child_name!r}, depth={depth}")
-        Log.debug(f"  old_value: {old_value!r} (type: {type(old_value).__name__ if old_value is not None else None})")
-        Log.debug(f"  new_value: {new_value!r} (type: {type(new_value).__name__ if new_value is not None else None})")
-
-        # Initialize visited set on first call
-        if visited is None:
-            visited = set()
-
-        # Track this level's objects to prevent circular references
-        current_visited = visited | {id(old_value), id(new_value)} - {None}
-
         has_changed_children = False
 
-        # Get children from both old and new values
-        old_is_expandable = is_expandable(old_value, "", child_name)
-        new_is_expandable = is_expandable(new_value, "", child_name)
-        Log.debug(f"  is_expandable: old={old_is_expandable}, new={new_is_expandable}")
-
-        old_children = get_property_children(child_name, old_value) if old_value is not None else []
-        new_children = get_property_children(child_name, new_value) if new_value is not None else []
-        Log.debug(f"  children count: old={len(old_children)}, new={len(new_children)}")
-
-        # Create dictionaries for easy lookup by child name
-        old_child_map = dict(old_children)
-        new_child_map = dict(new_children)
-
-        # Get all unique child names
-        all_child_names = set(old_child_map.keys()) | set(new_child_map.keys())
-
-        for grandchild_name in sorted(all_child_names):
-            old_grandchild_value = old_child_map.get(grandchild_name)
-            new_grandchild_value = new_child_map.get(grandchild_name)
-
-            # Determine grandchild state by comparing old and new values
-            grandchild_state = self._determine_child_state(old_grandchild_value, new_grandchild_value)
-
-            # Track if any grandchild has changes
-            if grandchild_state in (DiffState.MODIFIED, DiffState.ADDED, DiffState.DELETED):
+        for child in children:
+            # Determine if this child has changes
+            if child.state in (DiffState.MODIFIED, DiffState.ADDED, DiffState.DELETED):
                 has_changed_children = True
 
-            # Check if this grandchild is itself expandable
-            old_is_expandable = is_expandable(old_grandchild_value)
-            new_is_expandable = is_expandable(new_grandchild_value)
+            # Get display values based on state
+            left_value, right_value = self._get_child_display_values(child)
 
-            # Check for circular references - skip if already visited
-            old_id = id(old_grandchild_value) if old_grandchild_value is not None else None
-            new_id = id(new_grandchild_value) if new_grandchild_value is not None else None
-            old_already_visited = old_id in current_visited
-            new_already_visited = new_id in current_visited
+            # Create child item with CamelCase conversion for display
+            display_name = _camelcase_to_spaces(child.name)
+            child_item = QTreeWidgetItem([display_name, left_value, right_value])
 
-            # Skip expansion if either value has been visited (prevents circular refs)
-            is_expandable_grandchild = (old_is_expandable or new_is_expandable) and not (
-                old_already_visited or new_already_visited
-            )
+            # Apply background color based on state
+            self._apply_child_background_by_state(child_item, child.state)
 
-            grandchild_display_name = _camelcase_to_spaces(grandchild_name)
-
-            if is_expandable_grandchild:
-                # Grandchild is expandable - show empty values and recurse
-                grandchild_item = QTreeWidgetItem([grandchild_display_name, "", ""])
-                Log.debug(f"  Recursing into expandable grandchild: {grandchild_name!r}")
-                # Recursively add great-grandchildren with updated visited set and depth
-                deeper_has_changes = self._add_child_items_with_diffs(
-                    grandchild_item,
-                    grandchild_name,
-                    old_grandchild_value,
-                    new_grandchild_value,
-                    current_visited,
-                    depth + 1,
-                )
-                # If deeper levels have changes, this grandchild also has changes
-                if deeper_has_changes:
+            # Recursively add grandchildren (pre-computed, no diffing needed)
+            if child.children:
+                grandchild_has_changes = self._add_child_items(child_item, child.children)
+                if grandchild_has_changes:
                     has_changed_children = True
-                    self._apply_child_background(grandchild_item, DiffState.MODIFIED)
-            else:
-                # Leaf node - show actual values
-                old_value_str = str(old_grandchild_value) if old_grandchild_value is not None else ""
-                new_value_str = str(new_grandchild_value) if new_grandchild_value is not None else ""
-                grandchild_item = QTreeWidgetItem([grandchild_display_name, old_value_str, new_value_str])
-                self._apply_child_background(grandchild_item, grandchild_state)
 
-            parent_item.addChild(grandchild_item)
+            parent_item.addChild(child_item)
 
-        Log.debug(f"[DEBUG] _add_child_items_with_diffs returning: has_changed_children={has_changed_children}")
         return has_changed_children
+
+    def _get_child_display_values(self, child: PropertyPresentation) -> tuple[str, str]:
+        """Get display values for a child based on its state.
+
+        Args:
+            child: The PropertyPresentation child.
+
+        Returns:
+            Tuple of (left_value, right_value) for display.
+        """
+        old_val = child.old_value
+        new_val = child.new_value
+
+        # Format display values based on state
+        if child.state == DiffState.ADDED:
+            return ("", str(new_val) if new_val is not None else child.name)
+        if child.state == DiffState.DELETED:
+            return (str(old_val) if old_val is not None else child.name, "")
+        if child.state == DiffState.MODIFIED:
+            left = str(old_val) if old_val is not None else ""
+            right = str(new_val) if new_val is not None else ""
+            return (left, right)
+        # UNCHANGED
+        value = str(new_val) if new_val is not None else ""
+        return (value, value)
+
+    def _apply_child_background_by_state(self, child_item: QTreeWidgetItem, state: DiffState) -> None:
+        """Apply background color to a child item based on its state.
+
+        Args:
+            child_item: The child QTreeWidgetItem.
+            state: The state of the child (DiffState enum).
+        """
+        if state == DiffState.ADDED:
+            self._apply_background_to_all_columns(child_item, self.ADDED_COLOR)
+        elif state == DiffState.DELETED:
+            self._apply_background_to_all_columns(child_item, self.DELETED_COLOR)
+        elif state == DiffState.MODIFIED:
+            self._apply_background_to_all_columns(child_item, self.MODIFIED_COLOR)
+        # UNCHANGED: no background
 
     def _apply_background_to_all_columns(self, item: QTreeWidgetItem, color: QColor) -> None:
         """Apply background color to all 3 columns of a tree item.
@@ -660,64 +668,6 @@ class DiffPanelView(QWidget):
         item.setBackground(0, QBrush(color))
         item.setBackground(1, QBrush(color))
         item.setBackground(2, QBrush(color))
-
-    def _apply_child_background(self, child_item: QTreeWidgetItem, child_state: DiffState) -> None:
-        """Apply background color to a child item based on its state.
-
-        Only applies color for MODIFIED/ADDED/DELETED states.
-        UNCHANGED children use default background (no coloring).
-
-        Args:
-            child_item: The child QTreeWidgetItem.
-            child_state: The state of the child (DiffState enum).
-        """
-        if child_state == DiffState.ADDED:
-            self._apply_background_to_all_columns(child_item, self.ADDED_COLOR)
-        elif child_state == DiffState.DELETED:
-            self._apply_background_to_all_columns(child_item, self.DELETED_COLOR)
-        elif child_state == DiffState.MODIFIED:
-            self._apply_background_to_all_columns(child_item, self.MODIFIED_COLOR)
-        # UNCHANGED: no background color (use default)
-
-    def _determine_child_state(self, old_value: Any, new_value: Any) -> DiffState:
-        """Determine the state of a child property by comparing old and new values.
-
-        Args:
-            old_value: The old child value (None if not present).
-            new_value: The new child value (None if not present).
-
-        Returns:
-            DiffState enum value.
-        """
-        # Both None: should not happen in normal usage
-        if old_value is None and new_value is None:
-            return DiffState.UNCHANGED
-
-        # Old is None but new has value: ADDED
-        if old_value is None and new_value is not None:
-            return DiffState.ADDED
-
-        # New is None but old has value: DELETED
-        if old_value is not None and new_value is None:
-            return DiffState.DELETED
-
-        # Both have values: compare them
-        # Use equality comparison for simple types
-        if old_value == new_value:
-            return DiffState.UNCHANGED
-
-        # For complex objects
-        # check if they're the same object
-        if old_value is new_value:
-            return DiffState.UNCHANGED
-
-        # For complex objects where == returns False even when identical
-        # (e.g., FreeCAD C++ wrapped objects), compare string representations
-        if str(old_value) == str(new_value):
-            return DiffState.UNCHANGED
-
-        # Values differ: MODIFIED
-        return DiffState.MODIFIED
 
     # Selection management methods
     def _get_default_background(self) -> QColor:

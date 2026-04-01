@@ -3,8 +3,9 @@
 from typing import Any
 
 from ...domain.diff.engine import DiffResult
-from ...domain.diff.models import DiffState, NodeDiff
+from ...domain.diff.models import DiffState, NodeDiff, PropertyDiff
 from ...domain.tree import Property
+from ...utils import Log
 from ..protocols.diff_view import DiffView
 from .presentation_models import NodePresentation, PropertyPresentation
 
@@ -85,13 +86,13 @@ class DiffPresenter:
 
         # If not found, clear properties
         if node_diff is None:
-            print(f"[PRESENTER] NodeDiff not found for path: {path}")
+            Log.debug(f"[PRESENTER] NodeDiff not found for path: {path}")
             self._view.show_properties([])
             return
 
         # Transform property diffs to presentations
         properties = self._transform_property_diffs(node_diff)
-        print(f"[PRESENTER] Transformed to {len(properties)} PropertyPresentation")
+        Log.debug(f"[PRESENTER] Transformed to {len(properties)} PropertyPresentation")
         self._view.show_properties(properties)
 
     def _find_node_diff_by_path(self, path: str, node_diffs: list[NodeDiff]) -> NodeDiff | None:
@@ -130,6 +131,9 @@ class DiffPresenter:
             old_value = self._extract_property_value(prop_diff.old_value)
             new_value = self._extract_property_value(prop_diff.new_value)
 
+            # Transform children recursively from domain PropertyDiff
+            children = self._transform_children(prop_diff.children)
+
             # Create main property row
             presentations.append(
                 PropertyPresentation(
@@ -137,6 +141,7 @@ class DiffPresenter:
                     state=prop_diff.state,
                     old_value=old_value,
                     new_value=new_value,
+                    children=children,
                     group=group,
                 )
             )
@@ -175,3 +180,24 @@ class DiffPresenter:
     def _extract_property_group(self, prop: Property | None) -> str | None:
         """Extract the group attribute from a Property object."""
         return getattr(prop, "group", None) if prop is not None else None
+
+    def _transform_children(self, child_diffs: list[PropertyDiff]) -> list[PropertyPresentation]:
+        """Recursively transform child property diffs to presentation format.
+
+        Args:
+            child_diffs: List of PropertyDiff children from domain
+
+        Returns:
+            List of PropertyPresentation for UI display
+        """
+        return [
+            PropertyPresentation(
+                name=child_diff.property_name,
+                state=child_diff.state,
+                old_value=self._extract_property_value(child_diff.old_value),
+                new_value=self._extract_property_value(child_diff.new_value),
+                children=self._transform_children(child_diff.children),
+                # No group for children
+            )
+            for child_diff in child_diffs
+        ]

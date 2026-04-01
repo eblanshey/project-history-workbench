@@ -1,5 +1,7 @@
 """File responsibility: UI-friendly presentation models for diff display."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -17,7 +19,7 @@ class NodePresentation:
     type_id: str
     state: DiffState
     has_changes: bool
-    children: list["NodePresentation"] = field(default_factory=list)
+    children: list[NodePresentation] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -35,6 +37,9 @@ class PropertyPresentation:
     # Value fields - raw values for computing sub-property diffs when expanded
     old_value: Any = None  # Actual old value for expandable properties
     new_value: Any = None  # Actual new value for expandable properties
+
+    # Children computed by domain (not re-diffed in UI)
+    children: list[PropertyPresentation] = field(default_factory=list)
 
     # Grouping
     group: str | None = None  # Group name for grouping (e.g., "Base", "Format")

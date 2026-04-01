@@ -492,22 +492,21 @@ class TestDiffPanelViewExpandableProperties:
         """show_properties() adds child items for expandable properties with vector values in 3-column layout."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
-        # Given: A Position property with mock vector-like objects for old and new values
-        class MockVector:
-            def __init__(self, x, y, z):
-                self.x = x
-                self.y = y
-                self.z = z
-
-        old_vector = MockVector(0.0, 0.0, 0.0)
-        new_vector = MockVector(10.0, 20.0, 30.0)
+        # Given: A Position property with pre-computed children (from domain)
+        # The domain computes children with MODIFIED state since all values changed
+        children = [
+            PropertyPresentation(name="x", state=DiffState.MODIFIED, old_value=0.0, new_value=10.0),
+            PropertyPresentation(name="y", state=DiffState.MODIFIED, old_value=0.0, new_value=20.0),
+            PropertyPresentation(name="z", state=DiffState.MODIFIED, old_value=0.0, new_value=30.0),
+        ]
 
         properties = [
             PropertyPresentation(
                 name="Position",
                 state=DiffState.MODIFIED,
-                old_value=old_vector,
-                new_value=new_vector,
+                old_value="Vector(0.0, 0.0, 0.0)",
+                new_value="Vector(10.0, 20.0, 30.0)",
+                children=children,
             ),
         ]
 
@@ -543,13 +542,21 @@ class TestDiffPanelViewExpandableProperties:
         """show_properties() adds child items for expandable properties with list values in 3-column layout."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
-        # Given: A property with list values for old and new
+        # Given: A property with pre-computed children (from domain)
+        # Children: 0 and 1 are UNCHANGED, 2 is ADDED (present only in new)
+        children = [
+            PropertyPresentation(name="0", state=DiffState.UNCHANGED, old_value=1, new_value=1),
+            PropertyPresentation(name="1", state=DiffState.UNCHANGED, old_value=2, new_value=2),
+            PropertyPresentation(name="2", state=DiffState.ADDED, old_value=None, new_value=3),
+        ]
+
         properties = [
             PropertyPresentation(
                 name="Items",
                 state=DiffState.MODIFIED,
                 old_value=[1, 2],
                 new_value=[1, 2, 3],
+                children=children,
             ),
         ]
 
@@ -889,22 +896,21 @@ class TestDiffPanelViewExpandablePropertyChildDiffs:
 
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
-        # Mock vector-like objects for old and new values
-        class MockVector:
-            def __init__(self, x, y, z):
-                self.x = x
-                self.y = y
-                self.z = z
-
-        old_vector = MockVector(10.0, 20.0, 30.0)
-        new_vector = MockVector(10.0, 25.0, 30.0)  # Only y changed
+        # Given: Pre-computed children with mixed states (from domain)
+        # x: UNCHANGED (10.0 -> 10.0), y: MODIFIED (20.0 -> 25.0), z: UNCHANGED (30.0 -> 30.0)
+        children = [
+            PropertyPresentation(name="x", state=DiffState.UNCHANGED, old_value=10.0, new_value=10.0),
+            PropertyPresentation(name="y", state=DiffState.MODIFIED, old_value=20.0, new_value=25.0),
+            PropertyPresentation(name="z", state=DiffState.UNCHANGED, old_value=30.0, new_value=30.0),
+        ]
 
         properties = [
             PropertyPresentation(
                 name="Position",
                 state=DiffState.MODIFIED,
-                old_value=old_vector,
-                new_value=new_vector,
+                old_value="Vector(10.0, 20.0, 30.0)",
+                new_value="Vector(10.0, 25.0, 30.0)",
+                children=children,
             ),
         ]
 
@@ -960,24 +966,20 @@ class TestDiffPanelViewExpandablePropertyChildDiffs:
 
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
-        # Mock objects where new_value has an extra child
-        class OldObj:
-            def __init__(self):
-                self.x = 10.0
-                self.y = 20.0
-
-        class NewObj:
-            def __init__(self):
-                self.x = 10.0
-                self.y = 20.0
-                self.z = 30.0  # Added child
+        # Given: Pre-computed children where z is ADDED (from domain)
+        children = [
+            PropertyPresentation(name="x", state=DiffState.UNCHANGED, old_value=10.0, new_value=10.0),
+            PropertyPresentation(name="y", state=DiffState.UNCHANGED, old_value=20.0, new_value=20.0),
+            PropertyPresentation(name="z", state=DiffState.ADDED, old_value=None, new_value=30.0),
+        ]
 
         properties = [
             PropertyPresentation(
                 name="Vector",
                 state=DiffState.MODIFIED,
-                old_value=OldObj(),
-                new_value=NewObj(),
+                old_value="Vector(10.0, 20.0)",
+                new_value="Vector(10.0, 20.0, 30.0)",
+                children=children,
             ),
         ]
 
@@ -1011,24 +1013,20 @@ class TestDiffPanelViewExpandablePropertyChildDiffs:
 
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
-        # Mock objects where old_value has an extra child
-        class OldObj:
-            def __init__(self):
-                self.x = 10.0
-                self.y = 20.0
-                self.z = 30.0  # Will be deleted
-
-        class NewObj:
-            def __init__(self):
-                self.x = 10.0
-                self.y = 20.0
+        # Given: Pre-computed children where z is DELETED (from domain)
+        children = [
+            PropertyPresentation(name="x", state=DiffState.UNCHANGED, old_value=10.0, new_value=10.0),
+            PropertyPresentation(name="y", state=DiffState.UNCHANGED, old_value=20.0, new_value=20.0),
+            PropertyPresentation(name="z", state=DiffState.DELETED, old_value=30.0, new_value=None),
+        ]
 
         properties = [
             PropertyPresentation(
                 name="Vector",
                 state=DiffState.MODIFIED,
-                old_value=OldObj(),
-                new_value=NewObj(),
+                old_value="Vector(10.0, 20.0, 30.0)",
+                new_value="Vector(10.0, 20.0)",
+                children=children,
             ),
         ]
 
@@ -1062,22 +1060,20 @@ class TestDiffPanelViewExpandablePropertyChildDiffs:
 
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
-        # Mock vector-like objects where only one child changes
-        class MockVector:
-            def __init__(self, x, y, z):
-                self.x = x
-                self.y = y
-                self.z = z
-
-        old_vector = MockVector(10.0, 20.0, 30.0)
-        new_vector = MockVector(10.0, 20.0, 35.0)  # Only z changed
+        # Given: Pre-computed children where z is MODIFIED (from domain)
+        children = [
+            PropertyPresentation(name="x", state=DiffState.UNCHANGED, old_value=10.0, new_value=10.0),
+            PropertyPresentation(name="y", state=DiffState.UNCHANGED, old_value=20.0, new_value=20.0),
+            PropertyPresentation(name="z", state=DiffState.MODIFIED, old_value=30.0, new_value=35.0),
+        ]
 
         properties = [
             PropertyPresentation(
                 name="Position",
                 state=DiffState.UNCHANGED,  # Parent state is UNCHANGED but has changed children
-                old_value=old_vector,
-                new_value=new_vector,
+                old_value="Vector(10.0, 20.0, 30.0)",
+                new_value="Vector(10.0, 20.0, 35.0)",
+                children=children,
             ),
         ]
 
@@ -1100,22 +1096,20 @@ class TestDiffPanelViewExpandablePropertyChildDiffs:
 
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
-        # Mock vector-like objects where all children are unchanged
-        class MockVector:
-            def __init__(self, x, y, z):
-                self.x = x
-                self.y = y
-                self.z = z
-
-        old_vector = MockVector(10.0, 20.0, 30.0)
-        new_vector = MockVector(10.0, 20.0, 30.0)  # All same values
+        # Given: Pre-computed children where all are UNCHANGED (from domain)
+        children = [
+            PropertyPresentation(name="x", state=DiffState.UNCHANGED, old_value=10.0, new_value=10.0),
+            PropertyPresentation(name="y", state=DiffState.UNCHANGED, old_value=20.0, new_value=20.0),
+            PropertyPresentation(name="z", state=DiffState.UNCHANGED, old_value=30.0, new_value=30.0),
+        ]
 
         properties = [
             PropertyPresentation(
                 name="Position",
                 state=DiffState.UNCHANGED,
-                old_value=old_vector,
-                new_value=new_vector,
+                old_value="Vector(10.0, 20.0, 30.0)",
+                new_value="Vector(10.0, 20.0, 30.0)",
+                children=children,
             ),
         ]
 
@@ -1147,16 +1141,21 @@ class TestDiffPanelViewExpandablePropertyChildDiffs:
 
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
-        # Using lists for old and new values
-        old_list = [1, 2, 3]
-        new_list = [1, 5, 3]  # Only index [1] changed
+        # Given: Pre-computed children with list indices (from domain)
+        # index 0: UNCHANGED (1 -> 1), index 1: MODIFIED (2 -> 5), index 2: UNCHANGED (3 -> 3)
+        children = [
+            PropertyPresentation(name="0", state=DiffState.UNCHANGED, old_value=1, new_value=1),
+            PropertyPresentation(name="1", state=DiffState.MODIFIED, old_value=2, new_value=5),
+            PropertyPresentation(name="2", state=DiffState.UNCHANGED, old_value=3, new_value=3),
+        ]
 
         properties = [
             PropertyPresentation(
                 name="Items",
                 state=DiffState.MODIFIED,
-                old_value=old_list,
-                new_value=new_list,
+                old_value=[1, 2, 3],
+                new_value=[1, 5, 3],
+                children=children,
             ),
         ]
 

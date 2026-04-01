@@ -14,7 +14,7 @@ class MockConstraint:
         self.Type = constraint_type
 
     def __str__(self):
-        return "<Constraint '{}' type={}>".format(self.Name, self.Type)
+        return f"<Constraint '{self.Name}' type={self.Type}>"
 
 
 class TestProperty:
@@ -363,3 +363,137 @@ class TestRegistry:
         handler_classes = [h.__name__ for h in _PROPERTY_HANDLERS]
         assert "Vector" in handler_classes
         assert "Placement" in handler_classes
+
+
+class TestPropertyGetChildren:
+    """Tests for the Property.get_children() method."""
+
+    def test_get_children_placement(self):
+        """Placement returns Position + Rotation."""
+        pv = Property.create(PropertyType.PLACEMENT, {"position": (1.0, 2.0, 3.0), "rotation": (0, 0, 1, 90)})
+        children = pv.get_children()
+
+        assert len(children) == 2
+        names = [name for name, _ in children]
+        assert "Position" in names
+        assert "Rotation" in names
+
+    def test_get_children_rotation(self):
+        """Rotation returns Angle + Axis."""
+
+        # Create a Rotation-like object with angle/axis attributes
+        class MockAxis:
+            x, y, z = 0.0, 0.0, 1.0
+
+        class MockRotation:
+            Angle = 90.0
+            Axis = MockAxis()
+
+        # Create a Property with type that has angle/axis (not Placement)
+        pv = Property(type_=PropertyType.UNKNOWN, value=MockRotation())
+        children = pv.get_children()
+
+        assert len(children) == 2
+        names = [name for name, _ in children]
+        assert "Angle" in names
+        assert "Axis" in names
+
+    def test_get_children_vector(self):
+        """Vector returns x, y, z."""
+        pv = Property.create(PropertyType.VECTOR, (1.0, 2.0, 3.0))
+        children = pv.get_children()
+
+        assert len(children) == 3
+        names = [name for name, _ in children]
+        assert "x" in names
+        assert "y" in names
+        assert "z" in names
+
+    def test_get_children_list(self):
+        """List returns indexed items."""
+        pv = Property.create(PropertyType.LIST, ["a", "b", "c"])
+        children = pv.get_children()
+
+        assert len(children) == 3
+        assert children[0] == ("0", "a")
+        assert children[1] == ("1", "b")
+        assert children[2] == ("2", "c")
+
+    def test_get_children_dict(self):
+        """Dict returns key-value pairs."""
+        pv = Property(type_=PropertyType.UNKNOWN, value={"key1": "val1", "key2": "val2"})
+        children = pv.get_children()
+
+        assert len(children) == 2
+        child_dict = dict(children)
+        assert child_dict["key1"] == "val1"
+        assert child_dict["key2"] == "val2"
+
+    def test_get_children_primitive(self):
+        """Primitive returns empty list."""
+        pv_int = Property.create(PropertyType.INT, 42)
+        assert pv_int.get_children() == []
+
+        pv_float = Property.create(PropertyType.FLOAT, 3.14)
+        assert pv_float.get_children() == []
+
+        pv_string = Property.create(PropertyType.STRING, "hello")
+        assert pv_string.get_children() == []
+
+        pv_bool = Property.create(PropertyType.BOOL, True)
+        assert pv_bool.get_children() == []
+
+    def test_get_children_none(self):
+        """None value returns empty list."""
+        pv = Property(type_=PropertyType.INT, value=None)
+        assert pv.get_children() == []
+
+    def test_get_children_empty_list(self):
+        """Empty list returns empty list."""
+        pv = Property.create(PropertyType.LIST, [])
+        assert pv.get_children() == []
+
+    def test_get_children_empty_dict(self):
+        """Empty dict returns empty list."""
+        pv = Property(type_=PropertyType.UNKNOWN, value={})
+        assert pv.get_children() == []
+
+    def test_get_children_vector_with_lowercase_attributes(self):
+        """Vector-like objects with lowercase x,y,z attributes work."""
+
+        class MockVector:
+            def __init__(self):
+                self.x = 1.0
+                self.y = 2.0
+                self.z = 3.0
+
+        pv = Property(type_=PropertyType.UNKNOWN, value=MockVector())
+        children = pv.get_children()
+
+        assert len(children) == 3
+        child_dict = dict(children)
+        assert child_dict["x"] == 1.0
+        assert child_dict["y"] == 2.0
+        assert child_dict["z"] == 3.0
+
+    def test_get_children_rotation_with_lowercase_attributes(self):
+        """Rotation with lowercase angle/axis attributes works."""
+
+        class MockAxis:
+            def __init__(self):
+                self.x = 0.0
+                self.y = 0.0
+                self.z = 1.0
+
+        class MockRotation:
+            def __init__(self):
+                self.angle = 45.0
+                self.axis = MockAxis()
+
+        pv = Property(type_=PropertyType.UNKNOWN, value=MockRotation())
+        children = pv.get_children()
+
+        assert len(children) == 2
+        names = [name for name, _ in children]
+        assert "Angle" in names
+        assert "Axis" in names

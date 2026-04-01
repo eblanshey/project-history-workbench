@@ -1650,3 +1650,184 @@ class TestCompareProperties:
         result = compare_properties(old_props, new_props)
         assert len(result) == 1
         assert result[0].state == DiffState.UNCHANGED
+
+
+class TestPropertyDiffChildrenAutoComputed:
+    """Tests verifying PropertyDiff auto-computes children for expandable properties.
+
+    These tests verify that when the comparator creates PropertyDiff objects,
+    the children are automatically populated by PropertyDiff's __post_init__ method.
+    This is Phase 3 of the refactor-diff-architecture task.
+    """
+
+    def test_placement_property_diff_has_position_and_rotation_children(self):
+        """Test that PropertyDiff for Placement has Position and Rotation children."""
+        # Create two Placement properties that differ in position
+        old_props = {
+            "Placement": Property.create(
+                PropertyType.PLACEMENT,
+                {"position": (0.0, 0.0, 0.0), "rotation": (0.0, 0.0, 1.0, 90.0)},
+            ),
+        }
+        new_props = {
+            "Placement": Property.create(
+                PropertyType.PLACEMENT,
+                {"position": (1.0, 0.0, 0.0), "rotation": (0.0, 0.0, 1.0, 90.0)},
+            ),
+        }
+
+        result = compare_properties(old_props, new_props)
+
+        assert len(result) == 1
+        prop_diff = result[0]
+        assert prop_diff.property_name == "Placement"
+        assert prop_diff.state == DiffState.MODIFIED
+
+        # Verify children are auto-computed
+        assert len(prop_diff.children) == 2
+        child_names = {child.property_name for child in prop_diff.children}
+        assert "Position" in child_names
+        assert "Rotation" in child_names
+
+    def test_placement_property_diff_position_child_has_correct_state(self):
+        """Test that Position child of Placement diff has MODIFIED state when position changes."""
+        # Create two Placement properties with different positions
+        old_props = {
+            "Placement": Property.create(
+                PropertyType.PLACEMENT,
+                {"position": (0.0, 0.0, 0.0), "rotation": (0.0, 0.0, 1.0, 90.0)},
+            ),
+        }
+        new_props = {
+            "Placement": Property.create(
+                PropertyType.PLACEMENT,
+                {"position": (1.0, 2.0, 3.0), "rotation": (0.0, 0.0, 1.0, 90.0)},
+            ),
+        }
+
+        result = compare_properties(old_props, new_props)
+        prop_diff = result[0]
+
+        # Find Position child
+        position_child = next(child for child in prop_diff.children if child.property_name == "Position")
+        assert position_child.state == DiffState.MODIFIED
+
+    def test_placement_property_diff_rotation_child_has_correct_state(self):
+        """Test that Rotation child of Placement diff has MODIFIED state when rotation changes."""
+        # Create two Placement properties with different rotations
+        old_props = {
+            "Placement": Property.create(
+                PropertyType.PLACEMENT,
+                {"position": (0.0, 0.0, 0.0), "rotation": (0.0, 0.0, 1.0, 45.0)},
+            ),
+        }
+        new_props = {
+            "Placement": Property.create(
+                PropertyType.PLACEMENT,
+                {"position": (0.0, 0.0, 0.0), "rotation": (0.0, 0.0, 1.0, 90.0)},
+            ),
+        }
+
+        result = compare_properties(old_props, new_props)
+        prop_diff = result[0]
+
+        # Find Rotation child
+        rotation_child = next(child for child in prop_diff.children if child.property_name == "Rotation")
+        assert rotation_child.state == DiffState.MODIFIED
+
+    def test_unchanged_placement_has_unchanged_children(self):
+        """Test that unchanged Placement has UNCHANGED children."""
+        # Create identical Placement properties
+        old_props = {
+            "Placement": Property.create(
+                PropertyType.PLACEMENT,
+                {"position": (1.0, 2.0, 3.0), "rotation": (0.0, 0.0, 1.0, 90.0)},
+            ),
+        }
+        new_props = {
+            "Placement": Property.create(
+                PropertyType.PLACEMENT,
+                {"position": (1.0, 2.0, 3.0), "rotation": (0.0, 0.0, 1.0, 90.0)},
+            ),
+        }
+
+        result = compare_properties(old_props, new_props)
+        prop_diff = result[0]
+
+        assert prop_diff.state == DiffState.UNCHANGED
+
+        # Both children should be UNCHANGED
+        for child in prop_diff.children:
+            assert child.state == DiffState.UNCHANGED
+
+    def test_primitive_property_has_empty_children(self):
+        """Test that primitive property (e.g., FLOAT) has empty children list."""
+        old_props = {
+            "Length": Property.create(PropertyType.FLOAT, 10.0),
+        }
+        new_props = {
+            "Length": Property.create(PropertyType.FLOAT, 20.0),
+        }
+
+        result = compare_properties(old_props, new_props)
+        prop_diff = result[0]
+
+        assert prop_diff.state == DiffState.MODIFIED
+        # Primitive types have no children
+        assert len(prop_diff.children) == 0
+
+    def test_vector_property_has_x_y_z_children(self):
+        """Test that VECTOR property has x, y, z children."""
+        old_props = {
+            "Position": Property.create(PropertyType.VECTOR, (1.0, 2.0, 3.0)),
+        }
+        new_props = {
+            "Position": Property.create(PropertyType.VECTOR, (4.0, 5.0, 6.0)),
+        }
+
+        result = compare_properties(old_props, new_props)
+        prop_diff = result[0]
+
+        assert prop_diff.state == DiffState.MODIFIED
+        # Vector has x, y, z children
+        assert len(prop_diff.children) == 3
+        child_names = {child.property_name for child in prop_diff.children}
+        assert child_names == {"x", "y", "z"}
+
+    def test_added_placement_has_children(self):
+        """Test that added Placement has Position and Rotation children with ADDED state."""
+        old_props: dict[str, Property] = {}
+        new_props = {
+            "Placement": Property.create(
+                PropertyType.PLACEMENT,
+                {"position": (1.0, 2.0, 3.0), "rotation": (0.0, 0.0, 1.0, 90.0)},
+            ),
+        }
+
+        result = compare_properties(old_props, new_props)
+        prop_diff = result[0]
+
+        assert prop_diff.state == DiffState.ADDED
+
+        # Children should also have ADDED state
+        for child in prop_diff.children:
+            assert child.state == DiffState.ADDED
+
+    def test_deleted_placement_has_children(self):
+        """Test that deleted Placement has Position and Rotation children with DELETED state."""
+        old_props = {
+            "Placement": Property.create(
+                PropertyType.PLACEMENT,
+                {"position": (1.0, 2.0, 3.0), "rotation": (0.0, 0.0, 1.0, 90.0)},
+            ),
+        }
+        new_props: dict[str, Property] = {}
+
+        result = compare_properties(old_props, new_props)
+        prop_diff = result[0]
+
+        assert prop_diff.state == DiffState.DELETED
+
+        # Children should also have DELETED state
+        for child in prop_diff.children:
+            assert child.state == DiffState.DELETED
