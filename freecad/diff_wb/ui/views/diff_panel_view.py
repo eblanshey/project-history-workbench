@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QSplitter,
@@ -154,6 +155,68 @@ class _SnapshotListItemDelegate(QStyledItemDelegate):
         super().paint(painter, option, index)
 
 
+class _PropertyValueDelegate(QStyledItemDelegate):
+    """Custom delegate for property value cells that allows double-click to select text.
+
+    This delegate enables double-click editing on value columns (columns 1 and 2)
+    to allow users to select and copy text. The editing is a no-op - it just
+    enables text selection without actually saving any changes.
+    """
+
+    def createEditor(self, parent: QWidget, option: QStyleOptionViewItem, index) -> QWidget | None:
+        """Create a line editor for the cell.
+
+        Args:
+            parent: The parent widget.
+            option: The style option.
+            index: The model index.
+
+        Returns:
+            A QLineEdit widget for text selection.
+        """
+        editor = QLineEdit(parent)
+        editor.setFrame(False)
+        editor.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+        return editor
+
+    def setEditorData(self, editor: QLineEdit, index) -> None:
+        """Set the current text in the editor.
+
+        Args:
+            editor: The line edit widget.
+            index: The model index.
+        """
+        text = index.model().data(index, Qt.ItemDataRole.DisplayRole)
+        if text is not None:
+            editor.setText(str(text))
+            # Select all text for easy copying
+            editor.selectAll()
+
+    def setModelData(self, editor: QLineEdit, model, index) -> None:
+        """Do nothing - prevent actual changes to the data.
+
+        This allows the user to double-click and select text for copying,
+        but any edits are discarded so the values cannot be changed.
+
+        Args:
+            editor: The line edit widget.
+            model: The model.
+            index: The model index.
+        """
+        # No-op: don't save any changes
+        pass
+
+    def updateEditorGeometry(self, editor: QLineEdit, option: QStyleOptionViewItem, index) -> None:
+        """Update the editor geometry to match the cell.
+
+        Args:
+            editor: The line edit widget.
+            option: The style option.
+            index: The model index.
+        """
+        editor.setGeometry(option.rect)
+
+
 class DiffPanelView(QWidget):
     """3-column diff panel view implementing DiffView and SnapshotView protocols.
 
@@ -178,6 +241,8 @@ class DiffPanelView(QWidget):
         self._selected_items: dict[int, _SelectedItem] = {}  # row -> _SelectedItem
         # Create the custom delegate for rendering selection colors
         self._delegate = _SnapshotListItemDelegate(None, self._get_item_role)
+        # Create the delegate for property value double-click editing (for copying)
+        self._property_value_delegate = _PropertyValueDelegate(self)
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -242,6 +307,10 @@ class DiffPanelView(QWidget):
         self.properties_tree.setHeaderLabels(["Property", "Value Left", "Value Right"])
         self.properties_tree.header().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.properties_tree.header().setStretchLastSection(True)
+        # Set the custom delegate for value columns to allow double-click editing (for copying)
+        self.properties_tree.setItemDelegate(self._property_value_delegate)
+        # Enable edit triggers for double-click
+        self.properties_tree.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked)
         # self.properties_tree.hide()  # Hide until data available
 
         # Add to splitter
@@ -531,6 +600,8 @@ class DiffPanelView(QWidget):
         display_name = _camelcase_to_spaces(prop.name)
 
         item = QTreeWidgetItem([display_name, left_value, right_value])
+        # Enable editing on double-click to allow text selection for copying
+        item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
 
         # Use pre-computed children from domain instead of computing diffs
         has_changed_children = self._add_child_items(item, prop.children)
@@ -600,6 +671,8 @@ class DiffPanelView(QWidget):
             # Create child item with CamelCase conversion for display
             display_name = _camelcase_to_spaces(child.name)
             child_item = QTreeWidgetItem([display_name, left_value, right_value])
+            # Enable editing on double-click to allow text selection for copying
+            child_item.setFlags(child_item.flags() | Qt.ItemFlag.ItemIsEditable)
 
             # Apply background color based on state
             self._apply_child_background_by_state(child_item, child.state)
