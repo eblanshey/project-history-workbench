@@ -1726,7 +1726,7 @@ class TestIsPropertyHidden:
         obj.Result = "result_data"
 
         # Extract visible properties
-        properties = _extract_visible_properties(obj, "Body")
+        properties = _extract_visible_properties(obj)
 
         # Visible properties should be present
         assert "Label" in properties, "Label should be extracted"
@@ -1838,7 +1838,7 @@ class TestGetPropertyGroup:
         obj.Shape = "shape_data"
 
         # Extract visible properties
-        properties = _extract_visible_properties(obj, "Pad")
+        properties = _extract_visible_properties(obj)
 
         # Verify groups are correctly extracted
         assert properties["Label"].group == "Base", f"Expected 'Base', got '{properties['Label'].group}'"

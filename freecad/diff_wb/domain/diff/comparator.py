@@ -18,7 +18,6 @@
 
 from dataclasses import dataclass
 
-from ...utils import Log
 from ..tree.node import TreeNode
 from ..tree.property import Property
 from .models import DiffState, NodeDiff, PropertyDiff
@@ -361,67 +360,32 @@ class TreeComparator:
         diff_by_path: dict[str, NodeDiff] = {}
         has_parent: set[str] = set()
 
-        Log.info(f"[COMPARATOR] Building hierarchical diffs for {len(sorted_paths)} paths")
-        Log.info(f"[COMPARATOR] Added paths: {added_paths}")
-        Log.info(f"[COMPARATOR] Deleted paths: {deleted_paths}")
-
         for path in sorted_paths:
-            Log.info(f"[COMPARATOR] Processing path: {path}")
             # a. CREATE NodeDiff for this path
             node_diff: NodeDiff
             if path in added_paths:
                 node = new_index[path]
                 node_diff = self._create_added_node_diff(path, node, excluded_properties)
-                Log.info(f"[COMPARATOR]   Created ADDED node: {path}, type={node_diff.type_id}")
             elif path in deleted_paths:
                 node = old_index[path]
                 node_diff = self._create_deleted_node_diff(path, node, excluded_properties)
-                Log.info(f"[COMPARATOR]   Created DELETED node: {path}, type={node_diff.type_id}")
             else:  # common path
                 node_diff = self._compare_nodes_by_path(path, old_index, new_index, excluded_properties)
-                if node_diff.state == DiffState.MODIFIED:
-                    prop_count = len(node_diff.property_diffs)
-                    Log.info(
-                        f"[COMPARATOR]   Created MODIFIED node: {path}, type={node_diff.type_id}, props={prop_count}"
-                    )
-                elif node_diff.state == DiffState.UNCHANGED:
-                    Log.info(f"[COMPARATOR]   Created UNCHANGED node: {path}, type={node_diff.type_id}")
-                else:
-                    # Placeholder path (node in only one snapshot)
-                    Log.info(f"[COMPARATOR]   Created placeholder: {path}, type={node_diff.type_id}")
 
             # b. ENSURE PARENT EXISTS
             parent_path = self._get_parent_path(path)
-            Log.info(f"[COMPARATOR]   Parent path for {path}: '{parent_path}'")
             if parent_path:
                 if parent_path not in diff_by_path:
-                    Log.info(f"[COMPARATOR]   Parent '{parent_path}' not found, creating placeholder")
                     self._ensure_placeholder(parent_path, old_index, new_index, diff_by_path, has_parent)
-                else:
-                    Log.info(f"[COMPARATOR]   Parent '{parent_path}' already exists in diff_by_path")
 
                 # c. LINK CHILD TO PARENT
                 if parent_path in diff_by_path:
                     parent = diff_by_path[parent_path]
                     object.__setattr__(parent, "children", parent.children + [node_diff])
                     has_parent.add(path)
-                    Log.info(
-                        f"[COMPARATOR]   Linked {path} to parent {parent_path} "
-                        f"(parent now has {len(parent.children)} children)"
-                    )
-                else:
-                    Log.warning(
-                        f"[COMPARATOR]   WARNING: Parent '{parent_path}' still not in diff_by_path "
-                        "after ensure_placeholder!"
-                    )
 
             # d. REGISTER IN INDEX
             diff_by_path[path] = node_diff
-            Log.info(f"[COMPARATOR]   Registered {path} in diff_by_path (total: {len(diff_by_path)})")
-
-        Log.info(f"[COMPARATOR] Final: {len(diff_by_path)} nodes in diff_by_path, {len(has_parent)} have parents")
-        roots = [d for d in diff_by_path.values() if d.path not in has_parent]
-        Log.info(f"[COMPARATOR] Root nodes: {[r.path for r in roots]}")
 
         return diff_by_path, has_parent
 
@@ -457,27 +421,17 @@ class TreeComparator:
         old_index = self._build_path_index(old_root_nodes)
         new_index = self._build_path_index(new_root_nodes)
 
-        Log.info(f"[COMPARATOR] Old index has {len(old_index)} paths: {sorted(old_index.keys())}")
-        Log.info(f"[COMPARATOR] New index has {len(new_index)} paths: {sorted(new_index.keys())}")
-
         # Find added, deleted, and common paths
         added_paths = self._find_added_paths(old_index, new_index)
         deleted_paths = self._find_deleted_paths(old_index, new_index)
         common_paths = self._find_common_paths(old_index, new_index)
 
-        Log.info(f"[COMPARATOR] Added: {added_paths}")
-        Log.info(f"[COMPARATOR] Deleted: {deleted_paths}")
-        Log.info(f"[COMPARATOR] Common: {len(common_paths)} paths")
-
         # COLLECT ALL PATHS (including unchanged nodes)
         # This ensures the tree shows complete hierarchy with all nodes
         all_paths: set[str] = added_paths | deleted_paths | common_paths
 
-        Log.info(f"[COMPARATOR] All paths ({len(all_paths)}): {sorted(all_paths)}")
-
         # SORT PATHS (ensures parents before children)
         sorted_paths = sorted(all_paths, key=lambda p: p.split("/"))
-        Log.info(f"[COMPARATOR] Sorted paths: {sorted_paths}")
 
         # SINGLE-PASS ITERATION to build hierarchical diffs
         diff_by_path, has_parent = self._build_hierarchical_diffs(
@@ -487,8 +441,6 @@ class TreeComparator:
         # RETURN ROOT NODES (nodes without parents)
         roots = [diff for diff in diff_by_path.values() if diff.path not in has_parent]
         roots = sorted(roots, key=lambda d: d.path.split("/"))
-
-        Log.info(f"[COMPARATOR] Returning {len(roots)} root nodes: {[r.path for r in roots]}")
 
         return TreeDiffResult(
             added_paths=added_paths,

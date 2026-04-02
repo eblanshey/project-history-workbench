@@ -26,7 +26,6 @@ from PySide6.QtWidgets import (
 
 from ...application.actions.result_models import SnapshotSummary
 from ...domain.diff.models import DiffState
-from ...utils import Log
 from ..presenters.presentation_models import NodePresentation, PropertyPresentation
 from ..translation_strings import (
     DIFF_SUMMARY_ADDED_LABEL,
@@ -524,9 +523,6 @@ class DiffPanelView(QWidget):
         Returns:
             QTreeWidgetItem with text, color, and children if expandable.
         """
-        Log.debug(f"[DEBUG] _create_property_tree_item: property={prop.name!r}, group={prop.group!r}")
-        Log.debug(f"  old_value type: {type(prop.old_value).__name__ if prop.old_value is not None else None}")
-        Log.debug(f"  new_value type: {type(prop.new_value).__name__ if prop.new_value is not None else None}")
 
         # Get display values based on state
         bg_color, left_value, right_value = self._get_property_display_values(prop.state, prop)

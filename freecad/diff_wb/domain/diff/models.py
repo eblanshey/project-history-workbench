@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Any
 
+from ...utils import Log
 from ..tree import Property, PropertyType
 
 
@@ -31,12 +32,171 @@ class DiffState(Enum):
     UNCHANGED = auto()
 
 
-def _values_are_equal_ignoring_expression(old_value: Property, new_value: Property) -> bool:
+# TODO: The generic attribute-based comparison for UNKNOWN types works for many FreeCAD
+# objects (Constraint, Vector, Placement, etc.), but may need refinement for specific types.
+# Known edge cases and potential improvements:
+# - Some FreeCAD objects may have attributes that aren't captured by dir()/getattr()
+# - Nested objects may need deep comparison instead of just attribute comparison
+# - Performance: The current implementation iterates all attributes for each comparison,
+#   which may be slow for objects with many attributes
+# Future work: Consider type-specific comparison strategies for known FreeCAD types
+
+
+def _unknown_values_equal(old_obj: Any, new_obj: Any, float_tolerance: float = 1e-9, prop_name: str = "") -> bool:
+    """Compare two UNKNOWN type objects by their attribute values.
+
+    This provides a generic comparison that works for FreeCAD objects like
+    Constraint, Vector, Placement, etc., where string representation alone
+    doesn't capture actual value differences.
+
+    Args:
+        old_obj: The old object value
+        new_obj: The new object value
+        float_tolerance: Tolerance for comparing float values
+        prop_name: The property name for logging purposes
+
+    Returns:
+        True if objects have equal attribute values
+    """
+    if old_obj is new_obj:
+        return True
+    if old_obj is None or new_obj is None:
+        return old_obj is new_obj
+
+    # Get all public attributes (not starting with underscore, not callable)
+    old_attrs = _get_comparable_attrs(old_obj)
+    new_attrs = _get_comparable_attrs(new_obj)
+
+    # Must have the same attributes
+    if old_attrs.keys() != new_attrs.keys():
+        return False
+
+    # Compare each attribute value
+    for attr_name in old_attrs:
+        old_val = old_attrs[attr_name]
+        new_val = new_attrs[attr_name]
+
+        if not _attribute_values_equal(old_val, new_val, float_tolerance, prop_name, attr_name):
+            return False
+
+    return True
+
+
+def _get_comparable_attrs(obj: Any) -> dict[str, Any]:
+    """Get a dict of comparable public attributes from an object.
+
+    Filters out methods, private attributes, and built-in properties.
+
+    Args:
+        obj: The object to inspect
+
+    Returns:
+        Dict of attribute name -> value for comparable attributes
+    """
+    attrs = {}
+    for attr_name in dir(obj):
+        # Skip private/magic attributes
+        if attr_name.startswith("_"):
+            continue
+        # Skip methods and callables
+        try:
+            attr_val = getattr(obj, attr_name)
+        except Exception:
+            continue
+        if callable(attr_val) and not isinstance(attr_val, type):
+            continue
+        # Skip non-comparable types (some FreeCAD objects have complex internal state)
+        if hasattr(attr_val, "__dict__") and not hasattr(attr_val, "__iter__"):
+            # Skip objects that are themselves complex (like other FreeCAD objects)
+            continue
+        attrs[attr_name] = attr_val
+    return attrs
+
+
+def _attribute_values_equal(
+    old_val: Any, new_val: Any, float_tolerance: float, prop_name: str = "", attr_name: str = ""
+) -> bool:
+    """Compare two attribute values for equality.
+
+    Handles floats with tolerance, and iterables by element comparison.
+
+    Args:
+        old_val: First value
+        new_val: Second value
+        float_tolerance: Tolerance for float comparison
+        prop_name: The top-level property name for logging
+        attr_name: The attribute name being compared
+
+    Returns:
+        True if values are equal
+    """
+    # Same object identity
+    if old_val is new_val:
+        return True
+
+    # None check
+    if old_val is None or new_val is None:
+        if old_val is None and new_val is None:
+            return True
+        # Log the difference
+        if prop_name and attr_name:
+            Log.debug(f"[DIFF] Property '{prop_name}' attribute '{attr_name}' changed: {old_val!r} -> {new_val!r}")
+        return False
+
+    # Float comparison with tolerance
+    if isinstance(old_val, (int, float)) and isinstance(new_val, (int, float)):
+        if isinstance(old_val, float) or isinstance(new_val, float):
+            if abs(old_val - new_val) >= float_tolerance:
+                if prop_name and attr_name:
+                    Log.debug(f"[DIFF] Property '{prop_name}' attribute '{attr_name}' changed: {old_val} -> {new_val}")
+                return False
+            return True
+        if old_val != new_val:
+            if prop_name and attr_name:
+                Log.debug(f"[DIFF] Property '{prop_name}' attribute '{attr_name}' changed: {old_val} -> {new_val}")
+            return False
+        return True
+
+    # Bool comparison (must be exact)
+    if isinstance(old_val, bool) or isinstance(new_val, bool):
+        if old_val != new_val:
+            if prop_name and attr_name:
+                Log.debug(f"[DIFF] Property '{prop_name}' attribute '{attr_name}' changed: {old_val} -> {new_val}")
+            return False
+        return True
+
+    # Iterable comparison (lists, tuples)
+    if isinstance(old_val, (list, tuple)) and isinstance(new_val, (list, tuple)):
+        if len(old_val) != len(new_val):
+            if prop_name and attr_name:
+                Log.debug(
+                    f"[DIFF] Property '{prop_name}' attribute '{attr_name}' length changed: {len(old_val)} -> {len(new_val)}"
+                )
+            return False
+        for i, (old_item, new_item) in enumerate(zip(old_val, new_val)):
+            if not _attribute_values_equal(old_item, new_item, float_tolerance, prop_name, f"{attr_name}[{i}]"):
+                return False
+        return True
+
+    # Direct equality for other types (str, int, etc.)
+    try:
+        if old_val == new_val:
+            return True
+        if prop_name and attr_name:
+            Log.debug(f"[DIFF] Property '{prop_name}' attribute '{attr_name}' changed: {old_val!r} -> {new_val!r}")
+        return False
+    except Exception:
+        # Some objects don't support direct comparison
+        return False
+
+
+def _values_are_equal_ignoring_expression(old_value: Property, new_value: Property, prop_name: str = "") -> bool:
     """Compare two property values ignoring expressions.
 
     Args:
         old_value: Value in the old snapshot
         new_value: Value in the new snapshot
+        prop_name: The property name for logging purposes
 
     Returns:
         True if values are equal ignoring expression differences
@@ -48,10 +208,16 @@ def _values_are_equal_ignoring_expression(old_value: Property, new_value: Proper
         return bool(abs(old_value.value - new_value.value) < tolerance)
     if old_value.type_ == PropertyType.LIST:
         return Property._compare_lists_as_strings(old_value.value, new_value.value)
+    # For UNKNOWN types, compare using a generic attribute-based approach
+    # that handles FreeCAD objects (e.g., Constraint, Vector, Placement, etc.)
+    if old_value.type_ == PropertyType.UNKNOWN:
+        return _unknown_values_equal(old_value.value, new_value.value, prop_name=prop_name)
     return bool(old_value.value == new_value.value)
 
 
-def _calculate_property_diff_state(old_value: Property | None, new_value: Property | None) -> DiffState:
+def _calculate_property_diff_state(
+    old_value: Property | None, new_value: Property | None, prop_name: str = ""
+) -> DiffState:
     """Calculate the diff state for a property based on old and new values.
 
     Note: Expression changes are tracked separately. This function compares
@@ -60,6 +226,7 @@ def _calculate_property_diff_state(old_value: Property | None, new_value: Proper
     Args:
         old_value: Value in the old snapshot (None if added)
         new_value: Value in the new snapshot (None if deleted)
+        prop_name: The property name for logging purposes
 
     Returns:
         The appropriate DiffState based on the values
@@ -71,7 +238,8 @@ def _calculate_property_diff_state(old_value: Property | None, new_value: Proper
     if new_value is None:
         return DiffState.DELETED
     # If values are equal (ignoring expressions), unchanged
-    if _values_are_equal_ignoring_expression(old_value, new_value):
+    values_equal = _values_are_equal_ignoring_expression(old_value, new_value, prop_name)
+    if values_equal:
         return DiffState.UNCHANGED
     # Otherwise, modified
     return DiffState.MODIFIED
@@ -148,12 +316,15 @@ def _create_property_from_child_value(value: Any, group: str = "Base") -> Proper
     return Property(type_=prop_type, value=value, group=group)
 
 
-def _compute_property_children(old_value: Property | None, new_value: Property | None) -> list[PropertyDiff]:
+def _compute_property_children(
+    old_value: Property | None, new_value: Property | None, parent_prop_name: str = ""
+) -> list[PropertyDiff]:
     """Compute child property diffs for expandable properties.
 
     Args:
         old_value: Value in the old snapshot (None if added)
         new_value: Value in the new snapshot (None if deleted)
+        parent_prop_name: The parent property name for logging purposes
 
     Returns:
         List of PropertyDiff for child properties
@@ -176,11 +347,16 @@ def _compute_property_children(old_value: Property | None, new_value: Property |
         old_child_prop = _create_property_from_child_value(raw_old_child) if raw_old_child is not None else None
         new_child_prop = _create_property_from_child_value(raw_new_child) if raw_new_child is not None else None
 
+        # For child properties, prepend parent name to create a full path for logging
+        full_prop_name = f"{parent_prop_name}[{child_name}]" if parent_prop_name else child_name
+
         child_diff = PropertyDiff(
             property_name=child_name,
             old_value=old_child_prop,
             new_value=new_child_prop,
+            _parent_prop_name=full_prop_name,
         )
+
         children.append(child_diff)
 
     return children
@@ -197,8 +373,9 @@ def _are_properties_modified(property_diffs: list[PropertyDiff], children: list[
     """Check if any properties or children have modifications.
 
     A node's properties are considered modified if:
-    - Any child has state != DiffState.UNCHANGED
+    - Any child node has state != DiffState.UNCHANGED
     - Any property has state != DiffState.UNCHANGED (includes ADDED, DELETED, MODIFIED)
+    - Any property has children with state != DiffState.UNCHANGED (e.g., constraint items)
     - Any property has an expression change (even if value is unchanged)
 
     Args:
@@ -208,13 +385,18 @@ def _are_properties_modified(property_diffs: list[PropertyDiff], children: list[
     Returns:
         True if any properties or children are modified, False otherwise
     """
-    # Check child states first - if any child has changes, properties are modified
+    # Check child node states - if any child node has changes, properties are modified
     if any(child.state != DiffState.UNCHANGED for child in children):
         return True
 
     # Check if any property has changed (ADDED, DELETED, or MODIFIED)
     if any(prop_diff.state != DiffState.UNCHANGED for prop_diff in property_diffs):
         return True
+
+    # Check if any property has children with changes (e.g., individual constraint items)
+    for prop_diff in property_diffs:
+        if prop_diff.children and any(child.state != DiffState.UNCHANGED for child in prop_diff.children):
+            return True
 
     # Check if any property has expression changes (value may be unchanged but expression changed)
     return any(_has_expression_change(prop_diff.old_value, prop_diff.new_value) for prop_diff in property_diffs)
@@ -234,6 +416,7 @@ class PropertyDiff:
         new_value: Value in the new snapshot (None if deleted)
         state: The diff state (ADDED, DELETED, MODIFIED, UNCHANGED) - auto-calculated
         children: List of child property diffs for expandable properties
+        _parent_prop_name: Internal field for full property path (e.g., "Constraints[0]")
     """
 
     property_name: str
@@ -241,13 +424,20 @@ class PropertyDiff:
     new_value: Property | None
     state: DiffState = field(init=False)
     children: list[PropertyDiff] = field(default_factory=list)
+    _parent_prop_name: str = field(default="", repr=False, compare=False)
 
     def __post_init__(self) -> None:
         """Calculate state and children based on old and new values."""
         # Use object.__setattr__ since the dataclass is frozen
-        object.__setattr__(self, "state", _calculate_property_diff_state(self.old_value, self.new_value))
-        # Compute children for expandable properties
-        object.__setattr__(self, "children", _compute_property_children(self.old_value, self.new_value))
+        # Use _parent_prop_name if set (for child properties), otherwise use property_name
+        full_prop_name = self._parent_prop_name or self.property_name
+        object.__setattr__(
+            self, "state", _calculate_property_diff_state(self.old_value, self.new_value, full_prop_name)
+        )
+        # Compute children for expandable properties (pass property_name as parent)
+        object.__setattr__(
+            self, "children", _compute_property_children(self.old_value, self.new_value, self.property_name)
+        )
 
     def __str__(self) -> str:
         if self.state == DiffState.ADDED:

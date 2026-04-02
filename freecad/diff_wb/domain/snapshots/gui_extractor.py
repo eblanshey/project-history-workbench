@@ -402,7 +402,9 @@ def _extract_property_value(obj: object, prop_name: str) -> Property | None:
         value = getattr(obj, prop_name)
         expression = _get_expression_for_property(obj, prop_name)
         group = _get_property_group(obj, prop_name)
-        return Property.from_freecad_property(prop_name, value, expression=expression, group=group)
+        property_obj = Property.from_freecad_property(prop_name, value, expression=expression, group=group)
+
+        return property_obj
     except Exception as e:
         Log.exception(f"Failed to extract property {prop_name}: {e}")
         return None
@@ -497,7 +499,7 @@ def _is_property_hidden(obj: object, prop_name: str) -> tuple[bool, str]:  # noq
     return False, ""
 
 
-def _extract_visible_properties(obj: object, obj_name: str) -> dict[str, Property]:
+def _extract_visible_properties(obj: object) -> dict[str, Property]:
     """Extract only visible properties from a FreeCAD object.
 
     Filters out hidden properties based on editor mode and property group.
@@ -512,23 +514,16 @@ def _extract_visible_properties(obj: object, obj_name: str) -> dict[str, Propert
     properties: dict[str, Property] = {}
     properties_list = getattr(obj, "PropertiesList", [])
 
-    Log.info(f"[EXTRACTOR] {obj_name}: PropertiesList has {len(properties_list)} total props")
-
     for prop_name in properties_list:
         is_hidden, skip_reason = _is_property_hidden(obj, prop_name)
 
         if is_hidden:
-            Log.info(f"[EXTRACTOR]   SKIP HIDDEN: {prop_name} ({skip_reason})")
             continue
 
         prop_value = _extract_property_value(obj, prop_name)
         if prop_value is not None:
             properties[prop_name] = prop_value
 
-    filtered_count = len(properties_list) - len(properties)
-    Log.info(
-        f"[EXTRACTOR] {obj_name}: extracted {len(properties)} visible properties (filtered {filtered_count} hidden)"
-    )
     return properties
 
 
@@ -571,12 +566,11 @@ def _build_tree_node(
 
     # Build the full path
     path = f"{parent_path}/{name}" if parent_path else name
-    Log.info(f"[EXTRACTOR] Building node: name={name}, type={type_id}, parent_path='{parent_path}', full_path='{path}'")
 
     # Extract only visible properties
     properties: dict[str, Property] = {}
     try:
-        properties = _extract_visible_properties(obj, name)
+        properties = _extract_visible_properties(obj)
     except Exception as e:
         Log.exception(f"[EXTRACTOR] {name}: error extracting properties: {e}")
 
@@ -653,7 +647,6 @@ class SnapshotExtractor:
 
             # Get all top-level objects from the document
             objects = getattr(doc, "Objects", [])
-            Log.info(f"[EXTRACTOR] Document '{document_name}' has {len(objects)} top-level objects")
 
             # Build hierarchy map using claimChildren() - used for both root filtering and child building
             parent_map, children_map = _build_hierarchy_map(doc, gui_doc)
@@ -667,22 +660,17 @@ class SnapshotExtractor:
                 name = obj.Name
                 # Skip objects that have parents - they will be included as children
                 if name in parent_map:
-                    Log.info(f"[EXTRACTOR] Skipping {name} - it's a child of {parent_map[name]}")
                     continue
 
                 node = _build_tree_node(obj, port, doc, "", children_map, is_root=True)
                 if node is not None:
                     root_nodes.append(node)
-                    Log.info(
-                        f"[EXTRACTOR] Added root node: {node.path} ({node.type_id}), children={len(node.children)}"
-                    )
 
         except Exception as e:
             Log.exception(f"Error extracting document tree: {e}")
 
         # Use current time for timestamp
         timestamp = datetime.now()
-        Log.info(f"[EXTRACTOR] Extracted {len(root_nodes)} root nodes: {[r.path for r in root_nodes]}")
 
         return Snapshot(
             snapshot_id=str(uuid.uuid4()), document_name=document_name, timestamp=timestamp, root_nodes=root_nodes
