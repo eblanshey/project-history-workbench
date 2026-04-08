@@ -14,7 +14,7 @@ from ...config import EXCLUDED_PROPERTIES, EXCLUDED_TYPES
 from ..settings import SettingsRepository
 from ..snapshots import Snapshot
 from ..tree import TreeNode
-from .comparator import TreeComparator, TreeDiffResult
+from .comparator import TreeComparator
 from .models import DiffResult
 
 
@@ -26,7 +26,8 @@ class TreeComparatorProtocol(Protocol):
         old_root_nodes: list[TreeNode],
         new_root_nodes: list[TreeNode],
         excluded_properties: list[str],
-    ) -> TreeDiffResult: ...
+        excluded_types: list[str],
+    ) -> DiffResult: ...
 
 
 class DiffEngine:
@@ -80,45 +81,16 @@ class DiffEngine:
             return self._settings_repo.get_excluded_properties()
         return EXCLUDED_PROPERTIES
 
-    def _filter_snapshot(self, snapshot: Snapshot, excluded_types: list[str]) -> Snapshot:
-        """Filter out nodes of excluded types from a snapshot.
-
-        This removes nodes whose type_id matches any in the excluded_types list.
-
-        Args:
-            snapshot: The snapshot to filter
-            excluded_types: List of type IDs to exclude
-
-        Returns:
-            A new snapshot with excluded nodes removed
-        """
-        if not excluded_types:
-            return snapshot
-
-        # Filter flat list of nodes
-        filtered_nodes: list[TreeNode] = []
-        for node in snapshot.nodes:
-            # Check if this node's type should be excluded
-            if node.type_id not in excluded_types:
-                filtered_nodes.append(node)
-
-        # Return a new snapshot with filtered nodes (preserve original ID)
-        return Snapshot(
-            snapshot_id=snapshot.snapshot_id,
-            document_name=snapshot.document_name,
-            timestamp=snapshot.timestamp,
-            nodes=filtered_nodes,
-        )
+    # Excluded types filtering is handled in TreeComparator during diff building
 
     def compute_diff(self, old: Snapshot, new: Snapshot) -> DiffResult:
         """Compute diff between two snapshots.
 
         Steps:
         1. Get settings (excluded types/properties)
-        2. Filter snapshots based on excluded types
-        3. Compare trees using TreeComparator
-        4. Apply property-level exclusions
-        5. Return DiffResult
+        2. Compare trees using TreeComparator (includes type filtering)
+        3. Apply property-level exclusions
+        4. Return DiffResult
 
         Args:
             old: The old snapshot to compare
@@ -131,25 +103,8 @@ class DiffEngine:
         excluded_node_types = self._get_excluded_node_types()
         excluded_properties = self._get_excluded_properties()
 
-        # Step 2: Filter snapshots based on excluded types
-        filtered_old = self._filter_snapshot(old, excluded_node_types)
-        filtered_new = self._filter_snapshot(new, excluded_node_types)
-
-        # Step 3: Compare trees using TreeComparator
-        tree_diff_result = self._tree_comparator.compare_snapshots(
-            filtered_old.nodes, filtered_new.nodes, excluded_properties
-        )
-
-        # Step 4: Build NodeDiff objects for excluded type nodes (as deleted/added)
-        # This ensures we track when entire branches are removed due to filtering
-        # For now, we just use the tree diff result directly
-
-        # Step 5: Construct DiffResult
-        return DiffResult(
-            old_snapshot_name=old.document_name,
-            new_snapshot_name=new.document_name,
-            node_diffs=tree_diff_result.node_diffs,
-        )
+        # Step 2: Compare trees using TreeComparator (filters excluded types internally)
+        return self._tree_comparator.compare_snapshots(old.nodes, new.nodes, excluded_properties, excluded_node_types)
 
     def compare(
         self,
@@ -172,20 +127,9 @@ class DiffEngine:
         Returns:
             DiffResult containing all differences between the snapshots
         """
-        # Filter snapshots based on excluded types
-        filtered_old = self._filter_snapshot(old_snapshot, excluded_types)
-        filtered_new = self._filter_snapshot(new_snapshot, excluded_types)
-
-        # Compare trees using TreeComparator
-        tree_diff_result = self._tree_comparator.compare_snapshots(
-            filtered_old.nodes, filtered_new.nodes, excluded_properties
-        )
-
-        # Construct DiffResult
-        return DiffResult(
-            old_snapshot_name=old_snapshot.document_name,
-            new_snapshot_name=new_snapshot.document_name,
-            node_diffs=tree_diff_result.node_diffs,
+        # compare_snapshots now returns DiffResult with hierarchy and counts
+        return self._tree_comparator.compare_snapshots(
+            old_snapshot.nodes, new_snapshot.nodes, excluded_properties, excluded_types
         )
 
 

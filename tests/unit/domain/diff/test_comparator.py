@@ -20,48 +20,6 @@ _tree_comparator = TreeComparator()
 _property_comparator = PropertyComparator()
 
 
-def build_path_index(root_nodes):
-    """Wrapper for testing."""
-    return _tree_comparator._build_path_index(root_nodes)
-
-
-def find_added_paths(old_index, new_index):
-    """Wrapper for testing."""
-    return _tree_comparator._find_added_paths(old_index, new_index)
-
-
-def find_deleted_paths(old_index, new_index):
-    """Wrapper for testing."""
-    return _tree_comparator._find_deleted_paths(old_index, new_index)
-
-
-def find_common_paths(old_index, new_index):
-    """Wrapper for testing."""
-    return _tree_comparator._find_common_paths(old_index, new_index)
-
-
-def build_hierarchical_diffs(sorted_paths, added_paths, deleted_paths, old_index, new_index):
-    """Wrapper for testing with default excluded_properties."""
-    return _tree_comparator._build_hierarchical_diffs(
-        sorted_paths, added_paths, deleted_paths, old_index, new_index, EXCLUDED_PROPERTIES
-    )
-
-
-def compare_nodes_by_path(path, old_index, new_index):
-    """Wrapper with default excluded_properties."""
-    return _tree_comparator._compare_nodes_by_path(path, old_index, new_index, EXCLUDED_PROPERTIES)
-
-
-def create_added_node_diff(path, node):
-    """Wrapper with default excluded_properties."""
-    return _tree_comparator._create_added_node_diff(path, node, EXCLUDED_PROPERTIES)
-
-
-def create_deleted_node_diff(path, node):
-    """Wrapper with default excluded_properties."""
-    return _tree_comparator._create_deleted_node_diff(path, node, EXCLUDED_PROPERTIES)
-
-
 def compare_properties(old_props, new_props):
     """Wrapper with default excluded_properties."""
     return _property_comparator.compare_properties(old_props, new_props, EXCLUDED_PROPERTIES)
@@ -69,622 +27,6 @@ def compare_properties(old_props, new_props):
 
 should_exclude_property = _property_comparator._should_exclude_property
 values_are_equal = _property_comparator._values_are_equal
-
-
-class TestBuildPathIndex:
-    """Tests for build_path_index function."""
-
-    def test_empty_root_nodes(self):
-        """Test building index from empty root nodes list."""
-        index = build_path_index([])
-        assert index == {}
-
-    def test_single_root_node(self):
-        """Test building index with a single root node."""
-        root = TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body")
-        snapshot = Snapshot(snapshot_id="", document_name="Test", timestamp=datetime.now(), nodes=[root])
-
-        index = build_path_index(snapshot.nodes)
-
-        assert len(index) == 1
-        assert "Body" in index
-        assert index["Body"] is root
-
-    def test_nested_children(self):
-        """Test building index with nested children."""
-        grandchild = TreeNode(
-            id=3,
-            name="ShapeSource",
-            type_id="Part::Feature",
-            label="ShapeSource",
-            path="Body/Pad/ShapeSource",
-            after="Pad",
-        )
-        child = TreeNode(
-            id=2,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-        )
-        root = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-        )
-
-        # Build index from flat list of nodes
-        index = build_path_index([root, child, grandchild])
-
-        assert len(index) == 3
-        assert "Body" in index
-        assert "Body/Pad" in index
-        assert "Body/Pad/ShapeSource" in index
-
-    def test_multiple_roots(self):
-        """Test building index with multiple root nodes."""
-        root1 = TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body", after=None)
-        root2 = TreeNode(id=2, name="Cube", type_id="Part::Box", label="Cube", path="Cube", after=None)
-
-        index = build_path_index([root1, root2])
-
-        assert len(index) == 2
-        assert "Body" in index
-        assert "Cube" in index
-
-
-class TestFindAddedPaths:
-    """Tests for find_added_paths function."""
-
-    def test_no_added_paths(self):
-        """Test when new snapshot has no new paths."""
-        old_index = {"Body": None, "Body/Pad": None}  # type: ignore
-        new_index = {"Body": None, "Body/Pad": None}  # type: ignore
-
-        added = find_added_paths(old_index, new_index)
-
-        assert added == set()
-
-    def test_simple_addition(self):
-        """Test detecting a simple addition."""
-        old_index = {"Body": None}  # type: ignore
-        new_index = {"Body": None, "Body/Pad": None}  # type: ignore
-
-        added = find_added_paths(old_index, new_index)
-
-        assert added == {"Body/Pad"}
-
-    def test_multiple_additions(self):
-        """Test detecting multiple additions."""
-        old_index = {"Body": None}  # type: ignore
-        new_index = {"Body": None, "Body/Pad": None, "Body/Pocket": None}  # type: ignore
-
-        added = find_added_paths(old_index, new_index)
-
-        assert added == {"Body/Pad", "Body/Pocket"}
-
-
-class TestFindDeletedPaths:
-    """Tests for find_deleted_paths function."""
-
-    def test_no_deleted_paths(self):
-        """Test when old snapshot has no deleted paths."""
-        old_index = {"Body": None, "Body/Pad": None}  # type: ignore
-        new_index = {"Body": None, "Body/Pad": None}  # type: ignore
-
-        deleted = find_deleted_paths(old_index, new_index)
-
-        assert deleted == set()
-
-    def test_simple_deletion(self):
-        """Test detecting a simple deletion."""
-        old_index = {"Body": None, "Body/Pad": None}  # type: ignore
-        new_index = {"Body": None}  # type: ignore
-
-        deleted = find_deleted_paths(old_index, new_index)
-
-        assert deleted == {"Body/Pad"}
-
-    def test_multiple_deletions(self):
-        """Test detecting multiple deletions."""
-        old_index = {"Body": None, "Body/Pad": None, "Body/Pocket": None}  # type: ignore
-        new_index = {"Body": None}  # type: ignore
-
-        deleted = find_deleted_paths(old_index, new_index)
-
-        assert deleted == {"Body/Pad", "Body/Pocket"}
-
-
-class TestFindCommonPaths:
-    """Tests for find_common_paths function."""
-
-    def test_all_common(self):
-        """Test when all paths are common."""
-        old_index = {"Body": None, "Body/Pad": None}  # type: ignore
-        new_index = {"Body": None, "Body/Pad": None}  # type: ignore
-
-        common = find_common_paths(old_index, new_index)
-
-        assert common == {"Body", "Body/Pad"}
-
-    def test_no_common(self):
-        """Test when no paths are common."""
-        old_index = {"Body": None}  # type: ignore
-        new_index = {"Cube": None}  # type: ignore
-
-        common = find_common_paths(old_index, new_index)
-
-        assert common == set()
-
-    def test_partial_common(self):
-        """Test when some paths are common."""
-        old_index = {"Body": None, "Body/Pad": None}  # type: ignore
-        new_index = {"Body": None, "Body/Pocket": None}  # type: ignore
-
-        common = find_common_paths(old_index, new_index)
-
-        assert common == {"Body"}
-
-
-class TestCompareNodesByPath:
-    """Tests for compare_nodes_by_path function."""
-
-    def test_identical_nodes(self):
-        """Test comparing identical nodes returns None."""
-        props = {
-            "Label": Property.create(PropertyType.STRING, "Body"),
-        }
-        old_node = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-            properties=props,
-        )
-        new_node = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-            properties=props,
-        )
-
-        old_index = {"Body": old_node}
-        new_index = {"Body": new_node}
-
-        result = compare_nodes_by_path("Body", old_index, new_index)
-
-        assert result is not None
-        assert result.state == DiffState.UNCHANGED
-        assert result.path == "Body"
-
-    def test_modified_property(self):
-        """Test detecting a modified property."""
-        old_props = {
-            "Length": Property.create(PropertyType.FLOAT, 10.0),
-        }
-        new_props = {
-            "Length": Property.create(PropertyType.FLOAT, 20.0),
-        }
-        old_node = TreeNode(
-            id=1,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-            properties=old_props,
-        )
-        new_node = TreeNode(
-            id=1,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-            properties=new_props,
-        )
-
-        old_index = {"Body/Pad": old_node}
-        new_index = {"Body/Pad": new_node}
-
-        result = compare_nodes_by_path("Body/Pad", old_index, new_index)
-
-        assert result is not None
-        assert result.path == "Body/Pad"
-        assert result.state == DiffState.MODIFIED
-
-    def test_added_property(self):
-        """Test detecting an added property."""
-        old_props = {}
-        new_props = {
-            "NewProperty": Property.create(PropertyType.STRING, "value"),
-        }
-        old_node = TreeNode(
-            id=1,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-            properties=old_props,
-        )
-        new_node = TreeNode(
-            id=1,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-            properties=new_props,
-        )
-
-        old_index = {"Body/Pad": old_node}
-        new_index = {"Body/Pad": new_node}
-
-        result = compare_nodes_by_path("Body/Pad", old_index, new_index)
-
-        assert result is not None
-        assert result.state == DiffState.MODIFIED
-
-    def test_deleted_property(self):
-        """Test detecting a deleted property."""
-        old_props = {
-            "OldProperty": Property.create(PropertyType.STRING, "value"),
-        }
-        new_props = {}
-        old_node = TreeNode(
-            id=1,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-            properties=old_props,
-        )
-        new_node = TreeNode(
-            id=1,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-            properties=new_props,
-        )
-
-        old_index = {"Body/Pad": old_node}
-        new_index = {"Body/Pad": new_node}
-
-        result = compare_nodes_by_path("Body/Pad", old_index, new_index)
-
-        assert result is not None
-        assert result.state == DiffState.MODIFIED
-
-    def test_excluded_properties_filtered(self):
-        """Test that excluded properties are filtered out during comparison."""
-        # TimeStamp is in EXCLUDED_PROPERTIES (AUTO_EXCLUDED_PROPERTIES)
-        old_props = {
-            "TimeStamp": Property.create(PropertyType.STRING, "2024-01-01T00:00:00"),
-            "Label": Property.create(PropertyType.STRING, "Pad"),
-        }
-        new_props = {
-            "TimeStamp": Property.create(PropertyType.STRING, "2024-01-01T00:00:01"),  # Different timestamp
-            "Label": Property.create(PropertyType.STRING, "Pad"),
-        }
-        old_node = TreeNode(
-            id=1,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-            properties=old_props,
-        )
-        new_node = TreeNode(
-            id=1,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-            properties=new_props,
-        )
-
-        old_index = {"Body/Pad": old_node}
-        new_index = {"Body/Pad": new_node}
-
-        result = compare_nodes_by_path("Body/Pad", old_index, new_index)
-
-        # Should return UNCHANGED because only excluded property (TimeStamp) differs
-        assert result is not None
-        assert result.state == DiffState.UNCHANGED
-
-
-class TestCreateAddedNodeDiff:
-    """Tests for create_added_node_diff function."""
-
-    def test_creates_correct_state(self):
-        """Test that added node diff has ADDED state."""
-        node = TreeNode(
-            id=1,
-            name="NewObject",
-            type_id="Part::Box",
-            label="New Object",
-            path="NewObject",
-            after=None,
-        )
-
-        result = create_added_node_diff("NewObject", node)
-
-        assert result.path == "NewObject"
-        assert result.type_id == "Part::Box"
-        assert result.state == DiffState.ADDED
-
-
-class TestCreateDeletedNodeDiff:
-    """Tests for create_deleted_node_diff function."""
-
-    def test_creates_correct_state(self):
-        """Test that deleted node diff has DELETED state."""
-        node = TreeNode(
-            id=1,
-            name="OldObject",
-            type_id="Part::Box",
-            label="Old Object",
-            path="OldObject",
-            after=None,
-        )
-
-        result = create_deleted_node_diff("OldObject", node)
-
-        assert result.path == "OldObject"
-        assert result.type_id == "Part::Box"
-        assert result.state == DiffState.DELETED
-
-
-class TestBuildHierarchicalDiffs:
-    """Tests for _build_hierarchical_diffs method (single-pass hierarchy construction)."""
-
-    def test_simple_case_one_changed_child_missing_parent_becomes_placeholder(self):
-        """Test simple case: one changed child, missing parent becomes placeholder.
-
-        This is the core scenario for single-pass hierarchy construction.
-        When a child has changes but its parent doesn't, the parent should be
-        created as a placeholder during iteration.
-        """
-
-        # Setup: Body/Pocket has changes, Body does not
-        sorted_paths = ["Body", "Body/Pocket"]
-        added_paths = {"Body/Pocket"}
-        deleted_paths = set()
-
-        old_index: dict[str, TreeNode] = {
-            "Body": TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body", after=None)
-        }
-        new_index = {
-            "Body": TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body", after=None),
-            "Body/Pocket": TreeNode(
-                id=2, name="Pocket", type_id="PartDesign::Pocket", label="Pocket", path="Body/Pocket", after="Body"
-            ),
-        }
-
-        diff_by_path, has_parent = build_hierarchical_diffs(
-            sorted_paths, added_paths, deleted_paths, old_index, new_index
-        )
-
-        # Verify both Body and Body/Pocket exist
-        assert "Body" in diff_by_path
-        assert "Body/Pocket" in diff_by_path
-
-        # Body should be a placeholder (UNCHANGED)
-        assert diff_by_path["Body"].state == DiffState.UNCHANGED
-        assert diff_by_path["Body"].type_id == "PartDesign::Body"
-
-        # Body/Pocket should be ADDED
-        assert diff_by_path["Body/Pocket"].state == DiffState.ADDED
-
-        # Body should have Body/Pocket as child
-        assert len(diff_by_path["Body"].children) == 1
-        assert diff_by_path["Body"].children[0].path == "Body/Pocket"
-
-        # Body/Pocket should be marked as having a parent
-        assert "Body/Pocket" in has_parent
-
-    def test_deep_nesting_multiple_missing_ancestors_all_created(self):
-        """Test deep nesting: multiple missing ancestors all created.
-
-        When deeply nested nodes have changes, all intermediate ancestors
-        should be created as placeholders.
-        """
-
-        # Only Body/Pad/Sketch has changes - Body and Pad are missing
-        sorted_paths = ["Body", "Body/Pad", "Body/Pad/Sketch"]
-        added_paths = {"Body/Pad/Sketch"}
-        deleted_paths = set()
-
-        sketch = TreeNode(
-            id=3, name="Sketch", type_id="PartDesign::Sketch", label="Sketch", path="Body/Pad/Sketch", after="Pad"
-        )
-        pad = TreeNode(id=2, name="Pad", type_id="PartDesign::Pad", label="Pad", path="Body/Pad", after="Body")
-        body = TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body", after=None)
-
-        old_index: dict[str, TreeNode] = {}
-        new_index = {"Body": body, "Body/Pad": pad, "Body/Pad/Sketch": sketch}
-
-        diff_by_path, has_parent = build_hierarchical_diffs(
-            sorted_paths, added_paths, deleted_paths, old_index, new_index
-        )
-
-        # All three paths should exist
-        assert "Body" in diff_by_path
-        assert "Body/Pad" in diff_by_path
-        assert "Body/Pad/Sketch" in diff_by_path
-
-        # Body and Body/Pad should be placeholders (UNCHANGED)
-        assert diff_by_path["Body"].state == DiffState.UNCHANGED
-        assert diff_by_path["Body/Pad"].state == DiffState.UNCHANGED
-
-        # Body/Pad/Sketch should be ADDED
-        assert diff_by_path["Body/Pad/Sketch"].state == DiffState.ADDED
-
-        # Verify hierarchy: Body -> Body/Pad -> Body/Pad/Sketch
-        assert len(diff_by_path["Body"].children) == 1
-        assert diff_by_path["Body"].children[0].path == "Body/Pad"
-
-        assert len(diff_by_path["Body/Pad"].children) == 1
-        assert diff_by_path["Body/Pad"].children[0].path == "Body/Pad/Sketch"
-
-        # Both Body/Pad and Body/Pad/Sketch should have parents
-        assert "Body/Pad" in has_parent
-        assert "Body/Pad/Sketch" in has_parent
-
-    def test_mixed_states_added_deleted_modified_properly_linked(self):
-        """Test mixed states: added, deleted, modified nodes properly linked.
-
-        Verifies that the single-pass approach correctly handles all three
-        state types and maintains proper parent-child relationships.
-        """
-
-        # Mixed scenario:
-        # - Body/Pocket: ADDED
-        # - Body/Pad: MODIFIED (property changed)
-        # - Body/DeletedNode: DELETED
-        sorted_paths = ["Body", "Body/Pad", "Body/DeletedNode", "Body/Pocket"]
-        added_paths = {"Body/Pocket"}
-        deleted_paths = {"Body/DeletedNode"}
-
-        old_pad = TreeNode(
-            id=2,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-            properties={"Length": Property.create(PropertyType.FLOAT, 10.0)},
-        )
-        new_pad = TreeNode(
-            id=2,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-            properties={"Length": Property.create(PropertyType.FLOAT, 20.0)},
-        )
-
-        old_index = {
-            "Body": TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body", after=None),
-            "Body/Pad": old_pad,
-            "Body/DeletedNode": TreeNode(
-                id=3,
-                name="DeletedNode",
-                type_id="Part::Feature",
-                label="Deleted",
-                path="Body/DeletedNode",
-                after="Body",
-            ),
-        }
-        new_index = {
-            "Body": TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body", after=None),
-            "Body/Pad": new_pad,
-            "Body/Pocket": TreeNode(
-                id=4, name="Pocket", type_id="PartDesign::Pocket", label="Pocket", path="Body/Pocket", after="Pad"
-            ),
-        }
-
-        diff_by_path, has_parent = build_hierarchical_diffs(
-            sorted_paths, added_paths, deleted_paths, old_index, new_index
-        )
-
-        # Verify all paths exist
-        assert len(diff_by_path) == 4
-
-        # Body should be placeholder (UNCHANGED)
-        assert diff_by_path["Body"].state == DiffState.UNCHANGED
-
-        # Body/Pad should be MODIFIED
-        assert diff_by_path["Body/Pad"].state == DiffState.MODIFIED
-
-        # Body/DeletedNode should be DELETED
-        assert diff_by_path["Body/DeletedNode"].state == DiffState.DELETED
-
-        # Body/Pocket should be ADDED
-        assert diff_by_path["Body/Pocket"].state == DiffState.ADDED
-
-        # All children should be linked to Body
-        assert len(diff_by_path["Body"].children) == 3
-
-    def test_path_format_preservation_leading_slashes_maintained(self):
-        """Test path format preservation: leading slashes maintained throughout.
-
-        Verifies that paths with leading slashes maintain their format
-        when creating placeholders and linking children.
-        """
-
-        # Use paths without leading slashes
-        sorted_paths = ["Body", "Body/Pocket"]
-        added_paths = {"Body/Pocket"}
-        deleted_paths = set()
-
-        old_index: dict[str, TreeNode] = {
-            "Body": TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body", after=None)
-        }
-        new_index = {
-            "Body": TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body", after=None),
-            "Body/Pocket": TreeNode(
-                id=2, name="Pocket", type_id="PartDesign::Pocket", label="Pocket", path="Body/Pocket", after="Body"
-            ),
-        }
-
-        diff_by_path, has_parent = build_hierarchical_diffs(
-            sorted_paths, added_paths, deleted_paths, old_index, new_index
-        )
-
-        # Paths should be without leading slashes
-        assert "Body" in diff_by_path
-        assert "Body/Pocket" in diff_by_path
-
-        # Parent path should also be without leading slash
-        assert diff_by_path["Body"].path == "Body"
-        assert diff_by_path["Body/Pocket"].path == "Body/Pocket"
-
-    def test_empty_sorted_paths_returns_empty(self):
-        """Test that empty sorted_paths returns empty dicts."""
-        diff_by_path, has_parent = build_hierarchical_diffs([], set(), set(), {}, {})
-
-        assert diff_by_path == {}
-        assert has_parent == set()
-
-    def test_single_root_node_no_parent_needed(self):
-        """Test single root node - no parent needed since it's a root."""
-
-        sorted_paths = ["Body"]
-        added_paths = {"Body"}
-        deleted_paths = set()
-
-        old_index: dict[str, TreeNode] = {}
-        new_index = {
-            "Body": TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body", after=None)
-        }
-
-        diff_by_path, has_parent = build_hierarchical_diffs(
-            sorted_paths, added_paths, deleted_paths, old_index, new_index
-        )
-
-        # Body should exist and be ADDED
-        assert "Body" in diff_by_path
-        assert diff_by_path["Body"].state == DiffState.ADDED
-
-        # Body should not have a parent (it's a root)
-        assert "Body" not in has_parent
 
 
 class TestGetParentPath:
@@ -729,175 +71,6 @@ class TestGetParentPath:
         """Test extracting parent from two-level path without leading slash."""
         result = _tree_comparator._get_parent_path("Body/Pad/Sketch")
         assert result == "Body/Pad"
-
-
-class TestEnsurePlaceholder:
-    """Tests for _ensure_placeholder method."""
-
-    def test_creates_placeholder_with_correct_type_id_from_new_index(self):
-        """Test that placeholder is created with correct type_id from new_index."""
-        diff_by_path: dict[str, NodeDiff] = {}
-        has_parent: set[str] = set()
-
-        old_index: dict[str, TreeNode] = {}
-        new_index = {
-            "Body/Pad": TreeNode(
-                id=1,
-                name="Pad",
-                type_id="PartDesign::Pad",
-                label="Pad",
-                path="Body/Pad",
-                after="Body",
-            )
-        }
-
-        _tree_comparator._ensure_placeholder("Body/Pad", old_index, new_index, diff_by_path, has_parent)
-
-        assert "Body/Pad" in diff_by_path
-        assert diff_by_path["Body/Pad"].type_id == "PartDesign::Pad"
-        assert diff_by_path["Body/Pad"].state == DiffState.UNCHANGED
-
-    def test_creates_placeholder_with_correct_type_id_from_old_index(self):
-        """Test that placeholder is created with correct type_id from old_index."""
-        diff_by_path: dict[str, NodeDiff] = {}
-        has_parent: set[str] = set()
-
-        old_index = {
-            "Body/Pad": TreeNode(
-                id=1,
-                name="Pad",
-                type_id="PartDesign::Pad",
-                label="Pad",
-                path="Body/Pad",
-                after="Body",
-            )
-        }
-        new_index: dict[str, TreeNode] = {}
-
-        _tree_comparator._ensure_placeholder("Body/Pad", old_index, new_index, diff_by_path, has_parent)
-
-        assert "Body/Pad" in diff_by_path
-        assert diff_by_path["Body/Pad"].type_id == "PartDesign::Pad"
-
-    def test_links_placeholder_to_parent(self):
-        """Test that placeholder is linked to its parent."""
-        diff_by_path: dict[str, NodeDiff] = {}
-        has_parent: set[str] = set()
-
-        # First create the parent
-        parent_node = TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body", after=None)
-        old_index = {"Body": parent_node}
-        new_index = {"Body": parent_node}
-
-        _tree_comparator._ensure_placeholder("Body", old_index, new_index, diff_by_path, has_parent)
-
-        # Now ensure child placeholder
-        child_node = TreeNode(
-            id=2,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-        )
-        old_index["Body/Pad"] = child_node
-        new_index["Body/Pad"] = child_node
-
-        _tree_comparator._ensure_placeholder("Body/Pad", old_index, new_index, diff_by_path, has_parent)
-
-        # Verify parent has child in its children list
-        assert len(diff_by_path["Body"].children) == 1
-        assert diff_by_path["Body"].children[0].path == "Body/Pad"
-        assert "Body/Pad" in has_parent
-
-    def test_recursively_creates_ancestor_chain(self):
-        """Test that entire ancestor chain is created recursively."""
-        diff_by_path: dict[str, NodeDiff] = {}
-        has_parent: set[str] = set()
-
-        # Create mock indices for full hierarchy (flat nodes)
-        sketch = TreeNode(
-            id=3,
-            name="Sketch",
-            type_id="PartDesign::Sketch",
-            label="Sketch",
-            path="Body/Pad/Sketch",
-            after="Pad",
-        )
-        pad = TreeNode(
-            id=2,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-        )
-        body = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-        )
-
-        old_index: dict[str, TreeNode] = {}
-        new_index = {"Body": body, "Body/Pad": pad, "Body/Pad/Sketch": sketch}
-
-        # Ensure the deepest node exists (should recursively create Body and Body/Pad)
-        _tree_comparator._ensure_placeholder("Body/Pad/Sketch", old_index, new_index, diff_by_path, has_parent)
-
-        # Verify all ancestors were created
-        assert "Body" in diff_by_path
-        assert "Body/Pad" in diff_by_path
-        assert "Body/Pad/Sketch" in diff_by_path
-
-        # Verify hierarchy is correct
-        assert len(diff_by_path["Body"].children) == 1
-        assert diff_by_path["Body"].children[0].path == "Body/Pad"
-        assert len(diff_by_path["Body/Pad"].children) == 1
-        assert diff_by_path["Body/Pad"].children[0].path == "Body/Pad/Sketch"
-
-    def test_does_not_create_duplicate_if_already_exists(self):
-        """Test that existing diff is not overwritten."""
-        diff_by_path: dict[str, NodeDiff] = {}
-        has_parent: set[str] = set()
-
-        # First create a real diff (not placeholder)
-        from freecad.diff_wb.domain.diff import PropertyDiff
-
-        existing_diff = NodeDiff(
-            path="Body/Pad",
-            type_id="PartDesign::Pad",
-            property_diffs=[
-                PropertyDiff(
-                    property_name="Length",
-                    old_value=None,
-                    new_value=Property.create(PropertyType.FLOAT, 10.0),
-                )
-            ],
-            _force_state=DiffState.ADDED,
-        )
-        diff_by_path["Body/Pad"] = existing_diff
-
-        old_index: dict[str, TreeNode] = {}
-        new_index = {
-            "Body/Pad": TreeNode(
-                id=1,
-                name="Pad",
-                type_id="PartDesign::Pad",
-                label="Pad",
-                path="Body/Pad",
-                after="Body",
-            )
-        }
-
-        # Try to ensure placeholder for same path
-        _tree_comparator._ensure_placeholder("Body/Pad", old_index, new_index, diff_by_path, has_parent)
-
-        # Verify original diff is unchanged
-        assert diff_by_path["Body/Pad"] is existing_diff
-        assert diff_by_path["Body/Pad"].state == DiffState.ADDED
 
 
 class TestValuesAreEqual:
@@ -1480,149 +653,6 @@ class TestPropertyDiffChildrenAutoComputed:
             assert child.state == DiffState.DELETED
 
 
-class TestBuildIdIndex:
-    """Tests for ID-based indexing (_build_id_index method)."""
-
-    def test_empty_nodes_list(self):
-        """Test building ID index from empty nodes list."""
-        index = _tree_comparator._build_id_index([])
-        assert index == {}
-
-    def test_single_node(self):
-        """Test building index with a single node."""
-        node = TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body")
-        index = _tree_comparator._build_id_index([node])
-        assert len(index) == 1
-        assert 1 in index
-        assert index[1] is node
-
-    def test_multiple_nodes(self):
-        """Test building index with multiple nodes."""
-        node1 = TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body")
-        node2 = TreeNode(id=2, name="Pad", type_id="PartDesign::Pad", label="Pad", path="Body/Pad")
-        node3 = TreeNode(id=3, name="Sketch", type_id="PartDesign::Sketch", label="Sketch", path="Body/Sketch")
-        index = _tree_comparator._build_id_index([node1, node2, node3])
-        assert len(index) == 3
-        assert 1 in index
-        assert 2 in index
-        assert 3 in index
-
-
-class TestFindAddedIds:
-    """Tests for ID-based added node detection."""
-
-    def test_no_added_ids(self):
-        """Test when new snapshot has no new IDs."""
-        old_index = {1: None, 2: None}  # type: ignore
-        new_index = {1: None, 2: None}  # type: ignore
-
-        added = _tree_comparator._find_added_ids(old_index, new_index)
-
-        assert added == set()
-
-    def test_simple_addition(self):
-        """Test detecting a simple addition."""
-        old_index: dict[int, TreeNode] = {
-            1: TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body")
-        }
-        new_index = {
-            1: TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body"),
-            2: TreeNode(id=2, name="Pad", type_id="PartDesign::Pad", label="Pad", path="Body/Pad"),
-        }
-
-        added = _tree_comparator._find_added_ids(old_index, new_index)
-
-        assert added == {2}
-
-    def test_multiple_additions(self):
-        """Test detecting multiple additions."""
-        old_index: dict[int, TreeNode] = {
-            1: TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body")
-        }
-        new_index = {
-            1: TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body"),
-            2: TreeNode(id=2, name="Pad", type_id="PartDesign::Pad", label="Pad", path="Body/Pad"),
-            3: TreeNode(id=3, name="Pocket", type_id="PartDesign::Pocket", label="Pocket", path="Body/Pocket"),
-        }
-
-        added = _tree_comparator._find_added_ids(old_index, new_index)
-
-        assert added == {2, 3}
-
-
-class TestFindDeletedIds:
-    """Tests for ID-based deleted node detection."""
-
-    def test_no_deleted_ids(self):
-        """Test when old snapshot has no deleted IDs."""
-        old_index = {1: None, 2: None}  # type: ignore
-        new_index = {1: None, 2: None}  # type: ignore
-
-        deleted = _tree_comparator._find_deleted_ids(old_index, new_index)
-
-        assert deleted == set()
-
-    def test_simple_deletion(self):
-        """Test detecting a simple deletion."""
-        old_index = {
-            1: TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body"),
-            2: TreeNode(id=2, name="Pad", type_id="PartDesign::Pad", label="Pad", path="Body/Pad"),
-        }
-        new_index: dict[int, TreeNode] = {
-            1: TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body")
-        }
-
-        deleted = _tree_comparator._find_deleted_ids(old_index, new_index)
-
-        assert deleted == {2}
-
-    def test_multiple_deletions(self):
-        """Test detecting multiple deletions."""
-        old_index = {
-            1: TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body"),
-            2: TreeNode(id=2, name="Pad", type_id="PartDesign::Pad", label="Pad", path="Body/Pad"),
-            3: TreeNode(id=3, name="Pocket", type_id="PartDesign::Pocket", label="Pocket", path="Body/Pocket"),
-        }
-        new_index: dict[int, TreeNode] = {
-            1: TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body")
-        }
-
-        deleted = _tree_comparator._find_deleted_ids(old_index, new_index)
-
-        assert deleted == {2, 3}
-
-
-class TestFindCommonIds:
-    """Tests for ID-based common node detection."""
-
-    def test_all_common(self):
-        """Test when all IDs are common."""
-        old_index = {1: None, 2: None}  # type: ignore
-        new_index = {1: None, 2: None}  # type: ignore
-
-        common = _tree_comparator._find_common_ids(old_index, new_index)
-
-        assert common == {1, 2}
-
-    def test_no_common(self):
-        """Test when no IDs are common."""
-        old_index = {1: None}  # type: ignore
-        new_index = {2: None}  # type: ignore
-
-        common = _tree_comparator._find_common_ids(old_index, new_index)
-
-        assert common == set()
-
-    def test_partial_common(self):
-        """Test when some IDs are common."""
-        old_index = {1: None, 2: None}  # type: ignore
-        new_index = {1: None, 3: None}  # type: ignore
-
-        common = _tree_comparator._find_common_ids(old_index, new_index)
-
-        assert common == {1}
-
-
 class TestCompareNodesById:
     """Tests for ID-based node comparison."""
 
@@ -1795,14 +825,12 @@ class TestIdBasedCompareSnapshots:
             nodes=[new_node1, new_node2],
         )
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [])
+        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
 
-        # ID 2 should be added
-        assert 2 in result.added_ids
-        # ID 1 should be common
-        assert 1 in result.common_ids
-        # No deleted IDs
-        assert result.deleted_ids == set()
+        # ID 2 should be added, ID 1 unchanged
+        assert result.added_count == 1
+        assert result.deleted_count == 0
+        assert result.modified_count == 0
 
     def test_detect_added_nodes(self):
         """Test detecting ADDED nodes (in new, not in old)."""
@@ -1846,11 +874,11 @@ class TestIdBasedCompareSnapshots:
             nodes=[new_node1, new_node2],
         )
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [])
+        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
 
-        assert result.added_ids == {2}
-        assert result.common_ids == {1}
-        assert result.deleted_ids == set()
+        assert result.added_count == 1
+        assert result.deleted_count == 0
+        assert result.modified_count == 0
 
     def test_detect_deleted_nodes(self):
         """Test detecting DELETED nodes (in old, not in new)."""
@@ -1894,11 +922,11 @@ class TestIdBasedCompareSnapshots:
             nodes=[new_node],
         )
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [])
+        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
 
-        assert result.added_ids == set()
-        assert result.common_ids == {1}
-        assert result.deleted_ids == {2}
+        assert result.added_count == 0
+        assert result.deleted_count == 1
+        assert result.modified_count == 0
 
     def test_detect_modified_nodes(self):
         """Test detecting MODIFIED nodes (in both, properties differ)."""
@@ -1936,11 +964,11 @@ class TestIdBasedCompareSnapshots:
             nodes=[new_node],
         )
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [])
+        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
 
-        assert result.added_ids == set()
-        assert result.common_ids == {1}
-        assert result.deleted_ids == set()
+        assert result.added_count == 0
+        assert result.deleted_count == 0
+        assert result.modified_count == 1
 
         # Find the node diff for ID 1 - it may be nested under parent placeholder
         # Look through the hierarchy for Body/Pad
@@ -1954,7 +982,7 @@ class TestIdBasedCompareSnapshots:
                     return found
             return None
 
-        pad_diff = find_node_diff(result.node_diffs, "Body/Pad")
+        pad_diff = find_node_diff(result.hierarchy.roots, "Body/Pad")
         assert pad_diff is not None
         assert pad_diff.state == DiffState.MODIFIED
 
@@ -1986,12 +1014,12 @@ class TestIdBasedCompareSnapshots:
         old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=old_nodes)
         new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=new_nodes)
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [])
+        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
 
-        # Correct sets: 3 deleted (old only), 1 added (new only), 1 common (both)
-        assert result.added_ids == {4}
-        assert result.deleted_ids == {3}
-        assert result.common_ids == {1, 2}
+        # Correct counts: 1 added (ID 4), 1 deleted (ID 3), 1 modified (ID 2)
+        assert result.added_count == 1
+        assert result.deleted_count == 1
+        assert result.modified_count == 1
 
     def test_node_diff_includes_path_and_after_for_move_detection(self):
         """Test NodeDiff includes old_path, new_path, old_after, new_after for future move/reorder detection."""
@@ -2027,7 +1055,7 @@ class TestIdBasedCompareSnapshots:
             nodes=[new_node],
         )
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [])
+        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
 
         # The NodeDiff should include old_path and new_path for move detection
         # Since the node is unchanged in properties but path changed
@@ -2042,7 +1070,7 @@ class TestIdBasedCompareSnapshots:
                     return found
             return None
 
-        feature_diff = find_node_diff(result.node_diffs, "Body/Moved")
+        feature_diff = find_node_diff(result.hierarchy.roots, "Body/Moved")
         assert feature_diff is not None
         assert feature_diff.old_path == "Body/Original"
         assert feature_diff.new_path == "Body/Moved"
@@ -2073,10 +1101,10 @@ class TestIdBasedCompareSnapshots:
             nodes=[],
         )
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [])
+        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
 
         # Added node should have old_path = None
-        box_diff = result.node_diffs[0]
+        box_diff = result.hierarchy.roots[0]
         assert box_diff.old_path is None
         assert box_diff.new_path == "Box"
 
@@ -2106,10 +1134,10 @@ class TestIdBasedCompareSnapshots:
             nodes=[],
         )
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [])
+        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
 
         # Deleted node should have new_path = None
-        box_diff = result.node_diffs[0]
+        box_diff = result.hierarchy.roots[0]
         assert box_diff.old_path == "Box"
         assert box_diff.new_path is None
 
@@ -2135,10 +1163,505 @@ class TestIdBasedCompareSnapshots:
         old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=[body, pad])
         new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=[body, pad])
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [])
+        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
 
         # Should have hierarchical structure: Body -> Pad
-        assert len(result.node_diffs) == 1  # Root: Body
-        body_diff = result.node_diffs[0]
+        assert len(result.hierarchy.roots) == 1  # Root: Body
+        body_diff = result.hierarchy.roots[0]
         assert len(body_diff.children) == 1  # Child: Pad
         assert body_diff.children[0].path == "Body/Pad"
+
+
+class TestExcludedTypesFiltering:
+    """Tests for excluded_types filtering in compare_snapshots."""
+
+    def test_excludes_nodes_with_excluded_type(self):
+        """Test that nodes with excluded type_id are filtered out."""
+        # Old snapshot with App::Origin (excluded type)
+        old_node = TreeNode(
+            id=1,
+            name="Origin",
+            type_id="App::Origin",
+            label="Origin",
+            path="Origin",
+            after=None,
+        )
+        old_snapshot = Snapshot(
+            snapshot_id="old",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[old_node],
+        )
+
+        # New snapshot with same node
+        new_node = TreeNode(
+            id=1,
+            name="Origin",
+            type_id="App::Origin",
+            label="Origin",
+            path="Origin",
+            after=None,
+        )
+        new_snapshot = Snapshot(
+            snapshot_id="new",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[new_node],
+        )
+
+        # Pass App::Origin in excluded_types
+        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], ["App::Origin"])
+
+        # Origin node should be excluded
+        assert len(result.hierarchy.roots) == 0
+        assert result.added_count == 0
+        assert result.deleted_count == 0
+        assert result.modified_count == 0
+
+    def test_excludes_children_of_excluded_type_parent(self):
+        """Test that children of excluded type nodes are also filtered."""
+        # Old snapshot with App::Origin and its child
+        origin = TreeNode(
+            id=1,
+            name="Origin",
+            type_id="App::Origin",
+            label="Origin",
+            path="Origin",
+            after=None,
+        )
+        xy_plane = TreeNode(
+            id=2,
+            name="XYPlane",
+            type_id="App::Plane",
+            label="XYPlane",
+            path="Origin/XYPlane",
+            after="Origin",
+        )
+        old_snapshot = Snapshot(
+            snapshot_id="old",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[origin, xy_plane],
+        )
+
+        # New snapshot with same nodes
+        new_origin = TreeNode(
+            id=1,
+            name="Origin",
+            type_id="App::Origin",
+            label="Origin",
+            path="Origin",
+            after=None,
+        )
+        new_xy_plane = TreeNode(
+            id=2,
+            name="XYPlane",
+            type_id="App::Plane",
+            label="XYPlane",
+            path="Origin/XYPlane",
+            after="Origin",
+        )
+        new_snapshot = Snapshot(
+            snapshot_id="new",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[new_origin, new_xy_plane],
+        )
+
+        # Pass App::Origin in excluded_types - should exclude both origin and its child
+        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], ["App::Origin"])
+
+        # Both nodes should be excluded
+        assert len(result.hierarchy.roots) == 0
+
+    def test_includes_nodes_not_in_excluded_types(self):
+        """Test that nodes not in excluded_types are included."""
+        # Old snapshot with Part::Feature
+        old_node = TreeNode(
+            id=1,
+            name="Box",
+            type_id="Part::Feature",
+            label="Box",
+            path="Box",
+            after=None,
+        )
+        old_snapshot = Snapshot(
+            snapshot_id="old",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[old_node],
+        )
+
+        # New snapshot with same node
+        new_node = TreeNode(
+            id=1,
+            name="Box",
+            type_id="Part::Feature",
+            label="Box",
+            path="Box",
+            after=None,
+        )
+        new_snapshot = Snapshot(
+            snapshot_id="new",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[new_node],
+        )
+
+        # Pass App::Origin in excluded_types (but our node is Part::Feature)
+        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], ["App::Origin"])
+
+        # Box node should be included
+        assert len(result.hierarchy.roots) == 1
+        assert result.hierarchy.roots[0].path == "Box"
+
+    def test_excludes_added_nodes_with_excluded_type(self):
+        """Test that added nodes with excluded type are filtered."""
+        # Old snapshot is empty
+        old_snapshot = Snapshot(
+            snapshot_id="old",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[],
+        )
+
+        # New snapshot with App::Origin (newly added)
+        new_node = TreeNode(
+            id=1,
+            name="Origin",
+            type_id="App::Origin",
+            label="Origin",
+            path="Origin",
+            after=None,
+        )
+        new_snapshot = Snapshot(
+            snapshot_id="new",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[new_node],
+        )
+
+        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], ["App::Origin"])
+
+        # Should have no diffs (excluded)
+        assert len(result.hierarchy.roots) == 0
+
+    def test_excludes_deleted_nodes_with_excluded_type(self):
+        """Test that deleted nodes with excluded type are filtered."""
+        # Old snapshot with App::Origin (deleted)
+        old_node = TreeNode(
+            id=1,
+            name="Origin",
+            type_id="App::Origin",
+            label="Origin",
+            path="Origin",
+            after=None,
+        )
+        old_snapshot = Snapshot(
+            snapshot_id="old",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[old_node],
+        )
+
+        # New snapshot is empty
+        new_snapshot = Snapshot(
+            snapshot_id="new",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[],
+        )
+
+        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], ["App::Origin"])
+
+        # Should have no diffs (excluded)
+        assert len(result.hierarchy.roots) == 0
+
+
+class TestExcludedParentPathFiltering:
+    """Tests for excluded parent path filtering in compare_snapshots."""
+
+    def test_excludes_child_when_parent_excluded_by_type(self):
+        """Test that child nodes are excluded when parent type is excluded."""
+        # Old: Body -> Pad -> Sketch (Sketch will be excluded because parent Pad type is excluded)
+        body = TreeNode(
+            id=1,
+            name="Body",
+            type_id="PartDesign::Body",
+            label="Body",
+            path="Body",
+            after=None,
+        )
+        pad = TreeNode(
+            id=2,
+            name="Pad",
+            type_id="PartDesign::Pad",
+            label="Pad",
+            path="Body/Pad",
+            after="Body",
+        )
+        sketch = TreeNode(
+            id=3,
+            name="Sketch",
+            type_id="PartDesign::Sketch",
+            label="Sketch",
+            path="Body/Pad/Sketch",
+            after="Pad",
+        )
+        old_snapshot = Snapshot(
+            snapshot_id="old",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[body, pad, sketch],
+        )
+
+        # New: same nodes
+        new_body = TreeNode(
+            id=1,
+            name="Body",
+            type_id="PartDesign::Body",
+            label="Body",
+            path="Body",
+            after=None,
+        )
+        new_pad = TreeNode(
+            id=2,
+            name="Pad",
+            type_id="PartDesign::Pad",
+            label="Pad",
+            path="Body/Pad",
+            after="Body",
+        )
+        new_sketch = TreeNode(
+            id=3,
+            name="Sketch",
+            type_id="PartDesign::Sketch",
+            label="Sketch",
+            path="Body/Pad/Sketch",
+            after="Pad",
+        )
+        new_snapshot = Snapshot(
+            snapshot_id="new",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[new_body, new_pad, new_sketch],
+        )
+
+        # Exclude PartDesign::Pad (parent of Sketch)
+        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], ["PartDesign::Pad"])
+
+        # Body should be included (not excluded type), but Pad and Sketch should be excluded
+        paths_in_result = {diff.path for diff in _flatten_diffs(result.hierarchy.roots)}
+        assert "Body" in paths_in_result
+        assert "Body/Pad" not in paths_in_result
+        assert "Body/Pad/Sketch" not in paths_in_result
+
+    def test_mixed_excluded_and_included_nodes(self):
+        """Test that some nodes are excluded while others are included."""
+        # Create nodes: Body with two children - one excluded, one included
+        body = TreeNode(
+            id=1,
+            name="Body",
+            type_id="PartDesign::Body",
+            label="Body",
+            path="Body",
+            after=None,
+        )
+        # This Pad will be excluded
+        pad = TreeNode(
+            id=2,
+            name="Pad",
+            type_id="PartDesign::Pad",
+            label="Pad",
+            path="Body/Pad",
+            after="Body",
+        )
+        # This box will NOT be excluded (different parent)
+        box = TreeNode(
+            id=3,
+            name="Box",
+            type_id="Part::Box",
+            label="Box",
+            path="Box",
+            after=None,
+        )
+        old_snapshot = Snapshot(
+            snapshot_id="old",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[body, pad, box],
+        )
+
+        # New: same nodes
+        new_body = TreeNode(
+            id=1,
+            name="Body",
+            type_id="PartDesign::Body",
+            label="Body",
+            path="Body",
+            after=None,
+        )
+        new_pad = TreeNode(
+            id=2,
+            name="Pad",
+            type_id="PartDesign::Pad",
+            label="Pad",
+            path="Body/Pad",
+            after="Body",
+        )
+        new_box = TreeNode(
+            id=3,
+            name="Box",
+            type_id="Part::Box",
+            label="Box",
+            path="Box",
+            after=None,
+        )
+        new_snapshot = Snapshot(
+            snapshot_id="new",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[new_body, new_pad, new_box],
+        )
+
+        # Exclude PartDesign::Pad only
+        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], ["PartDesign::Pad"])
+
+        # Body and Box should be included, Pad should be excluded
+        paths_in_result = {diff.path for diff in _flatten_diffs(result.hierarchy.roots)}
+        assert "Body" in paths_in_result
+        assert "Body/Pad" not in paths_in_result
+        assert "Box" in paths_in_result
+
+
+class TestEmptySnapshots:
+    """Tests for handling empty snapshots in compare_snapshots."""
+
+    def test_both_snapshots_empty_returns_empty(self):
+        """Test that comparing two empty snapshots returns empty result."""
+        old_snapshot = Snapshot(
+            snapshot_id="old",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[],
+        )
+        new_snapshot = Snapshot(
+            snapshot_id="new",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[],
+        )
+
+        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
+
+        assert result.added_count == 0
+        assert result.deleted_count == 0
+        assert result.modified_count == 0
+        assert result.hierarchy.roots == []
+
+    def test_old_empty_new_with_nodes_returns_added(self):
+        """Test that when old is empty, new nodes are marked as added."""
+        old_snapshot = Snapshot(
+            snapshot_id="old",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[],
+        )
+
+        new_box = TreeNode(
+            id=1,
+            name="Box",
+            type_id="Part::Box",
+            label="Box",
+            path="Box",
+            after=None,
+        )
+        new_snapshot = Snapshot(
+            snapshot_id="new",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[new_box],
+        )
+
+        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
+
+        assert result.added_count == 1
+        assert result.deleted_count == 0
+        assert result.modified_count == 0
+        assert len(result.hierarchy.roots) == 1
+        assert result.hierarchy.roots[0].state == DiffState.ADDED
+
+    def test_new_empty_old_with_nodes_returns_deleted(self):
+        """Test that when new is empty, old nodes are marked as deleted."""
+        old_box = TreeNode(
+            id=1,
+            name="Box",
+            type_id="Part::Box",
+            label="Box",
+            path="Box",
+            after=None,
+        )
+        old_snapshot = Snapshot(
+            snapshot_id="old",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[old_box],
+        )
+
+        new_snapshot = Snapshot(
+            snapshot_id="new",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[],
+        )
+
+        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
+
+        assert result.added_count == 0
+        assert result.deleted_count == 1
+        assert result.modified_count == 0
+        assert len(result.hierarchy.roots) == 1
+        assert result.hierarchy.roots[0].state == DiffState.DELETED
+
+    def test_hierarchy_preserved_with_empty_parent(self):
+        """Test that hierarchy is preserved when parent becomes empty."""
+        # Old: Body with child Pad
+        body = TreeNode(
+            id=1,
+            name="Body",
+            type_id="PartDesign::Body",
+            label="Body",
+            path="Body",
+            after=None,
+        )
+        old_snapshot = Snapshot(
+            snapshot_id="old",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[body],
+        )
+
+        # New: empty (Body deleted)
+        new_snapshot = Snapshot(
+            snapshot_id="new",
+            document_name="Test",
+            timestamp=datetime.now(),
+            nodes=[],
+        )
+
+        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
+
+        assert result.deleted_count == 1
+        assert len(result.hierarchy.roots) == 1
+        assert result.hierarchy.roots[0].path == "Body"
+        assert result.hierarchy.roots[0].state == DiffState.DELETED
+
+
+def _flatten_diffs(node_diffs: list[NodeDiff]) -> list[NodeDiff]:
+    """Flatten a hierarchical list of NodeDiffs into a flat list."""
+    result: list[NodeDiff] = []
+    for diff in node_diffs:
+        result.append(diff)
+        if diff.children:
+            result.extend(_flatten_diffs(diff.children))
+    return result

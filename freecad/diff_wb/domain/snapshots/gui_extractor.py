@@ -611,6 +611,11 @@ def _extract_tree_single_pass(
         for child_name in children:
             if child_name not in child_to_parent_map:
                 child_to_parent_map[child_name] = parent_name
+            else:
+                Log.warning(
+                    f"[DEBUG] Overwriting child '{child_name}' parent: "
+                    f"{child_to_parent_map[child_name]} -> {parent_name}"
+                )
 
     # Step 3: Build name to object map for quick lookup
     name_to_obj: dict[str, object] = {}

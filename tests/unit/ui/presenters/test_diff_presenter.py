@@ -1,6 +1,6 @@
 """File responsibility: Unit tests for DiffPresenter."""
 
-from freecad.diff_wb.domain.diff.models import DiffResult, DiffState, NodeDiff, PropertyDiff
+from freecad.diff_wb.domain.diff.models import DiffHierarchy, DiffResult, DiffState, NodeDiff, PropertyDiff
 from freecad.diff_wb.domain.tree import Property, PropertyType
 from freecad.diff_wb.ui.presenters.diff_presenter import DiffPresenter
 from freecad.diff_wb.ui.presenters.presentation_models import NodePresentation, PropertyPresentation
@@ -16,12 +16,12 @@ class TestDiffPresenter:
         fake_view = FakeDiffView()
         presenter = DiffPresenter(fake_view)
         # Create a node with no property changes so it's UNCHANGED
+        hierarchy = DiffHierarchy()
+        hierarchy.add_node(NodeDiff(path="Part", type_id="Part::Feature"))
         diff_result = DiffResult(
             old_snapshot_name="snapshot_v1",
             new_snapshot_name="snapshot_v2",
-            node_diffs=[
-                NodeDiff(path="Part", type_id="Part::Feature"),
-            ],
+            hierarchy=hierarchy,
         )
 
         # Act
@@ -43,10 +43,12 @@ class TestDiffPresenter:
             type_id="Part::Feature",
             _force_state=DiffState.MODIFIED,
         )
+        hierarchy = DiffHierarchy()
+        hierarchy.add_node(node_diff)
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=hierarchy,
         )
 
         # Act
@@ -76,10 +78,12 @@ class TestDiffPresenter:
             property_diffs=[PropertyDiff(property_name="Length", old_value=old_prop, new_value=new_prop)],
             _force_state=DiffState.MODIFIED,
         )
+        hierarchy = DiffHierarchy()
+        hierarchy.add_node(node_diff)
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=hierarchy,
         )
 
         # Act
@@ -100,7 +104,7 @@ class TestDiffPresenter:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[],
+            hierarchy=DiffHierarchy(),
         )
 
         # Act
@@ -135,10 +139,18 @@ class TestDiffPresenter:
             _force_state=DiffState.MODIFIED,
         )
         unchanged_node = NodeDiff(path="UnchangedPart", type_id="Part::Feature")
+        hierarchy = DiffHierarchy()
+        hierarchy.add_node(added_node)
+        hierarchy.add_node(deleted_node)
+        hierarchy.add_node(modified_node)
+        hierarchy.add_node(unchanged_node)
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[added_node, deleted_node, modified_node, unchanged_node],
+            hierarchy=hierarchy,
+            added_count=1,
+            deleted_count=1,
+            modified_count=1,
         )
 
         # Act
@@ -179,10 +191,12 @@ class TestDiffPresenterFormatsChildren:
             children=[child],
             _force_state=DiffState.UNCHANGED,
         )
+        hierarchy = DiffHierarchy()
+        hierarchy.add_node(parent)
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[parent],
+            hierarchy=hierarchy,
         )
 
         # Act
@@ -231,10 +245,12 @@ class TestDiffPresenterFormatsChildren:
             _force_state=DiffState.MODIFIED,
         )
 
+        hierarchy = DiffHierarchy()
+        hierarchy.add_node(part)
         diff_result = DiffResult(
-            old_snapshot_name="old",
-            new_snapshot_name="new",
-            node_diffs=[part],
+            old_snapshot_name="v1",
+            new_snapshot_name="v2",
+            hierarchy=hierarchy,
         )
 
         # Act
@@ -286,10 +302,12 @@ class TestDiffPresenterFormatsChildren:
             type_id="Part::Feature",
             _force_state=DiffState.ADDED,
         )
+        hierarchy = DiffHierarchy()
+        hierarchy.add_node(leaf_node)
         diff_result = DiffResult(
-            old_snapshot_name="old",
-            new_snapshot_name="new",
-            node_diffs=[leaf_node],
+            old_snapshot_name="v1",
+            new_snapshot_name="v2",
+            hierarchy=hierarchy,
         )
 
         # Act
@@ -334,10 +352,12 @@ class TestTransformPropertyDiffsWithChildren:
             property_diffs=[prop_diff],
             _force_state=DiffState.MODIFIED,
         )
+        hierarchy = DiffHierarchy()
+        hierarchy.add_node(node_diff)
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=hierarchy,
         )
         presenter.present_diff(diff_result)
 
@@ -385,10 +405,12 @@ class TestTransformPropertyDiffsWithChildren:
             property_diffs=[prop_diff],
             _force_state=DiffState.MODIFIED,
         )
+        hierarchy = DiffHierarchy()
+        hierarchy.add_node(node_diff)
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=hierarchy,
         )
         presenter.present_diff(diff_result)
 
@@ -441,10 +463,12 @@ class TestTransformPropertyDiffsWithChildren:
             property_diffs=[prop_diff],
             _force_state=DiffState.MODIFIED,
         )
+        hierarchy = DiffHierarchy()
+        hierarchy.add_node(node_diff)
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=hierarchy,
         )
         presenter.present_diff(diff_result)
 
@@ -488,10 +512,12 @@ class TestTransformPropertyDiffsWithChildren:
             property_diffs=[prop_diff],
             _force_state=DiffState.MODIFIED,
         )
+        hierarchy = DiffHierarchy()
+        hierarchy.add_node(node_diff)
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=hierarchy,
         )
         presenter.present_diff(diff_result)
 

@@ -4,7 +4,7 @@
 """Fake repository implementations for testing."""
 
 from freecad.diff_wb.domain.diff.engine import DiffEngine
-from freecad.diff_wb.domain.diff.models import DiffResult
+from freecad.diff_wb.domain.diff.models import DiffHierarchy, DiffResult
 from freecad.diff_wb.domain.settings.models import Settings
 from freecad.diff_wb.domain.settings.repository import SettingsRepository
 from freecad.diff_wb.domain.snapshots import Snapshot
@@ -73,7 +73,7 @@ class FakeDiffEngine(DiffEngine):
         self._return_value = return_value or DiffResult(
             old_snapshot_name="Comparison",
             new_snapshot_name="Comparison",
-            node_diffs=[],
+            hierarchy=DiffHierarchy(),
         )
         self._side_effect = side_effect
         self._compare_calls: list[tuple[Snapshot, Snapshot, list[str], list[str]]] = []

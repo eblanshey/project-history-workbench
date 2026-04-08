@@ -339,7 +339,7 @@ class TestCompareSnapshotsAction:
         # Assert
         assert result.success is True
         assert result.diff_result is not None
-        assert len(result.diff_result.node_diffs) == 0  # No changes expected
+        assert len(result.diff_result.hierarchy.roots) == 0  # No changes expected
 
 
 if __name__ == "__main__":

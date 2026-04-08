@@ -1,15 +1,14 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 # File responsibility: Tests for DiffEngine and related domain models including
-# DiffState, PropertyDiff, NodeDiff, DiffSummary, and DiffResult.
+# DiffState, PropertyDiff, NodeDiff, and DiffResult.
 """Unit tests for DiffEngine and diff domain models."""
 
 import datetime
 import uuid
 
 from freecad.diff_wb.domain import Property, PropertyType
-from freecad.diff_wb.domain.diff import DiffResult, DiffState, NodeDiff, PropertyDiff
+from freecad.diff_wb.domain.diff import DiffHierarchy, DiffResult, DiffState, NodeDiff, PropertyDiff
 from freecad.diff_wb.domain.diff.engine import DiffEngine
-from freecad.diff_wb.domain.diff.models import DiffSummary
 from freecad.diff_wb.domain.snapshots import Snapshot
 from freecad.diff_wb.domain.tree.node import TreeNode
 
@@ -166,23 +165,6 @@ class TestNodeDiff:
         assert changed_props[0].property_name == "Length"
 
 
-class TestDiffSummary:
-    """Tests for the DiffSummary class."""
-
-    def test_empty_summary(self):
-        """Test empty summary."""
-        summary = DiffSummary()
-        assert summary.total_nodes == 0
-        assert summary.added_nodes == 0
-
-    def test_string_representation(self):
-        """Test string representation."""
-        summary = DiffSummary(added_nodes=2, deleted_nodes=1, modified_nodes=3, unchanged_nodes=10)
-        str_repr = str(summary)
-        assert "2 added" in str_repr
-        assert "1 deleted" in str_repr
-
-
 class TestDiffResult:
     """Tests for the DiffResult class."""
 
@@ -205,7 +187,9 @@ class TestDiffResult:
             new_value=Property.create(PropertyType.FLOAT, 20.0),
         )
         node_diff = NodeDiff(path="Body/Pad", type_id="PartDesign::Pad", property_diffs=[prop_diff])
-        diff = DiffResult(old_snapshot_name="v1", new_snapshot_name="v2", node_diffs=[node_diff])
+        hierarchy = DiffHierarchy()
+        hierarchy._roots.append(node_diff)
+        diff = DiffResult(old_snapshot_name="v1", new_snapshot_name="v2", hierarchy=hierarchy)
         assert diff.has_changes is True
 
     def test_get_all_changed_paths(self):
@@ -224,7 +208,9 @@ class TestDiffResult:
         parent = NodeDiff(path="Body/Pad", type_id="PartDesign::Pad", property_diffs=[parent_prop], children=[child])
         unchanged = NodeDiff(path="Body", type_id="PartDesign::Body")
 
-        diff = DiffResult(old_snapshot_name="v1", new_snapshot_name="v2", node_diffs=[parent, unchanged])
+        hierarchy = DiffHierarchy()
+        hierarchy._roots.extend([parent, unchanged])
+        diff = DiffResult(old_snapshot_name="v1", new_snapshot_name="v2", hierarchy=hierarchy)
 
         changed_paths = diff.get_all_changed_paths()
         assert "Body/Pad/Sub" in changed_paths
@@ -255,7 +241,7 @@ class TestDiffEngineComputeDiff:
 
         assert result.old_snapshot_name == "old"
         assert result.new_snapshot_name == "new"
-        assert result.node_diffs == []
+        assert result.hierarchy.roots == []
         assert result.has_changes is False
 
     def test_compute_diff_detect_added_node(self):
@@ -287,7 +273,7 @@ class TestDiffEngineComputeDiff:
 
         assert result.has_changes is True
         # The new node should appear as added
-        assert len(result.node_diffs) > 0
+        assert len(result.hierarchy.roots) > 0
 
     def test_compute_diff_detect_deleted_node(self):
         """Test compute_diff detects deleted nodes with flat structure."""
@@ -358,7 +344,7 @@ class TestDiffEngineComputeDiff:
 
         assert result.has_changes is True
         # Should find the modified property
-        node_diff = result.node_diffs[0]
+        node_diff = result.hierarchy.roots[0]
         assert len(node_diff.property_diffs) > 0
 
     def test_compute_diff_with_nested_flat_nodes(self):
@@ -485,7 +471,7 @@ class TestDiffEngineCompare:
             excluded_properties=[],
         )
 
-        assert result.node_diffs == []
+        assert result.hierarchy.roots == []
         assert result.has_changes is False
 
     def test_compare_detect_added_nodes(self):

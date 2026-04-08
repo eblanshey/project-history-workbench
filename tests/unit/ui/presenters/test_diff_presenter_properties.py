@@ -1,6 +1,6 @@
 """File responsibility: Unit tests for DiffPresenter property handling methods."""
 
-from freecad.diff_wb.domain.diff.models import DiffResult, DiffState, NodeDiff, PropertyDiff
+from freecad.diff_wb.domain.diff.models import DiffHierarchy, DiffResult, DiffState, NodeDiff, PropertyDiff
 from freecad.diff_wb.domain.tree import Property, PropertyType
 from freecad.diff_wb.ui.presenters.diff_presenter import DiffPresenter
 from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
@@ -29,7 +29,7 @@ class TestDiffPresenterPropertyHandling:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
         # Present diff to store the result
@@ -65,7 +65,7 @@ class TestDiffPresenterPropertyHandling:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
         # Present diff to store the result
@@ -121,7 +121,7 @@ class TestDiffPresenterPropertyHandling:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
         # Present diff to store the result
@@ -178,7 +178,7 @@ class TestDiffPresenterPropertyHandling:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
         presenter.present_diff(diff_result)
@@ -228,7 +228,7 @@ class TestDiffPresenterPropertyHandling:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
         presenter.present_diff(diff_result)
@@ -271,7 +271,7 @@ class TestDiffPresenterPropertyHandling:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
         presenter.present_diff(diff_result)
@@ -325,10 +325,15 @@ class TestDiffPresenterPropertyHandling:
             children=[child],
             _force_state=DiffState.UNCHANGED,
         )
+        # Add nodes in order from root to leaf so hierarchy is built correctly
+        hierarchy = DiffHierarchy()
+        hierarchy.add_node(parent)  # Add parent first
+        hierarchy.add_node(child)  # Then child
+        hierarchy.add_node(grandchild)  # Then grandchild
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[parent],
+            hierarchy=hierarchy,
         )
 
         presenter.present_diff(diff_result)
@@ -359,7 +364,7 @@ class TestDiffPresenterPropertyHandling:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
         presenter.present_diff(diff_result)
@@ -407,7 +412,7 @@ class TestPropertyValueTypeExtraction:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
         presenter.present_diff(diff_result)
@@ -455,7 +460,7 @@ class TestPropertyValueTypeExtraction:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
         presenter.present_diff(diff_result)
@@ -502,7 +507,7 @@ class TestPropertyValueTypeExtraction:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
         presenter.present_diff(diff_result)
@@ -552,7 +557,7 @@ class TestPropertyValueTypeExtraction:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
         presenter.present_diff(diff_result)
@@ -599,7 +604,7 @@ class TestPropertyValueTypeExtraction:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
         presenter.present_diff(diff_result)
@@ -642,7 +647,7 @@ class TestPropertyValueTypeExtraction:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
         presenter.present_diff(diff_result)
@@ -683,7 +688,7 @@ class TestPropertyValueTypeExtraction:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
         presenter.present_diff(diff_result)
@@ -727,7 +732,7 @@ class TestPhase2OldValueAndExpression:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
         presenter.present_diff(diff_result)
@@ -768,7 +773,7 @@ class TestPhase2OldValueAndExpression:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
         presenter.present_diff(diff_result)
@@ -807,7 +812,7 @@ class TestPhase2OldValueAndExpression:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
         presenter.present_diff(diff_result)
@@ -848,7 +853,7 @@ class TestPhase2OldValueAndExpression:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
         presenter.present_diff(diff_result)
@@ -887,7 +892,7 @@ class TestPhase2OldValueAndExpression:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
         presenter.present_diff(diff_result)
@@ -927,7 +932,7 @@ class TestPhase2OldValueAndExpression:
         diff_result = DiffResult(
             old_snapshot_name="v1",
             new_snapshot_name="v2",
-            node_diffs=[node_diff],
+            hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
         presenter.present_diff(diff_result)

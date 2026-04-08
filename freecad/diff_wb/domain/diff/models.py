@@ -521,7 +521,8 @@ class NodeDiff:
         """Check if this node or any children have changes."""
         if self.state != DiffState.UNCHANGED:
             return True
-        if self.property_diffs:
+        # Check if any property diff has changes (not just if property_diffs exists)
+        if any(p.state != DiffState.UNCHANGED for p in self.property_diffs):
             return True
         return any(child.has_changes for child in self.children)
 
@@ -529,116 +530,6 @@ class NodeDiff:
     def changed_properties(self) -> list[PropertyDiff]:
         """Get only the properties that actually changed."""
         return [p for p in self.property_diffs if p.state != DiffState.UNCHANGED]
-
-
-@dataclass(frozen=True)
-class DiffSummary:
-    """A summary of changes in a diff result.
-
-    Provides quick statistics about the scope of changes:
-    - Total nodes compared
-    - Nodes added, deleted, modified, unchanged
-    - Total properties changed
-    """
-
-    total_nodes: int = 0
-    added_nodes: int = 0
-    deleted_nodes: int = 0
-    modified_nodes: int = 0
-    unchanged_nodes: int = 0
-    total_property_changes: int = 0
-
-    def __str__(self) -> str:
-        return (
-            f"DiffSummary: {self.added_nodes} added, "
-            f"{self.deleted_nodes} deleted, "
-            f"{self.modified_nodes} modified, "
-            f"{self.unchanged_nodes} unchanged"
-        )
-
-    @classmethod
-    def compute(cls, diff_result: DiffResult) -> DiffSummary:
-        """Compute a summary from a diff result.
-
-        Args:
-            diff_result: The diff result to summarize
-
-        Returns:
-            A DiffSummary with computed statistics
-        """
-        total_nodes = 0
-        added_nodes = 0
-        deleted_nodes = 0
-        modified_nodes = 0
-        unchanged_nodes = 0
-        total_property_changes = 0
-
-        for node_diff in diff_result.node_diffs:
-            total_nodes += 1
-            counts = cls._count_node(node_diff)
-            added_nodes += counts["added"]
-            deleted_nodes += counts["deleted"]
-            modified_nodes += counts["modified"]
-            unchanged_nodes += counts["unchanged"]
-            total_property_changes += counts["property_changes"]
-
-        return cls(
-            total_nodes=total_nodes,
-            added_nodes=added_nodes,
-            deleted_nodes=deleted_nodes,
-            modified_nodes=modified_nodes,
-            unchanged_nodes=unchanged_nodes,
-            total_property_changes=total_property_changes,
-        )
-
-    @staticmethod
-    def _count_node(node: NodeDiff) -> dict[str, int]:
-        """Recursively count node states and property changes.
-
-        Returns:
-            A dict with counts for 'added', 'deleted', 'modified', 'unchanged', 'property_changes'
-        """
-        # Count this node
-        if node.state == DiffState.ADDED:
-            added = 1
-            deleted = 0
-            modified = 0
-            unchanged = 0
-        elif node.state == DiffState.DELETED:
-            added = 0
-            deleted = 1
-            modified = 0
-            unchanged = 0
-        elif node.state == DiffState.MODIFIED:
-            added = 0
-            deleted = 0
-            modified = 1
-            unchanged = 0
-        else:
-            added = 0
-            deleted = 0
-            modified = 0
-            unchanged = 1
-
-        # Count property changes
-        property_changes = sum(1 for prop_diff in node.property_diffs if prop_diff.state != DiffState.UNCHANGED)
-
-        # Recurse into children
-        for child in node.children:
-            child_counts = DiffSummary._count_node(child)
-            added += child_counts["added"]
-            deleted += child_counts["deleted"]
-            modified += child_counts["modified"]
-            unchanged += child_counts["unchanged"]
-            property_changes += child_counts["property_changes"]
-
-        return {
-            "added": added,
-            "deleted": deleted,
-            "modified": modified,
-            "unchanged": unchanged,
-            "property_changes": property_changes,
-        }
 
 
 @dataclass(frozen=True)
@@ -651,37 +542,36 @@ class DiffResult:
     Attributes:
         old_snapshot_name: Name/identifier of the old snapshot
         new_snapshot_name: Name/identifier of the new snapshot
-        node_diffs: List of root-level node diffs
+        added_count: Number of added nodes
+        deleted_count: Number of deleted nodes
+        modified_count: Number of modified nodes
+        hierarchy: The DiffHierarchy containing the node diffs in tree form
     """
 
     old_snapshot_name: str
     new_snapshot_name: str
-    node_diffs: list[NodeDiff] = field(default_factory=list)
+    added_count: int = 0
+    deleted_count: int = 0
+    modified_count: int = 0
+    hierarchy: DiffHierarchy = field(default_factory=lambda: DiffHierarchy())
 
     def __str__(self) -> str:
-        summary = DiffSummary.compute(self)
-        return f"DiffResult({self.old_snapshot_name} vs {self.new_snapshot_name}): {summary}"
-
-    @property
-    def summary(self) -> DiffSummary:
-        """Get a summary of this diff result."""
-        return DiffSummary.compute(self)
+        return (
+            f"DiffResult({self.old_snapshot_name} vs {self.new_snapshot_name}): "
+            f"{self.added_count} added, {self.deleted_count} deleted, {self.modified_count} modified"
+        )
 
     @property
     def has_changes(self) -> bool:
         """Check if there are any changes in this diff."""
-        summary = self.summary
-        return (
-            summary.total_property_changes > 0
-            or summary.added_nodes > 0
-            or summary.deleted_nodes > 0
-            or summary.modified_nodes > 0
+        return (self.added_count > 0 or self.deleted_count > 0 or self.modified_count > 0) or any(
+            node.has_changes for node in self.hierarchy.roots
         )
 
     def get_all_changed_paths(self) -> list[str]:
         """Get all paths that have changes (for UI highlighting)."""
         changed_paths: list[str] = []
-        for node_diff in self.node_diffs:
+        for node_diff in self.hierarchy.roots:
             self._collect_changed_paths(node_diff, changed_paths)
         return changed_paths
 
@@ -693,4 +583,159 @@ class DiffResult:
             self._collect_changed_paths(child, result)
 
 
-__all__ = ["DiffResult", "NodeDiff", "PropertyDiff", "DiffState"]
+class DiffHierarchy:
+    """Holds hierarchical node diffs as a tree structure.
+
+    This class manages the hierarchical organization of NodeDiff objects,
+    providing efficient path-based lookups and parent-child relationships.
+
+    Attributes:
+        _hierarchy: Nested dict mapping path segments to NodeDiff objects
+        _roots: List of top-level NodeDiff objects
+    """
+
+    def __init__(self) -> None:
+        """Initialize an empty hierarchy."""
+        self._hierarchy: dict[str, Any] = {}
+        self._roots: list[NodeDiff] = []
+
+    @property
+    def roots(self) -> list[NodeDiff]:
+        """Get list of top-level NodeDiff objects."""
+        return self._roots
+
+    def find_by_path(self, path: str) -> NodeDiff | None:
+        """Find a NodeDiff by its path.
+
+        Args:
+            path: The path to search for (e.g., "Body/Pad")
+
+        Returns:
+            The NodeDiff at the given path, or None if not found
+        """
+        if not path:
+            return None
+
+        # Split path into segments
+        segments = path.split("/")
+
+        # Traverse the hierarchy
+        current: dict[str, Any] | None = self._hierarchy
+        for i, segment in enumerate(segments):
+            if not segment:
+                continue
+            if isinstance(current, dict) and segment in current:
+                value = current[segment]
+
+                if i == len(segments) - 1:
+                    # This is the final segment, return the NodeDiff
+                    if isinstance(value, NodeDiff):
+                        return value
+                    elif isinstance(value, dict):
+                        # Might have __node__ key
+                        return value.get("__node__")
+                    return None
+
+                # Move to children
+                if isinstance(value, dict):
+                    current = value.get("__children__")
+                else:
+                    # It's a NodeDiff, its children are in NodeDiff.children
+                    return None
+            else:
+                return None
+        return None
+
+    def add_node(self, node_diff: NodeDiff) -> None:
+        """Add a NodeDiff to the hierarchy.
+
+        Handles parent linking automatically - if the parent exists in the
+        hierarchy, the node is added as a child. If no parent exists,
+        the node is added to roots.
+
+        Args:
+            node_diff: The NodeDiff to add
+        """
+        path = node_diff.path
+        if not path:
+            return
+
+        segments = path.split("/")
+
+        if len(segments) == 1:
+            # Root level node
+            self._roots.append(node_diff)
+            self._hierarchy[segments[0]] = node_diff
+            return
+
+        # Find or create parent path
+        parent_segments = segments[:-1]
+        parent_path = "/".join(parent_segments)
+
+        # Try to find parent in hierarchy
+        parent_node = self.find_by_path(parent_path)
+
+        if parent_node is not None:
+            # Add as child to existing parent, but only if not already present
+            # (to avoid infinite loops when node_diffs already has children set)
+            if node_diff not in parent_node.children:
+                parent_node.children.append(node_diff)
+        else:
+            # No parent found, add to roots
+            self._roots.append(node_diff)
+
+        # Store in hierarchy dict
+        self._ensure_parent_segments(path, segments, parent_node)
+        self._store_node_in_hierarchy(segments, node_diff)
+
+    def _ensure_parent_segments(self, path: str, segments: list[str], parent_node: NodeDiff | None) -> None:
+        """Ensure parent segment dict containers exist in hierarchy.
+
+        Args:
+            path: Full path of the node being added
+            segments: Path segments
+            parent_node: Parent NodeDiff if found, None otherwise
+        """
+        current = self._hierarchy
+        for segment in segments[:-1]:  # Process all but last segment
+            if segment not in current:
+                # Only raise error if parent NodeDiff was supposed to exist
+                if parent_node is not None:
+                    raise ValueError(
+                        f"Parent segment '{segment}' not found in hierarchy for path '{path}'. "
+                        f"Parent paths must be created before adding child nodes."
+                    )
+                # Create dict container for orphaned child (no parent NodeDiff)
+                current[segment] = {"__children__": {}}
+            elif isinstance(current[segment], NodeDiff):
+                existing_node = current[segment]
+                current[segment] = {"__children__": {}, "__node__": existing_node}
+
+            # Move to children dict
+            if isinstance(current[segment], dict):
+                current = current[segment].get("__children__", {})
+            else:
+                break
+
+    def _store_node_in_hierarchy(self, segments: list[str], node_diff: NodeDiff) -> None:
+        """Store the final node in the hierarchy dict.
+
+        Args:
+            segments: Path segments
+            node_diff: The node to store
+        """
+        current = self._hierarchy
+        # Navigate to parent dict
+        for segment in segments[:-1]:
+            if isinstance(current.get(segment), dict):
+                current = current[segment].get("__children__", {})
+            else:
+                break
+
+        # Store the final node
+        final_segment = segments[-1]
+        if final_segment not in current:
+            current[final_segment] = node_diff
+
+
+__all__ = ["DiffResult", "DiffHierarchy", "NodeDiff", "PropertyDiff", "DiffState"]

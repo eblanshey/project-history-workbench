@@ -5,7 +5,16 @@
 
 from .comparator import PropertyComparator, TreeComparator
 from .engine import DiffEngine
-from .models import DiffResult, DiffState, NodeDiff, PropertyDiff
+from .models import DiffHierarchy, DiffResult, DiffState, NodeDiff, PropertyDiff
 
 
-__all__ = ["DiffResult", "NodeDiff", "PropertyDiff", "DiffState", "DiffEngine", "TreeComparator", "PropertyComparator"]
+__all__ = [
+    "DiffResult",
+    "DiffHierarchy",
+    "NodeDiff",
+    "PropertyDiff",
+    "DiffState",
+    "DiffEngine",
+    "TreeComparator",
+    "PropertyComparator",
+]

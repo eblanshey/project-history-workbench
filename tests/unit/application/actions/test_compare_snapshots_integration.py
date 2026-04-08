@@ -104,8 +104,8 @@ class TestCompareSnapshotsAction:
         assert result.diff_result is not None
         assert result.error_message is None
         # Verify the diff detected the Label property change
-        assert len(result.diff_result.node_diffs) == 1
-        node_diff = result.diff_result.node_diffs[0]
+        assert len(result.diff_result.hierarchy.roots) == 1
+        node_diff = result.diff_result.hierarchy.roots[0]
         assert node_diff.path == "Part"
         assert node_diff.state == DiffState.MODIFIED
         # Verify property changes
@@ -214,10 +214,10 @@ class TestCompareSnapshotsAction:
         # Assert
         assert result.success is True
         assert result.diff_result is not None
-        assert result.diff_result.node_diffs == []
-        assert result.diff_result.summary.added_nodes == 0
-        assert result.diff_result.summary.deleted_nodes == 0
-        assert result.diff_result.summary.modified_nodes == 0
+        assert result.diff_result.hierarchy.roots == []
+        assert result.diff_result.added_count == 0
+        assert result.diff_result.deleted_count == 0
+        assert result.diff_result.modified_count == 0
 
     def test_compare_snapshots_with_exclusions(self) -> None:
         """Test comparison respects exclusion settings."""
@@ -280,7 +280,7 @@ class TestCompareSnapshotsAction:
         assert result.success is True
         assert result.diff_result is not None
         # Origin nodes should be excluded from the diff
-        for node_diff in result.diff_result.node_diffs:
+        for node_diff in result.diff_result.hierarchy.roots:
             assert node_diff.type_id != "App::Origin"
 
     def test_compare_snapshots_detects_added_node(self) -> None:
@@ -350,7 +350,7 @@ class TestCompareSnapshotsAction:
         assert result.success is True
         assert result.diff_result is not None
         # Find the NewPart node
-        new_part_diffs = [n for n in result.diff_result.node_diffs if n.path == "NewPart"]
+        new_part_diffs = [n for n in result.diff_result.hierarchy.roots if n.path == "NewPart"]
         assert len(new_part_diffs) == 1
         assert new_part_diffs[0].state == DiffState.ADDED
 
@@ -421,7 +421,7 @@ class TestCompareSnapshotsAction:
         assert result.success is True
         assert result.diff_result is not None
         # Find the DeletedPart node
-        deleted_part_diffs = [n for n in result.diff_result.node_diffs if n.path == "DeletedPart"]
+        deleted_part_diffs = [n for n in result.diff_result.hierarchy.roots if n.path == "DeletedPart"]
         assert len(deleted_part_diffs) == 1
         assert deleted_part_diffs[0].state == DiffState.DELETED
 
@@ -526,20 +526,19 @@ class TestCompareSnapshotsAction:
         # Assert
         assert result.success is True
         assert result.diff_result is not None
-        # Verify summary counts - unchanged nodes ARE now included in the diff
-        assert result.diff_result.summary.added_nodes == 1
-        assert result.diff_result.summary.deleted_nodes == 1
-        assert result.diff_result.summary.modified_nodes == 1
-        assert result.diff_result.summary.unchanged_nodes == 1
+        # Verify explicit count fields
+        assert result.diff_result.added_count == 1
+        assert result.diff_result.deleted_count == 1
+        assert result.diff_result.modified_count == 1
         # Verify specific changes - total node diffs should be 4 (added, deleted, modified, unchanged)
-        assert len(result.diff_result.node_diffs) == 4
-        modified_parts = [n for n in result.diff_result.node_diffs if n.path == "ModifiedPart"]
+        assert len(result.diff_result.hierarchy.roots) == 4
+        modified_parts = [n for n in result.diff_result.hierarchy.roots if n.path == "ModifiedPart"]
         assert len(modified_parts) == 1
         assert modified_parts[0].state == DiffState.MODIFIED
-        added_parts = [n for n in result.diff_result.node_diffs if n.path == "AddedPart"]
+        added_parts = [n for n in result.diff_result.hierarchy.roots if n.path == "AddedPart"]
         assert len(added_parts) == 1
         assert added_parts[0].state == DiffState.ADDED
-        deleted_parts = [n for n in result.diff_result.node_diffs if n.path == "DeletedPart"]
+        deleted_parts = [n for n in result.diff_result.hierarchy.roots if n.path == "DeletedPart"]
         assert len(deleted_parts) == 1
         assert deleted_parts[0].state == DiffState.DELETED
 
@@ -643,26 +642,29 @@ class TestCompareSnapshotsAction:
         assert result.diff_result is not None
         # The diff should detect changes in child nodes
         # Body is now included as a placeholder parent to preserve hierarchy
-        assert len(result.diff_result.node_diffs) == 1
+        assert len(result.diff_result.hierarchy.roots) == 1
         # Body should be the root with children nested under it
-        body_diff = result.diff_result.node_diffs[0]
+        body_diff = result.diff_result.hierarchy.roots[0]
         assert body_diff.path == "Body"
         assert body_diff.state == DiffState.UNCHANGED
+        # Body should have 3 children: modified Pad, deleted Pocket, added Fillet
         assert len(body_diff.children) == 3
         # Check that child changes are properly nested under Body
         pad_diffs = [n for n in body_diff.children if n.path == "Body/Pad"]
         assert len(pad_diffs) == 1
         assert pad_diffs[0].state == DiffState.MODIFIED
+        # Deleted Pocket should still appear (it was a child of Body)
         pocket_diffs = [n for n in body_diff.children if n.path == "Body/Pocket"]
         assert len(pocket_diffs) == 1
         assert pocket_diffs[0].state == DiffState.DELETED
+        # Added Fillet should be nested under Body
         fillet_diffs = [n for n in body_diff.children if n.path == "Body/Fillet"]
         assert len(fillet_diffs) == 1
         assert fillet_diffs[0].state == DiffState.ADDED
-        # Verify summary counts
-        assert result.diff_result.summary.modified_nodes == 1
-        assert result.diff_result.summary.deleted_nodes == 1
-        assert result.diff_result.summary.added_nodes == 1
+        # Verify explicit count fields
+        assert result.diff_result.modified_count == 1
+        assert result.diff_result.deleted_count == 1
+        assert result.diff_result.added_count == 1
 
     def test_compare_snapshots_property_value_changes(self) -> None:
         """Test detection of numeric and string property value differences."""
@@ -731,8 +733,8 @@ class TestCompareSnapshotsAction:
         # Assert
         assert result.success is True
         assert result.diff_result is not None
-        assert len(result.diff_result.node_diffs) == 1
-        node_diff = result.diff_result.node_diffs[0]
+        assert len(result.diff_result.hierarchy.roots) == 1
+        node_diff = result.diff_result.hierarchy.roots[0]
         assert node_diff.state == DiffState.MODIFIED
         # Verify property changes - all properties are included (changed and unchanged)
         changed_props = [p for p in node_diff.property_diffs if p.state != DiffState.UNCHANGED]

@@ -38,16 +38,17 @@ class DiffPresenter:
         self._diff_result = diff_result
 
         # Transform domain objects to presentation models
-        nodes = [self._format_node(node) for node in diff_result.node_diffs]
+        nodes = [self._format_node(node) for node in diff_result.hierarchy.roots]
 
         # Call view methods to trigger UI rendering
         self._view.show_diff_tree(nodes)
         # Pass raw integers - view handles translation and formatting using
         # individual labels (DIFF_SUMMARY_ADDED_LABEL, etc.) per user decision
+        # Use explicit counts from DiffResult
         self._view.show_summary(
-            added=diff_result.summary.added_nodes,
-            deleted=diff_result.summary.deleted_nodes,
-            modified=diff_result.summary.modified_nodes,
+            added=diff_result.added_count,
+            deleted=diff_result.deleted_count,
+            modified=diff_result.modified_count,
         )
 
     def _format_node(self, node_diff: NodeDiff) -> NodePresentation:
@@ -81,8 +82,8 @@ class DiffPresenter:
             self._view.show_properties([])
             return
 
-        # Find NodeDiff by path
-        node_diff = self._find_node_diff_by_path(path, self._diff_result.node_diffs)
+        # Find NodeDiff by path using hierarchy lookup
+        node_diff = self._diff_result.hierarchy.find_by_path(path)
 
         # If not found, clear properties
         if node_diff is None:
@@ -94,18 +95,6 @@ class DiffPresenter:
         properties = self._transform_property_diffs(node_diff)
         Log.debug(f"[PRESENTER] Transformed to {len(properties)} PropertyPresentation")
         self._view.show_properties(properties)
-
-    def _find_node_diff_by_path(self, path: str, node_diffs: list[NodeDiff]) -> NodeDiff | None:
-        """Recursively find NodeDiff by path."""
-        for node in node_diffs:
-            if node.path == path:
-                return node
-            # Search children recursively
-            if node.children:
-                found = self._find_node_diff_by_path(path, node.children)
-                if found:
-                    return found
-        return None
 
     def _transform_property_diffs(self, node_diff: NodeDiff) -> list[PropertyPresentation]:
         """Transform domain PropertyDiff to presentation format.
