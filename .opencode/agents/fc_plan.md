@@ -39,6 +39,15 @@ You MUST think, read, search, and delegate explore agents to construct a well-fo
 
 **The final step is to write the agreed-upon plan to a task file after receiving explicit user confirmation. This means the user explicitly says "write the plan" or similar.**
 
+Example of requests to output the plan WITHOUT writing the file:
+- Help me plan...
+- Create a plan to...
+- Come up with a plan for...
+
+Example of explicit approval to create the file:
+- Write the plan file
+- Create the plan file now
+
 ---
 
 ## FreeCAD Dependency Determination

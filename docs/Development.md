@@ -71,5 +71,5 @@ from freecad.diff_wb.domain.diff.engine import DiffEngine
 ## Additional Resources
 
 - [ARCHITECTURE.md](Architecture.md) - Detailed architecture overview
-- [PLAN.md](PLAN.md) - Implementation plan and progress
+- [PLAN.md](MVP-Implementation.md) - Implementation plan and progress
 - [feature_development.md](feature_development.md) - AI development process guide
