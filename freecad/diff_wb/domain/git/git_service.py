@@ -7,7 +7,7 @@
 
 import os
 
-from .models import GitRepository
+from .models import GitCommit, GitRepository
 from .ports import GitPort
 
 
@@ -47,3 +47,15 @@ class GitService:
             return None
         name = os.path.basename(git_root)
         return GitRepository(name=name, absolute_path=git_root)
+
+    def get_commits(self, repo: GitRepository, limit: int = 20) -> list[GitCommit]:
+        """Get recent commits from git repository.
+
+        Args:
+            repo: GitRepository to get commits from.
+            limit: Maximum number of commits to return.
+
+        Returns:
+            List of GitCommit objects in DESC order.
+        """
+        return self._git_port.get_commits(repo.absolute_path, limit)

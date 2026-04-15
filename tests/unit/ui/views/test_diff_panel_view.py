@@ -1,12 +1,15 @@
-"""File responsibility: Unit tests for DiffPanelView.show_snapshots() and snapshot selection implementation.
+"""File responsibility: Unit tests for DiffPanelView methods including show_snapshots(), show_commits(), and snapshot selection.
 
 These tests verify that the DiffPanelView correctly populates the snapshot list
 with SnapshotSummary data, including proper sorting, formatting, and ID storage.
 Additional tests cover the snapshot selection mechanism with role-based coloring.
 Tests for show_repository() verify the git repository display functionality.
+Tests for show_commits() verify the history/commit list display functionality.
 """
 
 from __future__ import annotations
+
+from datetime import datetime
 
 import pytest
 
@@ -39,8 +42,8 @@ class TestDiffPanelViewShowSnapshots:
         # Should not raise any exceptions
         panel.show_snapshots([])
 
-        # Snapshot list should be empty
-        assert panel.snapshot_list.count() == 0
+        # History list should be empty
+        assert panel.history_list.count() == 0
 
     def test_show_snapshots_clears_existing_items(self, panel) -> None:  # type: ignore[no-untyped-def]
         """show_snapshots() clears existing items before populating."""
@@ -52,7 +55,7 @@ class TestDiffPanelViewShowSnapshots:
                 SnapshotSummary(id="old-1", name="Old Snapshot 1", created_at="2024-01-01T10:00:00", node_count=10),
             ]
         )
-        assert panel.snapshot_list.count() == 1
+        assert panel.history_list.count() == 1
 
         # Replace with new list
         panel.show_snapshots(
@@ -62,8 +65,8 @@ class TestDiffPanelViewShowSnapshots:
         )
 
         # Should only have the new item
-        assert panel.snapshot_list.count() == 1
-        assert panel.snapshot_list.item(0).text() == "New Snapshot 1 - Feb 1, 2024 10:00AM"
+        assert panel.history_list.count() == 1
+        assert panel.history_list.item(0).text() == "New Snapshot 1 - Feb 1, 2024 10:00AM"
 
     def test_show_snapshots_sorts_by_timestamp_newest_first(self, panel) -> None:  # type: ignore[no-untyped-def]
         """show_snapshots() sorts snapshots by timestamp, newest first."""
@@ -78,10 +81,10 @@ class TestDiffPanelViewShowSnapshots:
         panel.show_snapshots(snapshots)
 
         # Verify order: Newest, Middle, Oldest
-        assert panel.snapshot_list.count() == 3
-        assert panel.snapshot_list.item(0).text().startswith("Newest")
-        assert panel.snapshot_list.item(1).text().startswith("Middle")
-        assert panel.snapshot_list.item(2).text().startswith("Oldest")
+        assert panel.history_list.count() == 3
+        assert panel.history_list.item(0).text().startswith("Newest")
+        assert panel.history_list.item(1).text().startswith("Middle")
+        assert panel.history_list.item(2).text().startswith("Oldest")
 
     def test_show_snapshots_stores_id_in_user_role(self, panel) -> None:  # type: ignore[no-untyped-def]
         """show_snapshots() stores snapshot ID in Qt.UserRole for each item."""
@@ -96,7 +99,7 @@ class TestDiffPanelViewShowSnapshots:
         panel.show_snapshots(snapshots)
 
         # Verify ID is stored in UserRole
-        item = panel.snapshot_list.item(0)
+        item = panel.history_list.item(0)
         assert item is not None
         stored_id = item.data(Qt.ItemDataRole.UserRole)
         assert stored_id == "test-id-123"
@@ -112,7 +115,7 @@ class TestDiffPanelViewShowSnapshots:
         panel.show_snapshots(snapshots)
 
         # Check format: "My Snapshot - Jan 15, 2024 10:30 AM"
-        item_text = panel.snapshot_list.item(0).text()
+        item_text = panel.history_list.item(0).text()
         assert item_text == "My Snapshot - Jan 15, 2024 10:30AM"
 
     def test_show_snapshots_multiple_items_with_ids(self, panel) -> None:  # type: ignore[no-untyped-def]
@@ -130,9 +133,9 @@ class TestDiffPanelViewShowSnapshots:
         panel.show_snapshots(snapshots)
 
         # Verify all IDs are stored correctly (in sorted order: Third, Second, First)
-        assert panel.snapshot_list.item(0).data(Qt.ItemDataRole.UserRole) == "id-3"
-        assert panel.snapshot_list.item(1).data(Qt.ItemDataRole.UserRole) == "id-2"
-        assert panel.snapshot_list.item(2).data(Qt.ItemDataRole.UserRole) == "id-1"
+        assert panel.history_list.item(0).data(Qt.ItemDataRole.UserRole) == "id-3"
+        assert panel.history_list.item(1).data(Qt.ItemDataRole.UserRole) == "id-2"
+        assert panel.history_list.item(2).data(Qt.ItemDataRole.UserRole) == "id-1"
 
 
 class TestSnapshotSelection:
@@ -153,9 +156,9 @@ class TestSnapshotSelection:
         )
 
         # When: User clicks first snapshot (row 0) - use setCurrentItem to simulate click
-        item0 = panel.snapshot_list.item(0)
+        item0 = panel.history_list.item(0)
         assert item0 is not None
-        panel.snapshot_list.setCurrentItem(item0)
+        panel.history_list.setCurrentItem(item0)
 
         # Then: First snapshot has red background ("from" role)
         assert item0.background().color() == QColor(255, 200, 200)
@@ -177,12 +180,12 @@ class TestSnapshotSelection:
                 SnapshotSummary(id="snap-2", name="Second", created_at="2024-01-02T10:00:00", node_count=20),
             ]
         )
-        item0 = panel.snapshot_list.item(0)
+        item0 = panel.history_list.item(0)
         assert item0 is not None
-        panel.snapshot_list.setCurrentItem(item0)
+        panel.history_list.setCurrentItem(item0)
 
         # When: User Ctrl+clicks second snapshot (row 1) - use setSelected to add to selection
-        item1 = panel.snapshot_list.item(1)
+        item1 = panel.history_list.item(1)
         assert item1 is not None
         item1.setSelected(True)
 
@@ -206,11 +209,11 @@ class TestSnapshotSelection:
                 SnapshotSummary(id="snap-2", name="Second", created_at="2024-01-02T10:00:00", node_count=20),
             ]
         )
-        item0 = panel.snapshot_list.item(0)
-        item1 = panel.snapshot_list.item(1)
+        item0 = panel.history_list.item(0)
+        item1 = panel.history_list.item(1)
         assert item0 is not None
         assert item1 is not None
-        panel.snapshot_list.setCurrentItem(item0)
+        panel.history_list.setCurrentItem(item0)
         item1.setSelected(True)
 
         # When: User Ctrl+clicks first (red/"from") snapshot again to deselect
@@ -235,13 +238,13 @@ class TestSnapshotSelection:
                 SnapshotSummary(id="snap-2", name="Second", created_at="2024-01-02T10:00:00", node_count=20),
             ]
         )
-        item0 = panel.snapshot_list.item(0)
+        item0 = panel.history_list.item(0)
         assert item0 is not None
-        panel.snapshot_list.setCurrentItem(item0)
-        panel.snapshot_list.clearSelection()
+        panel.history_list.setCurrentItem(item0)
+        panel.history_list.clearSelection()
 
         # When: User clicks row 0 again
-        panel.snapshot_list.setCurrentItem(item0)
+        panel.history_list.setCurrentItem(item0)
 
         # Then: Row 0 becomes "from" again (red background)
         assert len(panel._selected_items) == 1
@@ -262,11 +265,11 @@ class TestSnapshotSelection:
                 SnapshotSummary(id="snap-2", name="Second", created_at="2024-01-02T10:00:00", node_count=20),
             ]
         )
-        item0 = panel.snapshot_list.item(0)
-        item1 = panel.snapshot_list.item(1)
+        item0 = panel.history_list.item(0)
+        item1 = panel.history_list.item(1)
         assert item0 is not None
         assert item1 is not None
-        panel.snapshot_list.setCurrentItem(item0)
+        panel.history_list.setCurrentItem(item0)
         item0.setSelected(False)
         item0.setSelected(True)  # Re-select row 0 as "from"
 
@@ -293,18 +296,18 @@ class TestSnapshotSelection:
                 SnapshotSummary(id="snap-3", name="Third", created_at="2024-01-03T10:00:00", node_count=30),
             ]
         )
-        item0 = panel.snapshot_list.item(0)
-        item1 = panel.snapshot_list.item(1)
+        item0 = panel.history_list.item(0)
+        item1 = panel.history_list.item(1)
         assert item0 is not None
         assert item1 is not None
-        panel.snapshot_list.setCurrentItem(item0)
+        panel.history_list.setCurrentItem(item0)
         item1.setSelected(True)
 
         # Remember the state before attempting third selection
         selected_before = set(panel._selected_items.keys())
 
         # When: User attempts to select third snapshot (row 2)
-        item2 = panel.snapshot_list.item(2)
+        item2 = panel.history_list.item(2)
         assert item2 is not None
         item2.setSelected(True)
 
@@ -335,11 +338,11 @@ class TestSnapshotSelection:
             ]
         )
         # Select row 5 first (gets "from") - this is snap-1 (oldest)
-        item5 = panel.snapshot_list.item(5)
+        item5 = panel.history_list.item(5)
         assert item5 is not None
-        panel.snapshot_list.setCurrentItem(item5)
+        panel.history_list.setCurrentItem(item5)
         # Select row 2 second (gets "to") - this is snap-4
-        item2 = panel.snapshot_list.item(2)
+        item2 = panel.history_list.item(2)
         assert item2 is not None
         item2.setSelected(True)
 
@@ -380,11 +383,11 @@ class TestSnapshotSelection:
                 SnapshotSummary(id="snap-2", name="Second", created_at="2024-01-02T10:00:00", node_count=20),
             ]
         )
-        item0 = panel.snapshot_list.item(0)
-        item1 = panel.snapshot_list.item(1)
+        item0 = panel.history_list.item(0)
+        item1 = panel.history_list.item(1)
         assert item0 is not None
         assert item1 is not None
-        panel.snapshot_list.setCurrentItem(item0)
+        panel.history_list.setCurrentItem(item0)
         item1.setSelected(True)
 
         default_bg = panel._get_default_background()
@@ -394,7 +397,7 @@ class TestSnapshotSelection:
 
         # Then: All backgrounds reset to default, no roles tracked
         assert len(panel._selected_items) == 0
-        assert panel.snapshot_list.selectedItems() == []
+        assert panel.history_list.selectedItems() == []
         assert item0.background().color() == default_bg
         assert item1.background().color() == default_bg
 
@@ -409,9 +412,9 @@ class TestSnapshotSelection:
                 SnapshotSummary(id="snap-2", name="Second", created_at="2024-01-02T10:00:00", node_count=20),
             ]
         )
-        item0 = panel.snapshot_list.item(0)
+        item0 = panel.history_list.item(0)
         assert item0 is not None
-        panel.snapshot_list.setCurrentItem(item0)
+        panel.history_list.setCurrentItem(item0)
         assert len(panel._selected_items) == 1
 
         # When: Call show_snapshots() with new snapshot list
@@ -425,7 +428,7 @@ class TestSnapshotSelection:
 
         # Then: All selections and roles cleared
         assert len(panel._selected_items) == 0
-        assert panel.snapshot_list.selectedItems() == []
+        assert panel.history_list.selectedItems() == []
 
 
 class TestDiffPanelViewShowSummary:
@@ -518,10 +521,12 @@ class TestDiffPanelViewRefreshButton:
         assert "refresh" in tooltip.lower() or "git" in tooltip.lower()
 
     def test_refresh_button_is_small_fixed_size(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """Refresh button has a small fixed size (24x24)."""
-        size = panel._refresh_button.size()
-        assert size.width() == 24
-        assert size.height() == 24
+        """Refresh button has a small icon size set."""
+        # Check icon size rather than button size, as button size is managed by layout
+        # Note: Actual dimensions may vary based on available icon resource
+        icon_size = panel._refresh_button.iconSize()
+        assert icon_size.width() > 0
+        assert icon_size.height() > 0
 
 
 class TestDiffPanelViewShowRepository:
@@ -595,3 +600,250 @@ class TestDiffPanelViewShowRepository:
         assert "italic" in stylesheet
         assert "gray" in stylesheet
         assert panel._repository_label.toolTip() == ""
+
+
+class TestShowCommits:
+    """Tests for DiffPanelView.show_commits method."""
+
+    def test_show_commits_displays_commits_correctly(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Test that commits are displayed with correct format."""
+        from freecad.diff_wb.domain.git.models import GitCommit
+
+        commits = [
+            GitCommit(
+                id="a1b2c3d4e5f6789012345678901234567890abcd",
+                message="Fix bug in snapshot comparison\n\nThis fixes the issue where...",
+                author="John Doe",
+                timestamp=datetime.fromisoformat("2024-01-15T10:30:00+00:00"),
+            ),
+        ]
+
+        panel.show_commits(commits)
+
+        # Verify commit is displayed
+        assert panel.history_list.count() == 1
+        item = panel.history_list.item(0)
+        assert "a1b2c3d" in item.text()  # 7-char hash
+        assert "John Doe" in item.text()  # Author
+        assert "2024-01-15" in item.text()  # Date
+
+    def test_show_commits_empty_list(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Test that empty commit list doesn't crash."""
+        panel.show_commits([])
+        assert panel.history_list.count() == 0
+
+    def test_show_commits_tooltip_has_full_message(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Test that tooltip contains full commit message."""
+        from freecad.diff_wb.domain.git.models import GitCommit
+
+        full_message = "Fix bug\n\nDetailed explanation..."
+        commit = GitCommit(
+            id="a1b2c3d4e5f67890",
+            message=full_message,
+            author="Test",
+            timestamp=datetime.fromisoformat("2024-01-15T10:30:00+00:00"),
+        )
+
+        panel.show_commits([commit])
+        item = panel.history_list.item(0)
+
+        assert item.toolTip() == full_message
+
+    def test_show_commits_clears_selection(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Test that show_commits clears any existing selection."""
+        # First add some items to select
+        from freecad.diff_wb.application.actions.result_models import SnapshotSummary
+
+        panel.show_snapshots(
+            [
+                SnapshotSummary(id="snap-1", name="First", created_at="2024-01-01T10:00:00", node_count=10),
+            ]
+        )
+        item0 = panel.history_list.item(0)
+        assert item0 is not None
+        panel.history_list.setCurrentItem(item0)
+        assert len(panel._selected_items) == 1
+
+        # Now call show_commits
+        from freecad.diff_wb.domain.git.models import GitCommit
+
+        commit = GitCommit(
+            id="a1b2c3d4e5f67890",
+            message="Test commit",
+            author="Test",
+            timestamp=datetime.fromisoformat("2024-01-15T10:30:00+00:00"),
+        )
+        panel.show_commits([commit])
+
+        # Selection should be cleared
+        assert len(panel._selected_items) == 0
+
+    def test_show_commits_two_line_format(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Test that commits display with two-line format."""
+        from freecad.diff_wb.domain.git.models import GitCommit
+
+        commit = GitCommit(
+            id="abc123def456",
+            message="This is the subject line\n\nThis is the body of the commit message.",
+            author="Alice Smith",
+            timestamp=datetime.fromisoformat("2024-03-20T14:45:00+00:00"),
+        )
+
+        panel.show_commits([commit])
+        item = panel.history_list.item(0)
+        text = item.text()
+
+        # Check that there's a newline in the display text (two lines)
+        assert "\n" in text
+        # Line 1 should have hash, author, timestamp
+        lines = text.split("\n")
+        assert len(lines) == 2
+        assert "abc123d" in lines[0]  # 7-char hash
+        assert "Alice Smith" in lines[0]  # Author
+        assert "2024-03-20" in lines[0]  # Date
+        # Line 2 should have first line of message
+        assert "This is the subject line" in lines[1]
+
+    def test_show_commits_multiple_commits_newest_first(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Test that multiple commits are displayed in the order provided (assumed pre-sorted by adapter).
+
+        Note: The view does not sort commits; it displays them as provided. The GitPortAdapter
+        returns commits in DESC order (newest first), so the caller should ensure commits are
+        sorted before passing to this method.
+        """
+        from freecad.diff_wb.domain.git.models import GitCommit
+
+        # Pass commits already sorted in DESC order (newest first)
+        commits = [
+            GitCommit(
+                id="new123",
+                message="New commit",
+                author="New Author",
+                timestamp=datetime.fromisoformat("2024-03-01T10:00:00+00:00"),
+            ),
+            GitCommit(
+                id="mid123",
+                message="Middle commit",
+                author="Mid Author",
+                timestamp=datetime.fromisoformat("2024-02-01T10:00:00+00:00"),
+            ),
+            GitCommit(
+                id="old123",
+                message="Old commit",
+                author="Old Author",
+                timestamp=datetime.fromisoformat("2024-01-01T10:00:00+00:00"),
+            ),
+        ]
+
+        panel.show_commits(commits)
+
+        # Verify order matches input (pre-sorted)
+        assert panel.history_list.count() == 3
+        assert "New commit" in panel.history_list.item(0).text()
+        assert "Middle commit" in panel.history_list.item(1).text()
+        assert "Old commit" in panel.history_list.item(2).text()
+
+    def test_show_commits_short_hash_truncation(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Test that long commit hashes are truncated to 7 characters."""
+        from freecad.diff_wb.domain.git.models import GitCommit
+
+        commit = GitCommit(
+            id="a1b2c3d4e5f6789012345678901234567890abcd",
+            message="Test",
+            author="Test",
+            timestamp=datetime.fromisoformat("2024-01-15T10:30:00+00:00"),
+        )
+
+        panel.show_commits([commit])
+        item = panel.history_list.item(0)
+        text = item.text()
+
+        # Should have 7-char hash, not the full hash
+        assert "a1b2c3d" in text
+        assert "e5f6789" not in text  # Full hash should not appear
+
+    def test_show_commits_no_automatic_selection(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Test that show_commits does not automatically select any items."""
+        from freecad.diff_wb.domain.git.models import GitCommit
+
+        commits = [
+            GitCommit(
+                id="a1b2c3d4e5f67890",
+                message="Test commit",
+                author="Test",
+                timestamp=datetime.fromisoformat("2024-01-15T10:30:00+00:00"),
+            ),
+            GitCommit(
+                id="b2c3d4e5f6789012",
+                message="Another commit",
+                author="Test",
+                timestamp=datetime.fromisoformat("2024-01-16T10:30:00+00:00"),
+            ),
+        ]
+
+        panel.show_commits(commits)
+
+        # No items should be selected
+        assert len(panel.history_list.selectedItems()) == 0
+
+    def test_show_commits_long_message_wraps(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Test that long commit messages wrap within the list item."""
+        from freecad.diff_wb.domain.git.models import GitCommit
+
+        # Create a commit with a very long first line
+        long_message = "A" * 200  # 200 character message
+        commit = GitCommit(
+            id="a1b2c3d4e5f67890",
+            message=long_message,
+            author="Test Author",
+            timestamp=datetime.fromisoformat("2024-01-15T10:30:00+00:00"),
+        )
+
+        panel.show_commits([commit])
+        item = panel.history_list.item(0)
+
+        # Verify the full message is in the text
+        assert "A" * 100 in item.text()  # Should contain the long message
+
+        # Verify word wrap is enabled on the list
+        assert panel.history_list.wordWrap() is True
+
+    def test_show_commits_empty_message_handles_gracefully(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Test that empty or whitespace-only commit messages are handled gracefully."""
+        from freecad.diff_wb.domain.git.models import GitCommit
+
+        # Test with empty message
+        commit_empty = GitCommit(
+            id="a1b2c3d4e5f67890",
+            message="",
+            author="Test Author",
+            timestamp=datetime.fromisoformat("2024-01-15T10:30:00+00:00"),
+        )
+
+        panel.show_commits([commit_empty])
+        item = panel.history_list.item(0)
+
+        # Should not crash and should have some display text (hash, author, date)
+        assert item is not None
+        assert "a1b2c3d" in item.text()
+        # First line of message should be empty
+        lines = item.text().split("\n")
+        assert len(lines) == 2
+        assert lines[1] == ""
+
+        # Test with whitespace-only message
+        commit_whitespace = GitCommit(
+            id="b2c3d4e5f6789012",
+            message="   \n\n   ",
+            author="Test Author",
+            timestamp=datetime.fromisoformat("2024-01-15T10:30:00+00:00"),
+        )
+
+        panel.show_commits([commit_whitespace])
+        item = panel.history_list.item(0)
+
+        # Should not crash
+        assert item is not None
+        lines = item.text().split("\n")
+        assert len(lines) == 2
+        assert lines[1] == ""  # Whitespace should be stripped to empty

@@ -1,11 +1,13 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 # File responsibility: This module defines the GitPort protocol interface for git
 # repository operations. It provides a contract for git port implementations that
-# can be used by the domain layer without coupling to specific infrastructure.
+# can be used by the domain layer without coupling to specific implementations.
 # The protocol has no external dependencies beyond the standard library.
 """Git domain ports (protocol interfaces)."""
 
 from typing import Protocol
+
+from freecad.diff_wb.domain.git.models import GitCommit
 
 
 class GitPort(Protocol):
@@ -17,6 +19,7 @@ class GitPort(Protocol):
 
     Attributes:
         find_top_level_path: Method to find the git root path from a given path.
+        get_commits: Method to get recent commits from a git repository.
     """
 
     def find_top_level_git_path(self, path: str) -> str | None:
@@ -31,5 +34,17 @@ class GitPort(Protocol):
         Returns:
             Absolute path to git root as string if path is in a git repo,
             or None if not in a git repo.
+        """
+        ...
+
+    def get_commits(self, path: str, limit: int = 20) -> list[GitCommit]:
+        """Get recent commits from git repository.
+
+        Args:
+            path: Absolute path to git repository root.
+            limit: Maximum number of commits to return (default 20 for MVP).
+
+        Returns:
+            List of GitCommit objects in DESC order (newest first).
         """
         ...

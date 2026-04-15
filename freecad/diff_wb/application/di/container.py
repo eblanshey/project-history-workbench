@@ -24,6 +24,7 @@ from ...ui.protocols.snapshot_view import SnapshotView
 from ..actions.commands.compare_snapshots import CompareSnapshotsAction
 from ..actions.commands.take_snapshot import TakeSnapshotAction
 from ..actions.find_active_git_repository import FindActiveGitRepositoryAction
+from ..actions.get_commits import GetCommitsAction
 from ..actions.queries.list_snapshots import ListSnapshotsAction
 
 
@@ -82,6 +83,7 @@ class ApplicationContainer:
     git_port: GitPort
     git_service: GitService
     find_active_git_repository_action: FindActiveGitRepositoryAction
+    get_commits_action: GetCommitsAction
     application_state: ApplicationState
 
     def log(self, message: str) -> None:
@@ -166,6 +168,8 @@ def create_application_container(
         git_service=git_service,
     )
 
+    get_commits_action = GetCommitsAction(git_service=git_service)
+
     # Create presenters (UI layer - interface adapters)
     snapshot_presenter = SnapshotPresenter(
         view=snapshot_view or NullSnapshotView(),
@@ -187,5 +191,6 @@ def create_application_container(
         git_port=git_port,
         git_service=git_service,
         find_active_git_repository_action=find_active_git_repository_action,
+        get_commits_action=get_commits_action,
         application_state=application_state,
     )

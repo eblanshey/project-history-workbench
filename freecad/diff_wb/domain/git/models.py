@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
-# File responsibility: This module contains the GitRepository frozen dataclass which
-# represents a git repository with its name (directory name) and absolute path.
-# It is a core domain model with no external dependencies.
+# File responsibility: This module contains the GitRepository and GitCommit frozen
+# dataclasses which represent a git repository and a git commit respectively.
+# These are core domain models with no external dependencies.
 """Git domain models."""
 
 from dataclasses import dataclass
+from datetime import datetime
 
 
 @dataclass(frozen=True)
@@ -29,3 +30,31 @@ class GitRepository:
             String in format "name (absolute_path)"
         """
         return f"{self.name} ({self.absolute_path})"
+
+
+@dataclass(frozen=True)
+class GitCommit:
+    """A git commit representation.
+
+    This immutable dataclass represents a git commit with its id, message,
+    author, and timestamp.
+
+    Attributes:
+        id: The commit hash (full hash, caller can truncate for display)
+        message: Full commit message (subject + body)
+        author: Author name
+        timestamp: datetime instance representing commit time
+    """
+
+    id: str
+    message: str  # Full message, not just subject line
+    author: str
+    timestamp: datetime  # datetime instance
+
+    def __str__(self) -> str:
+        """Return a string representation of the commit.
+
+        Returns:
+            String in format "id | author | timestamp | message"
+        """
+        return f"{self.id} | {self.author} | {self.timestamp.isoformat()} | {self.message}"

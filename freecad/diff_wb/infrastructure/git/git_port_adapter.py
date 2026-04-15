@@ -2,13 +2,17 @@
 # File responsibility: This module provides the GitPortAdapter class that implements
 # the GitPort protocol using git CLI via subprocess. It handles git repository
 # detection by running 'git rev-parse --show-toplevel' and returning the root path
-# or None if the path is not in a git repository.
+# or None if the path is not in a git repository. It also retrieves recent commits
+# using 'git log' with proper parsing of commit data.
 """GitPort adapter implementation using git CLI."""
 
 import os
 import subprocess
+from datetime import datetime
 
+from freecad.diff_wb.domain.git.models import GitCommit
 from freecad.diff_wb.domain.git.ports import GitPort
+from freecad.diff_wb.utils import Log
 
 
 class GitPortAdapter(GitPort):
@@ -55,3 +59,81 @@ class GitPortAdapter(GitPort):
             return None
         except (subprocess.TimeoutExpired, FileNotFoundError, NotADirectoryError, OSError):
             return None
+
+    def get_commits(self, path: str, limit: int = 20) -> list[GitCommit]:
+        """Get recent commits using git CLI.
+
+        Uses 'git log' with null-byte separators to handle multiline messages
+        and special characters safely. Format uses %x00 (null byte) as delimiter:
+        %H%x00%B%x00%an%x00%aI%x00
+        - %H: full commit hash
+        - %B: full message (subject + body)
+        - %an: author name
+        - %aI: author date in ISO 8601 format
+        - %x00: null byte separator
+
+        Returns commits in DESC order (newest first).
+
+        Args:
+            path: Absolute path to git repository root.
+            limit: Maximum number of commits to return (default 20).
+
+        Returns:
+            List of GitCommit objects in DESC order (newest first).
+        """
+        # Normalize path: if path is a file, use its parent directory as cwd
+        cwd_path = path
+        if path and os.path.isfile(path):
+            cwd_path = os.path.dirname(path)
+
+        try:
+            result = subprocess.run(
+                ["git", "log", f"-n{limit}", "--format=%H%x00%B%x00%an%x00%aI%x00"],
+                cwd=cwd_path,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode != 0:
+                Log.warning(f"Git log failed with return code {result.returncode}: {result.stderr.strip()}")
+                return []
+
+            output = result.stdout.strip()
+            if not output:
+                return []
+
+            # Split by null byte to get all fields
+            # Each commit has 4 fields: hash, message, author, timestamp
+            # The trailing %x00 after timestamp creates an extra empty element
+            parts = output.split("\x00")
+
+            commits = []
+            # Process in groups of 4 (hash, message, author, timestamp)
+            for i in range(0, len(parts) - 3, 4):
+                commit_hash = parts[i]
+                full_message = parts[i + 1]
+                author = parts[i + 2]
+                timestamp = parts[i + 3]
+
+                if commit_hash:  # Skip empty entries
+                    # Parse ISO format timestamp into datetime instance
+                    timestamp_dt = datetime.fromisoformat(timestamp)
+                    commits.append(
+                        GitCommit(
+                            id=commit_hash,
+                            message=full_message,
+                            author=author,
+                            timestamp=timestamp_dt,
+                        )
+                    )
+
+            return commits
+        except subprocess.TimeoutExpired:
+            Log.warning(f"Git log command timed out for path: {path}")
+            return []
+        except FileNotFoundError:
+            Log.warning("Git command not found - git may not be installed or not in PATH")
+            return []
+        except (NotADirectoryError, OSError) as e:
+            Log.warning(f"Git error for path {path}: {e}")
+            return []

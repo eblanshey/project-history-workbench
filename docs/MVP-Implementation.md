@@ -45,9 +45,12 @@ Action: GetCommits
 - In GitService add method "get_commits(GitRepository)" which returns only the last 20 GitCommits (for the MVP), uses the adapter. Returns in DESC order.
 - Create action GetCommits(GitRepository), which calls the GitService
 - Update the presenter to call the action, then pass commits to the view for display
-- Create a new sub-view which displays all the commits in a QListWidget. This will replace the existing Snapshot widget. Let's call this the History widget. 
+- Create a new sub-view which displays all the commits in a QListWidget. This will replace the existing Snapshot list widget. Let's call this the History widget. 
   - Make the Commit QListWidget display the first 7 chars of the commit, author, and timestamp on one line, and the first line of the message on the second line (and wrap to next line if first line too long). Tooltip or popover can display the full message.
   - Do not select a commit automatically on load -- nothing should be selected
+- The GitRepositoryPresenter can be used to "own" this part of the view that deals with commit list.
+- Update the _detect_git_repository method to automatically trigger loading the commits. This means that the "on_refresh_clicked" will also trigger reloading commits.
+- The "History" label can be placed below the existing repository name label (the QHBoxLayout), and "Snapshots" label removed.
 
 Questions:
 - Is QListWidget the best widget type to use for commits? 

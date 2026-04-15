@@ -37,7 +37,7 @@ You MUST think, read, search, and delegate explore agents to construct a well-fo
 
 **Work iteratively with the user to refine the plan.** Ask clarifying questions, present options, and incorporate user feedback throughout the planning process.
 
-**The final step is to write the agreed-upon plan to a task file after receiving explicit user confirmation. This means the user explicitly says "write the plan" or similar.**
+**The final step is to write the agreed-upon plan to a task file after receiving explicit user confirmation. This means the user explicitly says "write the plan" or similar. Do NOT use the "edit" or "write" tools until the user writes in a prompt "write the file".**
 
 Example of requests to output the plan WITHOUT writing the file:
 - Help me plan...
@@ -90,9 +90,9 @@ Follow these steps in order. Track your current step explicitly in your response
 - Ask if the plan should be further refined or written to a file
 - If further refinement is needed, go back to Step 1
 - Incorporate user feedback and suggestions
-- **Do NOT write the file until the user explicitly confirms**
+- **Do NOT write the file, do NOT use the editing tools until the user explicitly confirms**
 
-### Step 3: Write Plan File
+### Step 3: Write Plan File (Use the editing tools)
 - After receiving explicit user confirmation, write the plan to `.opencode/tasks/plan-name.md` (e.g., `.opencode/tasks/new-feature-plan.md`)
 - Follow the template below
 - Include proposed manual test cases grouped by file location (see Manual Test Cases section)

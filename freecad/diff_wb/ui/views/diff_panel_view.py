@@ -39,12 +39,13 @@ except (ImportError, AttributeError):
 
 from ...application.actions.result_models import SnapshotSummary
 from ...domain.diff.models import DiffState
-from ...domain.git.models import GitRepository
+from ...domain.git.models import GitCommit, GitRepository
 from ..presenters.presentation_models import NodePresentation, PropertyPresentation
 from ..translation_strings import (
     DIFF_SUMMARY_ADDED_LABEL,
     DIFF_SUMMARY_DELETED_LABEL,
     DIFF_SUMMARY_MODIFIED_LABEL,
+    HISTORY_LABEL,
     REPOSITORY_INFO_TEMPLATE,
     REPOSITORY_NO_REPO_MESSAGE,
 )
@@ -282,18 +283,19 @@ class DiffPanelView(QWidget):
         # Create horizontal splitter
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
-        # Column 1: Snapshots list (always visible)
-        self.snapshot_list = QListWidget()
-        self.snapshot_list.setMinimumWidth(150)
-        self.snapshot_list.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
-        self.snapshot_list.itemSelectionChanged.connect(self._on_selection_changed)
+        # Column 1: History/Commits list (always visible)
+        self.history_list = QListWidget()
+        self.history_list.setMinimumWidth(150)
+        self.history_list.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
+        self.history_list.setWordWrap(True)  # Enable text wrapping for long messages
+        self.history_list.itemSelectionChanged.connect(self._on_selection_changed)
         # Set the custom delegate for rendering selection colors
-        self.snapshot_list.setItemDelegate(self._delegate)
-        # Update the delegate's parent reference now that snapshot_list exists
-        self._delegate._parent = self.snapshot_list
-        snapshot_placeholder = QLabel("Snapshots")
-        snapshot_placeholder.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        # Repository info label (shown above snapshot list)
+        self.history_list.setItemDelegate(self._delegate)
+        # Update the delegate's parent reference now that history_list exists
+        self._delegate._parent = self.history_list
+        history_placeholder = QLabel(HISTORY_LABEL)
+        history_placeholder.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        # Repository info label (shown above history list)
         self._repository_label = QLabel("")
         self._repository_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self._repository_label.setStyleSheet("font-size: 11px; color: gray; font-style: italic;")
@@ -310,11 +312,11 @@ class DiffPanelView(QWidget):
         repository_header_layout.addWidget(self._refresh_button)
         repository_header_container = QWidget()
         repository_header_container.setLayout(repository_header_layout)
-        # Reorder widgets: repository header FIRST, then placeholder, then snapshot list
+        # Reorder widgets: repository header FIRST, then placeholder, then history list
         snapshot_layout = QVBoxLayout()
         snapshot_layout.addWidget(repository_header_container)
-        snapshot_layout.addWidget(snapshot_placeholder)
-        snapshot_layout.addWidget(self.snapshot_list)
+        snapshot_layout.addWidget(history_placeholder)
+        snapshot_layout.addWidget(self.history_list)
         snapshot_container = QWidget()
         snapshot_container.setLayout(snapshot_layout)
 
@@ -388,7 +390,7 @@ class DiffPanelView(QWidget):
     def show_snapshots(self, snapshots: list[SnapshotSummary]) -> None:
         """Display list of available snapshots.
 
-        Populates the snapshot list widget with snapshot information, sorted by
+        Populates the history list widget with snapshot information, sorted by
         timestamp (newest first). Each item displays the snapshot name and
         formatted timestamp, with the snapshot ID stored in Qt.UserRole for
         later selection.
@@ -401,7 +403,7 @@ class DiffPanelView(QWidget):
         self.clear_selection()
 
         # Clear existing items
-        self.snapshot_list.clear()
+        self.history_list.clear()
 
         # Sort snapshots by timestamp (newest first)
         sorted_snapshots = sorted(
@@ -422,7 +424,51 @@ class DiffPanelView(QWidget):
             item.setData(Qt.ItemDataRole.UserRole, snapshot.id)
 
             # Add to list
-            self.snapshot_list.addItem(item)
+            self.history_list.addItem(item)
+
+    def show_commits(self, commits: list[GitCommit]) -> None:
+        """Display git commits in the history list.
+
+        Args:
+            commits: List of GitCommit objects to display. Commits are shown
+                in DESC order (newest first) with 7-char hash, author, timestamp
+                on line 1, and first line of message on line 2. Full commit
+                message is shown in tooltip.
+        """
+        # Clear existing items and selections
+        self.history_list.clear()
+        self._selected_items = {}  # Reset selection tracking
+
+        # Guard: no commits to display
+        if not commits:
+            return
+
+        # Note: Commits are already sorted by timestamp (newest first) by GitPortAdapter.get_commits()
+        # using git log which returns commits in DESC order by default. No additional sorting needed.
+        sorted_commits = commits
+
+        # Add each commit to the list
+        for commit in sorted_commits:
+            # Truncate hash to 7 characters for display
+            short_hash = commit.id[:7] if len(commit.id) >= 7 else commit.id
+
+            # Format line 1: hash, author, timestamp
+            timestamp_str = commit.timestamp.strftime("%Y-%m-%d %H:%M")
+
+            # Get first line of message for line 2
+            first_line = commit.message.split("\n")[0].strip() if commit.message and commit.message.strip() else ""
+
+            # Create display text with newline for two-line format
+            display_text = f"{short_hash} {commit.author} {timestamp_str}\n{first_line}"
+
+            # Create list item
+            item = QListWidgetItem(display_text)
+
+            # Set tooltip to full commit message
+            item.setToolTip(commit.message)
+
+            # Add to list
+            self.history_list.addItem(item)
 
     def _format_timestamp(self, iso_string: str) -> str:
         """Format ISO timestamp string for display.
@@ -846,7 +892,7 @@ class DiffPanelView(QWidget):
     def _on_selection_changed(self) -> None:
         """Handle selection changes with max-2 limit and stable color roles."""
         # Get currently selected rows from Qt
-        current_selected_rows = {self.snapshot_list.row(item) for item in self.snapshot_list.selectedItems()}
+        current_selected_rows = {self.history_list.row(item) for item in self.history_list.selectedItems()}
         existing_rows = set(self._selected_items.keys())
 
         # Detect added/removed rows
@@ -879,7 +925,7 @@ class DiffPanelView(QWidget):
 
     def _reject_selection(self, row: int) -> None:
         """Silently reject a selection attempt by deselecting the item."""
-        item = self.snapshot_list.item(row)
+        item = self.history_list.item(row)
         if item:
             item.setSelected(False)
 
@@ -899,7 +945,7 @@ class DiffPanelView(QWidget):
             row: The row number of the selected item.
             role: The assigned role ("from" or "to").
         """
-        item = self.snapshot_list.item(row)
+        item = self.history_list.item(row)
         if item:
             color = _SnapshotListItemDelegate.FROM_COLOR if role == "from" else _SnapshotListItemDelegate.TO_COLOR
             item.setBackground(QBrush(color))
@@ -916,13 +962,13 @@ class DiffPanelView(QWidget):
         # First add "from" if exists
         for item in self._selected_items.values():
             if item.role == "from":
-                widget_item = self.snapshot_list.item(item.row)
+                widget_item = self.history_list.item(item.row)
                 if widget_item:
                     ids.append(widget_item.data(Qt.ItemDataRole.UserRole))
         # Then add "to" if exists
         for item in self._selected_items.values():
             if item.role == "to":
-                widget_item = self.snapshot_list.item(item.row)
+                widget_item = self.history_list.item(item.row)
                 if widget_item:
                     ids.append(widget_item.data(Qt.ItemDataRole.UserRole))
         return ids
@@ -931,10 +977,10 @@ class DiffPanelView(QWidget):
         """Clear all selections, reset backgrounds, and clear role tracking."""
         # Reset all tracked item backgrounds to default
         for row in self._selected_items:
-            item = self.snapshot_list.item(row)
+            item = self.history_list.item(row)
             if item:
                 item.setBackground(QBrush(self._get_default_background()))
 
         # Clear selection and tracking
-        self.snapshot_list.clearSelection()
+        self.history_list.clearSelection()
         self._selected_items = {}

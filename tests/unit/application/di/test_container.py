@@ -6,6 +6,7 @@ layer dependencies together, including git repository detection components.
 
 import pytest
 
+from freecad.diff_wb.application.actions.get_commits import GetCommitsAction
 from freecad.diff_wb.application.di.container import (
     ApplicationContainer,
     create_application_container,
@@ -280,3 +281,56 @@ class TestGitRepositoryDetectionWiring:
         # Verify ApplicationState is created but not yet wired to any presenter
         # (Presenter wiring happens in Phase 1.9 during UI integration)
         assert isinstance(container.application_state, ApplicationState)
+
+
+class TestGetCommitsActionWiring:
+    """Tests for GetCommitsAction wiring in the container."""
+
+    def test_container_has_get_commits_action_attribute(self) -> None:
+        """Container has get_commits_action attribute."""
+        # Setup
+        ctx = FreeCadContext(app=None)  # type: ignore
+        snapshot_repo = InMemorySnapshotRepository()
+
+        # Execute
+        container = create_application_container(ctx, snapshot_repo)
+
+        # Verify
+        assert hasattr(container, "get_commits_action")
+        assert container.get_commits_action is not None
+
+    def test_get_commits_action_is_properly_initialized_with_git_service(self) -> None:
+        """GetCommitsAction is properly initialized with git_service."""
+        # Setup
+        ctx = FreeCadContext(app=None)  # type: ignore
+        snapshot_repo = InMemorySnapshotRepository()
+
+        # Execute
+        container = create_application_container(ctx, snapshot_repo)
+
+        # Verify
+        action = container.get_commits_action
+        assert isinstance(action, GetCommitsAction)
+        assert hasattr(action, "_git_service")
+        assert action._git_service is container.git_service
+
+    def test_get_commits_action_can_retrieve_commits_through_container(self) -> None:
+        """GetCommitsAction can retrieve commits through the container."""
+        # Setup - configure fake git port via git service's port
+        ctx = FreeCadContext(app=None)  # type: ignore
+        snapshot_repo = InMemorySnapshotRepository()
+
+        # Execute
+        container = create_application_container(ctx, snapshot_repo)
+
+        # Verify - call execute with a valid repo to verify action is wired correctly
+        # The fake git port returns empty commits for any path
+        from freecad.diff_wb.domain.git.models import GitRepository
+
+        repo = GitRepository(name="test_project", absolute_path="/tmp/test_project")
+        result = container.get_commits_action.execute(repo=repo)
+
+        # Verify the action executed and returned success (empty list from fake)
+        assert result is not None
+        assert result.is_success is True
+        assert result.data == []

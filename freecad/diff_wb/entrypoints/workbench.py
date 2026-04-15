@@ -150,6 +150,7 @@ if Gui is not None:
                 git_repository_presenter = GitRepositoryPresenter(
                     view=panel,
                     find_git_repo_action=_container.find_active_git_repository_action,
+                    get_commits_action=_container.get_commits_action,
                     application_state=_container.application_state,
                 )
                 git_repository_presenter.on_workbench_activated()

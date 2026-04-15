@@ -122,6 +122,12 @@ REPOSITORY_NO_REPO_MESSAGE = "No git repository detected"
 No placeholders. This is a static message.
 """
 
+HISTORY_LABEL = "History"
+"""Label for the history/commit list widget.
+
+No placeholders. This is a static label.
+"""
+
 # ============================================================================
 # EXPORTS
 # ============================================================================
@@ -141,4 +147,5 @@ __all__ = [
     # Git Repository
     "REPOSITORY_INFO_TEMPLATE",
     "REPOSITORY_NO_REPO_MESSAGE",
+    "HISTORY_LABEL",
 ]

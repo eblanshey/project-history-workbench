@@ -1,9 +1,12 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
+# File responsibility: Presents git repository information and manages commit loading in the UI.
 """Git repository presenter for UI layer."""
 
 from freecad.diff_wb.application.actions.find_active_git_repository import (
     FindActiveGitRepositoryAction,
 )
+from freecad.diff_wb.application.actions.get_commits import GetCommitsAction
+from freecad.diff_wb.domain.git.models import GitRepository
 from freecad.diff_wb.ui.presenters.application_state import ApplicationState
 from freecad.diff_wb.ui.views.diff_panel_view import DiffPanelView
 from freecad.diff_wb.utils import Log
@@ -16,10 +19,12 @@ class GitRepositoryPresenter:
     1. Detecting the active git repository when the workbench is activated
     2. Updating the application state with the detected repository
     3. Displaying the repository information in the view
+    4. Loading and displaying commits for the repository
 
     Attributes:
         _view: The DiffPanelView instance for displaying repository info.
         _find_git_repo_action: The action for finding the active git repository.
+        _get_commits_action: The action for getting git commits.
         _application_state: The application state holder for storing repository.
     """
 
@@ -27,6 +32,7 @@ class GitRepositoryPresenter:
         self,
         view: DiffPanelView,
         find_git_repo_action: FindActiveGitRepositoryAction,
+        get_commits_action: GetCommitsAction,
         application_state: ApplicationState,
     ) -> None:
         """Initialize the presenter with required dependencies.
@@ -34,10 +40,12 @@ class GitRepositoryPresenter:
         Args:
             view: The DiffPanelView instance for displaying repository info.
             find_git_repo_action: The action for finding the active git repository.
+            get_commits_action: The action for getting git commits.
             application_state: The application state holder for storing repository.
         """
         self._view = view
         self._find_git_repo_action = find_git_repo_action
+        self._get_commits_action = get_commits_action
         self._application_state = application_state
         self._view.set_refresh_callback(self.on_refresh_clicked)
 
@@ -65,7 +73,27 @@ class GitRepositoryPresenter:
             repo = result.data
             self._application_state.git_repository = repo
             self._view.show_repository(repo)
+
+            # After detecting repository, load commits
+            if repo is not None:
+                self._load_commits(repo)
         else:
             self._application_state.git_repository = None
             self._view.show_repository(None)
             Log.warning(f"Git detection failed: {result.message}")
+
+    def _load_commits(self, repo: GitRepository) -> None:
+        """Load and display commits for the repository.
+
+        Args:
+            repo: The GitRepository to load commits from.
+        """
+        result = self._get_commits_action.execute(repo)
+
+        if result.is_success:
+            commits = result.data
+            self._view.show_commits(commits)
+        else:
+            # Show empty list on failure
+            self._view.show_commits([])
+            Log.warning(f"Failed to load commits: {result.message}")
