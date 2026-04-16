@@ -51,6 +51,7 @@ Action: GetCommits
 - The GitRepositoryPresenter can be used to "own" this part of the view that deals with commit list.
 - Update the _detect_git_repository method to automatically trigger loading the commits. This means that the "on_refresh_clicked" will also trigger reloading commits.
 - The "History" label can be placed below the existing repository name label (the QHBoxLayout), and "Snapshots" label removed.
+- Add a "Reload" button next to the repository name to refresh current git repository and commit list
 
 Questions:
 - Is QListWidget the best widget type to use for commits? 
@@ -92,22 +93,22 @@ Update domain models and logic to support Git paths and snapshot-based compariso
   - Uses freecad port to get all open documents
   - Pass them to GitService.get_eligible_docs()
   - Returns list of DocumentLike
-- Create action GetDocumentSnapshotForWorkingTreeDocument(GitRepository, document: DocumentLike):
+- Create action CreateDocumentSnapshotForWorkingTree(GitRepository, document: DocumentLike):
   - Validation: document must be in the git repository, otherwise return error
   - Generate a Snapshot for the given document using SnapshotExtractor.extract_tree()
   - Return snapshot
-- Create stub action GetDocumentSnapshotForCommit(GitRepository, commit: string, git_path: string):
+- Create stub action CreateDocumentSnapshotForCommit(GitRepository, commit: string, git_path: string):
   - Set return type to Snapshot|None.
   - For now just return None
-- Create action GenerateDiff(old_snapshot: Snapshot|None, new_snapshot: Snapshot):
+- Create action CreateDiff(old_snapshot: Snapshot|None, new_snapshot: Snapshot):
   - return result of DiffEngine.compute_diff, which returns DiffResult
   - If None is passed for old snapshot, then run 
 - Presentation logic: add listener for when an item is selected in the History widget.
   - Wire up the logic for when the Working Tree item is selected:
     - GetOpenEligibleDocuments
-    - GetDocumentSnapshotForWorkingTreeDocument
-    - GetDocumentSnapshotForCommit
-    - GenerateDiff - if the commit snapshot doesn't exist, pass the same Snapshot for both arguments.
+    - CreateDocumentSnapshotForWorkingTree
+    - CreateDocumentSnapshotForCommit
+    - CreateDiff - if the commit snapshot doesn't exist, pass the same Snapshot for both arguments.
   - It should populate the existing diff widget with the resulting diff. Put these actions into a presentation-level orchestration method (what should we call it and where does it live?) so that it can be reused.
   - In the view, if the DiffResult.warnings contains WARNING_OLD_SNAPSHOT_MISSING, add a warning sign emoji (U+26A0) with a tooltip over it with text: "Old snapshot missing"
 
@@ -130,7 +131,7 @@ Questions: where should we store the DiffResults for application state? Should w
     - Use GitService to add all paths to git staging
 - Update presentation/view:
   - When the Add button is pressed, it calls the StageDocuments action we just created, with the Snapshot associated with the "new" snapshots in the DiffResult associated with that document.
-  - Then it calculates the diff again using GetDocumentSnapshotForWorkingTreeDocument -> GetDocumentSnapshotForCommit -> GenerateDiff. If everything is working correctly, the diff result will show no changes.
+  - Then it calculates the diff again using CreateDocumentSnapshotForWorkingTree -> CreateDocumentSnapshotForCommit -> CreateDiff. If everything is working correctly, the diff result will show no changes.
 
 Question: where do we put the logic that determines the correct snapshot directory for a file? We'll need to use it in the following phases, too.
 
@@ -147,7 +148,7 @@ Question: where do we put the logic that determines the correct snapshot directo
   - Change `from_yaml` to take a yaml string as an argument
   - `from_yaml_file` uses `from_yaml` to return the snapshot
 - Create action GetStagedFilePaths(GitRepository): just calls and returns result of get_staged_files
-- Add meat to our action GetDocumentSnapshotForCommit:
+- Add meat to our action CreateDocumentSnapshotForCommit:
   - When "commit" arg is None (the "index" option)
     - Determine the location of the snapshot for the FCStd git path provided (use the function we created in phase 6)
     - Grab the snapshot yaml file contents from the index using GitService.get_file_contents
@@ -158,12 +159,12 @@ Question: where do we put the logic that determines the correct snapshot directo
 - Update our presentation listener so that when the Staging History item is selected, it triggers this logic:
   - GetStagedFilePaths
   - For each path:
-    - GetDocumentSnapshotForCommit (for index)
-    - GetDocumentSnapshotForCommit (for HEAD)
-    - GenerateDiff
+    - CreateDocumentSnapshotForCommit (for index)
+    - CreateDocumentSnapshotForCommit (for HEAD)
+    - CreateDiff
   - Return list of DiffResults
 - Set the view to displays those diffs.
-- For paths where GetDocumentSnapshotForCommit for index returns None, in the tree diff widget create a one-level, flat item for that diff with a "prohibited" emoji symbol (U+1F6AB), with tooltip "Snapshot missing." It will not have the tree below it.
+- For paths where CreateDocumentSnapshotForCommit for index returns None, in the tree diff widget create a one-level, flat item for that diff with a "prohibited" emoji symbol (U+1F6AB), with tooltip "Snapshot missing." It will not have the tree below it.
 
 ## Future phases:
 - Committing

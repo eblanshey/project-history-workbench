@@ -121,9 +121,9 @@ Actions to add:
 - GetOpenEligibleDocuments(GitRepository): returns a list of documents in the active repository (eligible docs)
 - GetStagedFilePaths(GitRepository): returns a list of staged git_paths in the active repository
 - GetCommittedFilePaths(GitRepository, commit: string): returns a list of freecad git_paths in the active repository for the given commit
-- GetDocumentSnapshotForCommit(GitRepository, commit: string, git_path: string): returns a Snapshot object for the given file at commit. Passing "None" for the commit gets it from the index (similar to `git show :file`), so from staging or HEAD
-- GetDocumentSnapshotForWorkingTreeDocument(GitRepository, document: DocumentLike): returns a Snapshot object for the given file in the working tree. 
-- GenerateDiff(Snapshot, Snapshot): Computes diff for the given snapshots
+- CreateDocumentSnapshotForCommit(GitRepository, commit: string, git_path: string): returns a Snapshot object for the given file at commit. Passing "None" for the commit gets it from the index (similar to `git show :file`), so from staging or HEAD
+- CreateDocumentSnapshotForWorkingTree(GitRepository, document: DocumentLike): returns a Snapshot object for the given file in the working tree. 
+- CreateDiff(Snapshot, Snapshot): Computes diff for the given snapshots
 - StageDocuments(GitRepository, list[str]: docs): stages the given list of documents. Generates a snapshot for each one, persists to YAML, and `git add [doc_path] [yaml_path]` for each one. Return: Result with bool success in data.
 - CommitStaging(GitRepository, str: message): simply does a `git commit -m "[message]"`. Does not add files or generate snapshots. Return: Result with bool success in data.
 
@@ -134,21 +134,21 @@ Actions to add:
    2. GetCommits: Load last 20 commits into the sidebar with their git messages, and create the staging and working tree entries
 2. User clicks the Working Tree option
    1. GetOpenEligibleDocuments
-   2. GetDocumentSnapshotForWorkingTreeDocument - run for each open document 
-   2. GetDocumentSnapshotForCommit - run for each open document for the "index" option
-   3. GenerateDiff - run for each open document
+   2. CreateDocumentSnapshotForWorkingTree - run for each open document 
+   2. CreateDocumentSnapshotForCommit - run for each open document for the "index" option
+   3. CreateDiff - run for each open document
    4. Display diffs in the tree view
 3. User clicks the Staging option
    6. GetStagedFilePaths - checks both FCStd and snapshot files in the index
-   7. GetDocumentSnapshotForCommit - for each one get snapshot from index
-   8. GetDocumentSnapshotForCommit - for each one get snapshot from HEAD
-   9. GenerateDiff - for each one
+   7. CreateDocumentSnapshotForCommit - for each one get snapshot from index
+   8. CreateDocumentSnapshotForCommit - for each one get snapshot from HEAD
+   9. CreateDiff - for each one
    9. Display diffs in the tree view
 4. User clicks a Commit
    5. GetCommittedFilePaths - checks both FCStd and snapshot files in the commit
-   6. GetDocumentSnapshotForCommit - for each one at commit
-   7. GetDocumentSnapshotForCommit - for each one at commit~1
-   8. GenerateDiff - for each one at commit
+   6. CreateDocumentSnapshotForCommit - for each one at commit
+   7. CreateDocumentSnapshotForCommit - for each one at commit~1
+   8. CreateDiff - for each one at commit
    9. Display diffs in the tree view
 
 ## Domain Entities

@@ -44,11 +44,12 @@ class DiffView(Protocol):
         Use DIFF_LOADING_MESSAGE from translation_strings.py for the message.
         """
 
-    def show_diff_tree(self, nodes: list[NodePresentation]) -> None:
+    def show_diff_tree(self, nodes: list[NodePresentation], git_path: str = "") -> None:
         """Display the diff tree.
 
         Args:
             nodes: List of node presentation models to display.
+            git_path: The git path to display as top-level item (falls back to document name).
         """
 
     def show_summary(self, added: int, deleted: int, modified: int) -> None:

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
-# File responsibility: Unit tests for SnapshotExtractor using FakeFreeCadPort, including
-# tree extraction from documents, nested children (via ViewProvider.claimChildren()),
-# property extraction, and expression handling.
+# File responsibility: Unit tests for SnapshotExtractor, including tree extraction from
+# documents, nested children (via ViewProvider.claimChildren()), property extraction,
+# and expression handling.
 """Unit tests for SnapshotExtractor."""
 
 from unittest.mock import MagicMock, patch
@@ -219,70 +219,6 @@ class MockFreeCADObject:
         props[name] = value
 
 
-class FakePortAndLogger:
-    """Fake implementation combining FreeCadPort and Logger for unit testing."""
-
-    def __init__(self):
-        """Initialize the fake port with empty document state."""
-        self._documents = {}
-        self._messages = []
-        self._gui_doc = None
-
-    def get_active_document(self):
-        """Get the active document, or None if no document is open."""
-        return self._documents.get("active")
-
-    def get_object(self, doc, name):
-        """Get a document object by name."""
-        if hasattr(doc, "getObject"):
-            return doc.getObject(name)
-        return None
-
-    def try_recompute_active_document(self):
-        """No-op for recompute."""
-        pass
-
-    def log(self, text):
-        """Log a message."""
-        self._messages.append(("log", text))
-
-    def warn(self, text):
-        """Show a warning message."""
-        self._messages.append(("warn", text))
-
-    def message(self, text):
-        """Show an informational message."""
-        self._messages.append(("message", text))
-
-    def set_active_document(self, doc):
-        """Set the active document for testing."""
-        self._documents["active"] = doc
-
-    def set_gui_document(self, gui_doc):
-        """Set the GUI document for testing claimChildren() functionality.
-
-        Args:
-            gui_doc: Mock GUI document with getViewProvider method
-        """
-        self._gui_doc = gui_doc
-
-    def get_gui_document(self):
-        """Get the GUI document."""
-        return self._gui_doc
-
-    def info(self, message):
-        """Log an info message."""
-        self._messages.append(("info", message))
-
-    def warning(self, message):
-        """Log a warning message."""
-        self._messages.append(("warning", message))
-
-    def error(self, message):
-        """Log an error message."""
-        self._messages.append(("error", message))
-
-
 class TestSnapshotExtractor:
     """Tests for SnapshotExtractor class."""
 
@@ -292,11 +228,8 @@ class TestSnapshotExtractor:
         mock_doc.Objects = []
         mock_doc.Name = "EmptyDocument"
 
-        fake_port = FakePortAndLogger()
-        fake_port.set_active_document(mock_doc)
-
         extractor = SnapshotExtractor()
-        result = extractor.extract_tree(fake_port)
+        result = extractor.extract_tree(mock_doc)
 
         assert isinstance(result, Snapshot)
         assert result.document_name == "EmptyDocument"
@@ -318,15 +251,12 @@ class TestSnapshotExtractor:
 
         mock_doc.Objects = [root_obj]
 
-        fake_port = FakePortAndLogger()
-        fake_port.set_active_document(mock_doc)
-
         extractor = SnapshotExtractor()
 
         # Patch _init_gui_and_get_doc to return None (GUI unavailable)
         with patch("freecad.diff_wb.domain.snapshots.gui_extractor._init_gui_and_get_doc") as mock_init_gui:
             mock_init_gui.return_value = None
-            result = extractor.extract_tree(fake_port)
+            result = extractor.extract_tree(mock_doc)
 
         assert isinstance(result, Snapshot)
         assert result.document_name == "TestDoc"
@@ -380,25 +310,12 @@ class TestSnapshotExtractor:
 
         mock_gui_doc.getViewProvider = mock_get_view_provider
 
-        fake_port = FakePortAndLogger()
-        fake_port.set_active_document(mock_doc)
-
-        # Set up get_object to resolve child names to actual objects
-        def mock_get_object(doc, name):
-            if name == "Body":
-                return parent_obj
-            elif name == "Sketch":
-                return child_obj
-            return None
-
-        fake_port.get_object = mock_get_object
-
         extractor = SnapshotExtractor()
 
         # Patch _init_gui_and_get_doc to return our mock gui_doc
         with patch("freecad.diff_wb.domain.snapshots.gui_extractor._init_gui_and_get_doc") as mock_init_gui:
             mock_init_gui.return_value = mock_gui_doc
-            result = extractor.extract_tree(fake_port)
+            result = extractor.extract_tree(mock_doc)
 
         # In flat structure, both nodes should be in the nodes list
         assert len(result.nodes) == 2
@@ -409,17 +326,21 @@ class TestSnapshotExtractor:
         sketch_node = next(node for node in result.nodes if node.name == "Sketch")
         assert sketch_node.path == "Body/Sketch"
 
-    def test_extract_tree_handles_no_document(self):
-        """Test that extract_tree handles no document gracefully."""
-        fake_port = FakePortAndLogger()
-        # No document set
+    def test_extract_tree_with_unnamed_document(self):
+        """Test extraction from a document without a Name attribute."""
+        mock_doc = MagicMock()
+        mock_doc.Name = ""  # Empty string simulates no name
 
         extractor = SnapshotExtractor()
-        result = extractor.extract_tree(fake_port)
 
-        # Should return a Snapshot with empty root_nodes when no document
+        # Patch _init_gui_and_get_doc to return None (GUI unavailable)
+        with patch("freecad.diff_wb.domain.snapshots.gui_extractor._init_gui_and_get_doc") as mock_init_gui:
+            mock_init_gui.return_value = None
+            result = extractor.extract_tree(mock_doc)
+
+        # Should return a Snapshot with default "Unnamed" document name for empty string
         assert isinstance(result, Snapshot)
-        assert result.document_name == "NoDocument"
+        assert result.document_name == ""
         assert result.nodes == []
 
     def test_extract_tree_property_extraction(self):
@@ -439,15 +360,12 @@ class TestSnapshotExtractor:
 
         mock_doc.Objects = [obj]
 
-        fake_port = FakePortAndLogger()
-        fake_port.set_active_document(mock_doc)
-
         extractor = SnapshotExtractor()
 
         # Patch _init_gui_and_get_doc to return None (GUI unavailable)
         with patch("freecad.diff_wb.domain.snapshots.gui_extractor._init_gui_and_get_doc") as mock_init_gui:
             mock_init_gui.return_value = None
-            result = extractor.extract_tree(fake_port)
+            result = extractor.extract_tree(mock_doc)
 
         assert len(result.nodes) == 1
         node = result.nodes[0]
@@ -474,15 +392,12 @@ class TestSnapshotExtractor:
 
         mock_doc.Objects = [obj]
 
-        fake_port = FakePortAndLogger()
-        fake_port.set_active_document(mock_doc)
-
         extractor = SnapshotExtractor()
 
         # Patch _init_gui_and_get_doc to return None (GUI unavailable)
         with patch("freecad.diff_wb.domain.snapshots.gui_extractor._init_gui_and_get_doc") as mock_init_gui:
             mock_init_gui.return_value = None
-            result = extractor.extract_tree(fake_port)
+            result = extractor.extract_tree(mock_doc)
 
         assert len(result.nodes) == 1
         node = result.nodes[0]
@@ -553,23 +468,12 @@ class TestSnapshotExtractor:
 
         mock_gui_doc.getViewProvider = mock_get_view_provider
 
-        fake_port = FakePortAndLogger()
-        fake_port.set_active_document(mock_doc)
-
-        # Set up get_object to resolve child names to actual objects
-        object_map = {"Part": part_obj, "Body": body_obj, "VarSet": varset_obj}
-
-        def mock_get_object(doc, name):
-            return object_map.get(name)
-
-        fake_port.get_object = mock_get_object
-
         extractor = SnapshotExtractor()
 
         # Patch _init_gui_and_get_doc to return our mock gui_doc
         with patch("freecad.diff_wb.domain.snapshots.gui_extractor._init_gui_and_get_doc") as mock_init_gui:
             mock_init_gui.return_value = mock_gui_doc
-            result = extractor.extract_tree(fake_port)
+            result = extractor.extract_tree(mock_doc)
 
         # In flat structure, all nodes should be in the nodes list
         assert len(result.nodes) == 3  # Part + Body + VarSet
@@ -644,23 +548,12 @@ class TestSnapshotExtractor:
 
         mock_gui_doc.getViewProvider = mock_get_view_provider
 
-        fake_port = FakePortAndLogger()
-        fake_port.set_active_document(mock_doc)
-
-        # Set up get_object to resolve child names to actual objects
-        object_map = {"Part": part_obj, "Body": body_obj, "Sketch": sketch_obj}
-
-        def mock_get_object(doc, name):
-            return object_map.get(name)
-
-        fake_port.get_object = mock_get_object
-
         extractor = SnapshotExtractor()
 
         # Patch _init_gui_and_get_doc to return our mock gui_doc
         with patch("freecad.diff_wb.domain.snapshots.gui_extractor._init_gui_and_get_doc") as mock_init_gui:
             mock_init_gui.return_value = mock_gui_doc
-            result = extractor.extract_tree(fake_port)
+            result = extractor.extract_tree(mock_doc)
 
         # In flat structure, all 3 nodes should be in the list
         assert len(result.nodes) == 3  # Part + Body + Sketch
@@ -736,23 +629,12 @@ class TestSnapshotExtractor:
 
         mock_gui_doc.getViewProvider = mock_get_view_provider
 
-        fake_port = FakePortAndLogger()
-        fake_port.set_active_document(mock_doc)
-
-        # Set up get_object to resolve child names to actual objects
-        object_map = {"Origin": origin_obj, "X_Axis": x_axis_obj, "XY_Plane": xy_plane_obj}
-
-        def mock_get_object(doc, name):
-            return object_map.get(name)
-
-        fake_port.get_object = mock_get_object
-
         extractor = SnapshotExtractor()
 
         # Patch _init_gui_and_get_doc to return our mock gui_doc
         with patch("freecad.diff_wb.domain.snapshots.gui_extractor._init_gui_and_get_doc") as mock_init_gui:
             mock_init_gui.return_value = mock_gui_doc
-            result = extractor.extract_tree(fake_port)
+            result = extractor.extract_tree(mock_doc)
 
         # In flat structure, all 3 nodes should be in the list
         assert len(result.nodes) == 3  # Origin + X_Axis + XY_Plane
@@ -794,15 +676,12 @@ class TestSnapshotExtractor:
 
         mock_doc.Objects = [obj]
 
-        fake_port = FakePortAndLogger()
-        fake_port.set_active_document(mock_doc)
-
         extractor = SnapshotExtractor()
 
         # Patch _init_gui_and_get_doc to return None (GUI unavailable)
         with patch("freecad.diff_wb.domain.snapshots.gui_extractor._init_gui_and_get_doc") as mock_init_gui:
             mock_init_gui.return_value = None
-            result = extractor.extract_tree(fake_port)
+            result = extractor.extract_tree(mock_doc)
 
         assert len(result.nodes) == 1
         node = result.nodes[0]
@@ -850,15 +729,12 @@ class TestSnapshotExtractor:
 
         mock_doc.Objects = [obj]
 
-        fake_port = FakePortAndLogger()
-        fake_port.set_active_document(mock_doc)
-
         extractor = SnapshotExtractor()
 
         # Patch _init_gui_and_get_doc to return None (GUI unavailable)
         with patch("freecad.diff_wb.domain.snapshots.gui_extractor._init_gui_and_get_doc") as mock_init_gui:
             mock_init_gui.return_value = None
-            result = extractor.extract_tree(fake_port)
+            result = extractor.extract_tree(mock_doc)
 
         assert len(result.nodes) == 1
         node = result.nodes[0]
@@ -901,15 +777,12 @@ class TestSnapshotExtractor:
 
         mock_doc.Objects = [obj]
 
-        fake_port = FakePortAndLogger()
-        fake_port.set_active_document(mock_doc)
-
         extractor = SnapshotExtractor()
 
         # Patch _init_gui_and_get_doc to return None (GUI unavailable)
         with patch("freecad.diff_wb.domain.snapshots.gui_extractor._init_gui_and_get_doc") as mock_init_gui:
             mock_init_gui.return_value = None
-            result = extractor.extract_tree(fake_port)
+            result = extractor.extract_tree(mock_doc)
 
         assert len(result.nodes) == 1
         node = result.nodes[0]
@@ -950,15 +823,12 @@ class TestSnapshotExtractor:
 
         mock_doc.Objects = [obj]
 
-        fake_port = FakePortAndLogger()
-        fake_port.set_active_document(mock_doc)
-
         extractor = SnapshotExtractor()
 
         # Patch _init_gui_and_get_doc to return None (GUI unavailable)
         with patch("freecad.diff_wb.domain.snapshots.gui_extractor._init_gui_and_get_doc") as mock_init_gui:
             mock_init_gui.return_value = None
-            result = extractor.extract_tree(fake_port)
+            result = extractor.extract_tree(mock_doc)
 
         assert len(result.nodes) == 1
         node = result.nodes[0]
@@ -1019,23 +889,11 @@ class TestSnapshotExtractor:
 
         mock_gui_doc.getViewProvider = mock_get_view_provider
 
-        fake_port = FakePortAndLogger()
-        fake_port.set_active_document(mock_doc)
-
-        def mock_get_object(doc, name):
-            if name == "Body":
-                return parent_obj
-            elif name == "Sketch":
-                return child_obj
-            return None
-
-        fake_port.get_object = mock_get_object
-
         extractor = SnapshotExtractor()
 
         with patch("freecad.diff_wb.domain.snapshots.gui_extractor._init_gui_and_get_doc") as mock_init_gui:
             mock_init_gui.return_value = mock_gui_doc
-            result = extractor.extract_tree(fake_port)
+            result = extractor.extract_tree(mock_doc)
 
         # In flat structure, both nodes should be in the list
         assert len(result.nodes) == 2
@@ -1074,16 +932,13 @@ class TestSnapshotExtractor:
 
         mock_doc.Objects = [parent_obj, child_obj]
 
-        fake_port = FakePortAndLogger()
-        fake_port.set_active_document(mock_doc)
-
         extractor = SnapshotExtractor()
 
         # Patch _init_gui_and_get_doc to raise GuiNotAvailableError
         with patch("freecad.diff_wb.domain.snapshots.gui_extractor._init_gui_and_get_doc") as mock_init_gui:
             mock_init_gui.side_effect = GuiNotAvailableError("FreeCADGui not available")
             # Should raise the exception
-            result = extractor.extract_tree(fake_port)
+            result = extractor.extract_tree(mock_doc)
 
         # The extractor catches exceptions internally and returns an empty snapshot
         # This is the expected behavior - the exception should be logged
@@ -1114,9 +969,6 @@ class TestSnapshotExtractor:
 
         mock_doc.Objects = [parent_obj]
 
-        fake_port = FakePortAndLogger()
-        fake_port.set_active_document(mock_doc)
-
         # Create mock GUI doc
         mock_gui_doc = MagicMock()
         mock_gui_doc.getViewProvider = lambda obj: parent_obj.ViewObject
@@ -1126,7 +978,7 @@ class TestSnapshotExtractor:
         with patch("freecad.diff_wb.domain.snapshots.gui_extractor._init_gui_and_get_doc") as mock_init_gui:
             mock_init_gui.return_value = mock_gui_doc
             # Should not raise, should handle exception gracefully
-            result = extractor.extract_tree(fake_port)
+            result = extractor.extract_tree(mock_doc)
 
         # Should still return the object even though claimChildren() failed
         assert len(result.nodes) == 1
@@ -1184,22 +1036,12 @@ class TestSnapshotExtractor:
 
         mock_gui_doc.getViewProvider = mock_get_view_provider
 
-        fake_port = FakePortAndLogger()
-        fake_port.set_active_document(mock_doc)
-
-        object_map = {"ObjectA": obj_a, "ObjectB": obj_b}
-
-        def mock_get_object(doc, name):
-            return object_map.get(name)
-
-        fake_port.get_object = mock_get_object
-
         extractor = SnapshotExtractor()
 
         with patch("freecad.diff_wb.domain.snapshots.gui_extractor._init_gui_and_get_doc") as mock_init_gui:
             mock_init_gui.return_value = mock_gui_doc
             # Should not hang or cause infinite recursion - this is the key test
-            result = extractor.extract_tree(fake_port)
+            result = extractor.extract_tree(mock_doc)
 
         # Should complete without hanging (no recursion error)
         # With circular claims, both objects become children of each other,
@@ -1245,15 +1087,12 @@ class TestSnapshotExtractor:
 
         mock_doc.Objects = [valid_obj, invalid_obj]
 
-        fake_port = FakePortAndLogger()
-        fake_port.set_active_document(mock_doc)
-
         extractor = SnapshotExtractor()
 
         # Patch _init_gui_and_get_doc to return None (GUI unavailable)
         with patch("freecad.diff_wb.domain.snapshots.gui_extractor._init_gui_and_get_doc") as mock_init_gui:
             mock_init_gui.return_value = None
-            result = extractor.extract_tree(fake_port)
+            result = extractor.extract_tree(mock_doc)
 
         # Only the valid object should be in the result
         assert len(result.nodes) == 1

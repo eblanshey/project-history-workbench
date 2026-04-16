@@ -14,22 +14,27 @@ class TestSnapshot:
     def test_creation(self):
         """Test snapshot creation."""
         timestamp = datetime(2024, 1, 1, 0, 0, 0)
-        snapshot = Snapshot(snapshot_id="test-id", document_name="TestDocument", timestamp=timestamp)
+        snapshot = Snapshot(snapshot_id="test-id", document_name="TestDocument", timestamp=timestamp, git_path="")
         assert snapshot.document_name == "TestDocument"
         assert snapshot.timestamp == timestamp
+        assert snapshot.git_path == ""
 
     def test_with_flat_nodes_list(self):
         """Test snapshot creation with flat nodes list."""
         node = TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body")
         timestamp = datetime(2024, 1, 1, 0, 0, 0)
-        snapshot = Snapshot(snapshot_id="test-id", document_name="TestDocument", timestamp=timestamp, nodes=[node])
+        snapshot = Snapshot(
+            snapshot_id="test-id", document_name="TestDocument", timestamp=timestamp, nodes=[node], git_path=""
+        )
         assert len(snapshot.nodes) == 1
 
     def test_root_node_identification(self):
         """Test root node identification - path without '/' separator."""
         root_node = TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body")
         timestamp = datetime(2024, 1, 1, 0, 0, 0)
-        snapshot = Snapshot(snapshot_id="test-id", document_name="TestDocument", timestamp=timestamp, nodes=[root_node])
+        snapshot = Snapshot(
+            snapshot_id="test-id", document_name="TestDocument", timestamp=timestamp, nodes=[root_node], git_path=""
+        )
 
         # Root node has path equal to its name (no "/" separator)
         assert "/" not in snapshot.nodes[0].path
@@ -41,7 +46,11 @@ class TestSnapshot:
         child_node = TreeNode(id=2, name="Pad", type_id="PartDesign::Pad", label="Pad", path="Body/Pad")
         timestamp = datetime(2024, 1, 1, 0, 0, 0)
         snapshot = Snapshot(
-            snapshot_id="test-id", document_name="TestDocument", timestamp=timestamp, nodes=[root_node, child_node]
+            snapshot_id="test-id",
+            document_name="TestDocument",
+            timestamp=timestamp,
+            nodes=[root_node, child_node],
+            git_path="",
         )
 
         # Non-root node has path with "/" separator
@@ -61,6 +70,7 @@ class TestSnapshot:
             document_name="TestDocument",
             timestamp=timestamp,
             nodes=[root_node, child_node, grandchild_node],
+            git_path="",
         )
 
         all_nodes = snapshot.get_all_nodes()
@@ -75,7 +85,11 @@ class TestSnapshot:
         child_node = TreeNode(id=2, name="Pad", type_id="PartDesign::Pad", label="Pad", path="Body/Pad")
         timestamp = datetime(2024, 1, 1, 0, 0, 0)
         snapshot = Snapshot(
-            snapshot_id="test-id", document_name="TestDocument", timestamp=timestamp, nodes=[root_node, child_node]
+            snapshot_id="test-id",
+            document_name="TestDocument",
+            timestamp=timestamp,
+            nodes=[root_node, child_node],
+            git_path="",
         )
 
         found = snapshot.find_node_by_path("Body/Pad")
@@ -89,7 +103,11 @@ class TestSnapshot:
         child_node = TreeNode(id=2, name="Pad", type_id="PartDesign::Pad", label="Pad", path="Body/Pad")
         timestamp = datetime(2024, 1, 1, 0, 0, 0)
         snapshot = Snapshot(
-            snapshot_id="test-id", document_name="TestDocument", timestamp=timestamp, nodes=[root_node, child_node]
+            snapshot_id="test-id",
+            document_name="TestDocument",
+            timestamp=timestamp,
+            nodes=[root_node, child_node],
+            git_path="",
         )
 
         found = snapshot.find_node_by_path("Body")
@@ -100,7 +118,7 @@ class TestSnapshot:
     def test_find_nonexistent_node(self):
         """Test finding a nonexistent node."""
         timestamp = datetime(2024, 1, 1, 0, 0, 0)
-        snapshot = Snapshot(snapshot_id="test-id", document_name="TestDocument", timestamp=timestamp)
+        snapshot = Snapshot(snapshot_id="test-id", document_name="TestDocument", timestamp=timestamp, git_path="")
         found = snapshot.find_node_by_path("NonExistent")
         assert found is None
 
@@ -117,6 +135,7 @@ class TestSnapshot:
             document_name="TestDocument",
             timestamp=timestamp,
             nodes=[root_node, child_node, grandchild_node],
+            git_path="",
         )
 
         # Should return flat list length directly
@@ -130,7 +149,9 @@ class TestSnapshot:
             TreeNode(id=3, name="Box", type_id="Part::Box", label="Box", path="Box", after=None),
         ]
         timestamp = datetime(2024, 1, 1, 0, 0, 0)
-        snapshot = Snapshot(snapshot_id="test-id", document_name="TestDocument", timestamp=timestamp, nodes=nodes)
+        snapshot = Snapshot(
+            snapshot_id="test-id", document_name="TestDocument", timestamp=timestamp, nodes=nodes, git_path=""
+        )
 
         # Verify all nodes are accessible
         assert snapshot.node_count == 3
@@ -148,9 +169,9 @@ class TestSnapshot:
         ts2 = datetime(2024, 1, 2, 0, 0, 0)
         ts3 = datetime(2024, 1, 1, 12, 0, 0)
 
-        snapshot1 = Snapshot(snapshot_id="test-id-1", document_name="TestDocument", timestamp=ts1)
-        snapshot2 = Snapshot(snapshot_id="test-id-2", document_name="TestDocument", timestamp=ts2)
-        snapshot3 = Snapshot(snapshot_id="test-id-3", document_name="TestDocument", timestamp=ts3)
+        snapshot1 = Snapshot(snapshot_id="test-id-1", document_name="TestDocument", timestamp=ts1, git_path="")
+        snapshot2 = Snapshot(snapshot_id="test-id-2", document_name="TestDocument", timestamp=ts2, git_path="")
+        snapshot3 = Snapshot(snapshot_id="test-id-3", document_name="TestDocument", timestamp=ts3, git_path="")
 
         # Sort snapshots by timestamp
         sorted_snapshots = sorted([snapshot2, snapshot1, snapshot3], key=lambda s: s.timestamp)
@@ -158,3 +179,61 @@ class TestSnapshot:
         assert sorted_snapshots[0] == snapshot1  # Earliest
         assert sorted_snapshots[1] == snapshot3  # Middle
         assert sorted_snapshots[2] == snapshot2  # Latest
+
+    def test_snapshot_with_git_path_creates_correctly(self):
+        """Test: Snapshot with git_path field creates correctly."""
+        timestamp = datetime(2024, 1, 1, 0, 0, 0)
+        snapshot = Snapshot(
+            snapshot_id="test-id",
+            document_name="TestDocument",
+            timestamp=timestamp,
+            git_path="path/to/doc.FCStd",
+        )
+        assert snapshot.git_path == "path/to/doc.FCStd"
+        assert snapshot.document_name == "TestDocument"
+
+    def test_git_path_is_relative_path_from_git_root(self):
+        """Test: git_path is relative path from git root (e.g., 'path/to/doc.FCStd')."""
+        timestamp = datetime(2024, 1, 1, 0, 0, 0)
+
+        # Test various relative path formats
+        test_paths = [
+            "doc.FCStd",
+            "path/to/doc.FCStd",
+            "projects/myproject/docs/file.FCStd",
+            "subdir/nested/document.FCStd",
+        ]
+
+        for path in test_paths:
+            snapshot = Snapshot(
+                snapshot_id="test-id",
+                document_name="TestDocument",
+                timestamp=timestamp,
+                git_path=path,
+            )
+            assert snapshot.git_path == path
+
+    def test_git_path_used_in_str_representation(self):
+        """Test: git_path used in __str__ representation."""
+        timestamp = datetime(2024, 1, 1, 0, 0, 0)
+
+        # Test with git_path present
+        snapshot_with_path = Snapshot(
+            snapshot_id="test-id",
+            document_name="TestDocument",
+            timestamp=timestamp,
+            git_path="path/to/doc.FCStd",
+        )
+        str_repr = str(snapshot_with_path)
+        assert "path/to/doc.FCStd" in str_repr
+
+        # Test without git_path (empty string) - should use document_name
+        snapshot_without_path = Snapshot(
+            snapshot_id="test-id",
+            document_name="TestDocument",
+            timestamp=timestamp,
+            git_path="",
+        )
+        str_repr_no_path = str(snapshot_without_path)
+        assert "TestDocument" in str_repr_no_path
+        assert "path/to/doc.FCStd" not in str_repr_no_path

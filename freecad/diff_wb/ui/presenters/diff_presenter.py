@@ -40,8 +40,11 @@ class DiffPresenter:
         # Transform domain objects to presentation models
         nodes = [self._format_node(node) for node in diff_result.hierarchy.roots]
 
+        # Get git_path for top-level item (use document_name as fallback)
+        git_path = diff_result.new_snapshot.git_path or diff_result.new_snapshot.document_name
+
         # Call view methods to trigger UI rendering
-        self._view.show_diff_tree(nodes)
+        self._view.show_diff_tree(nodes, git_path)
         # Pass raw integers - view handles translation and formatting using
         # individual labels (DIFF_SUMMARY_ADDED_LABEL, etc.) per user decision
         # Use explicit counts from DiffResult

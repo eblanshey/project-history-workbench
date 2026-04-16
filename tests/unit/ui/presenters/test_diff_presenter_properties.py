@@ -1,6 +1,9 @@
 """File responsibility: Unit tests for DiffPresenter property handling methods."""
 
+import datetime
+
 from freecad.diff_wb.domain.diff.models import DiffHierarchy, DiffResult, DiffState, NodeDiff, PropertyDiff
+from freecad.diff_wb.domain.snapshots import Snapshot
 from freecad.diff_wb.domain.tree import Property, PropertyType
 from freecad.diff_wb.ui.presenters.diff_presenter import DiffPresenter
 from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
@@ -27,8 +30,8 @@ class TestDiffPresenterPropertyHandling:
             _force_state=DiffState.MODIFIED,
         )
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="", timestamp=datetime.datetime.now()),
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
@@ -63,8 +66,8 @@ class TestDiffPresenterPropertyHandling:
             _force_state=DiffState.UNCHANGED,
         )
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="", timestamp=datetime.datetime.now()),
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
@@ -119,8 +122,8 @@ class TestDiffPresenterPropertyHandling:
             _force_state=DiffState.MODIFIED,
         )
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="", timestamp=datetime.datetime.now()),
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
@@ -176,8 +179,8 @@ class TestDiffPresenterPropertyHandling:
             _force_state=DiffState.MODIFIED,
         )
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="", timestamp=datetime.datetime.now()),
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
@@ -226,8 +229,8 @@ class TestDiffPresenterPropertyHandling:
             _force_state=DiffState.MODIFIED,
         )
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="", timestamp=datetime.datetime.now()),
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
@@ -269,8 +272,8 @@ class TestDiffPresenterPropertyHandling:
             _force_state=DiffState.MODIFIED,
         )
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="", timestamp=datetime.datetime.now()),
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
@@ -331,8 +334,8 @@ class TestDiffPresenterPropertyHandling:
         hierarchy.add_node(child)  # Then child
         hierarchy.add_node(grandchild)  # Then grandchild
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="v2", timestamp=datetime.datetime.now()),
             hierarchy=hierarchy,
         )
 
@@ -362,8 +365,8 @@ class TestDiffPresenterPropertyHandling:
             property_diffs=[],  # No property diffs
         )
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="", timestamp=datetime.datetime.now()),
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
@@ -410,8 +413,8 @@ class TestPropertyValueTypeExtraction:
             _force_state=DiffState.MODIFIED,
         )
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="", timestamp=datetime.datetime.now()),
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
@@ -458,8 +461,8 @@ class TestPropertyValueTypeExtraction:
             _force_state=DiffState.MODIFIED,
         )
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="", timestamp=datetime.datetime.now()),
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
@@ -505,8 +508,8 @@ class TestPropertyValueTypeExtraction:
             _force_state=DiffState.MODIFIED,
         )
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="", timestamp=datetime.datetime.now()),
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
@@ -555,8 +558,8 @@ class TestPropertyValueTypeExtraction:
             _force_state=DiffState.MODIFIED,
         )
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="", timestamp=datetime.datetime.now()),
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
@@ -602,8 +605,8 @@ class TestPropertyValueTypeExtraction:
             _force_state=DiffState.MODIFIED,
         )
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="", timestamp=datetime.datetime.now()),
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
@@ -645,8 +648,8 @@ class TestPropertyValueTypeExtraction:
             _force_state=DiffState.MODIFIED,
         )
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="", timestamp=datetime.datetime.now()),
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
@@ -686,8 +689,8 @@ class TestPropertyValueTypeExtraction:
             _force_state=DiffState.MODIFIED,
         )
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="", timestamp=datetime.datetime.now()),
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
@@ -730,8 +733,8 @@ class TestPhase2OldValueAndExpression:
             _force_state=DiffState.MODIFIED,
         )
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="", timestamp=datetime.datetime.now()),
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
@@ -771,8 +774,8 @@ class TestPhase2OldValueAndExpression:
             _force_state=DiffState.MODIFIED,
         )
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="", timestamp=datetime.datetime.now()),
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
@@ -810,8 +813,8 @@ class TestPhase2OldValueAndExpression:
             _force_state=DiffState.MODIFIED,
         )
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="", timestamp=datetime.datetime.now()),
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
@@ -851,8 +854,8 @@ class TestPhase2OldValueAndExpression:
             _force_state=DiffState.MODIFIED,
         )
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="", timestamp=datetime.datetime.now()),
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
@@ -890,8 +893,8 @@ class TestPhase2OldValueAndExpression:
             _force_state=DiffState.MODIFIED,
         )
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="", timestamp=datetime.datetime.now()),
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
@@ -930,8 +933,8 @@ class TestPhase2OldValueAndExpression:
             _force_state=DiffState.MODIFIED,
         )
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="", timestamp=datetime.datetime.now()),
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 

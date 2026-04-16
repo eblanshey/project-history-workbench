@@ -33,6 +33,7 @@ class TestCompareSnapshotsAction:
                     properties={},
                 )
             ],
+            git_path="",
         )
         new_snapshot = Snapshot(
             snapshot_id="",
@@ -49,6 +50,7 @@ class TestCompareSnapshotsAction:
                     properties={},
                 )
             ],
+            git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
         new_id = snapshot_repo.add_snapshot(new_snapshot)
@@ -69,7 +71,7 @@ class TestCompareSnapshotsAction:
         assert result.success is True
         assert result.diff_result is not None
         assert result.error_message is None
-        assert len(diff_engine.compare_calls) == 1
+        assert len(diff_engine.compute_diff_calls) == 1
 
     def test_execute_old_not_found(self) -> None:
         """Error: old snapshot ID doesn't exist."""
@@ -101,6 +103,7 @@ class TestCompareSnapshotsAction:
             document_name="OldDoc",
             timestamp=datetime.datetime.now(),
             nodes=[],
+            git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
 
@@ -140,6 +143,7 @@ class TestCompareSnapshotsAction:
                     properties={"Property1": Property(type_=PropertyType.STRING, value="Value1")},
                 )
             ],
+            git_path="",
         )
         new_snapshot = Snapshot(
             snapshot_id="",
@@ -156,6 +160,7 @@ class TestCompareSnapshotsAction:
                     properties={"Property1": Property(type_=PropertyType.STRING, value="Value2")},
                 )
             ],
+            git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
         new_id = snapshot_repo.add_snapshot(new_snapshot)
@@ -177,21 +182,17 @@ class TestCompareSnapshotsAction:
 
         # Assert
         assert result.success is True
-        assert len(diff_engine.compare_calls) == 1
+        assert len(diff_engine.compute_diff_calls) == 1
 
         # Verify the call arguments
-        call_args = diff_engine.compare_calls[0]
-        old_snapshot, new_snapshot, excluded_types, excluded_properties = call_args
+        call_args = diff_engine.compute_diff_calls[0]
+        old_snapshot, new_snapshot = call_args
 
         # Check that Snapshot objects were passed
         assert isinstance(old_snapshot, Snapshot)
         assert isinstance(new_snapshot, Snapshot)
         assert len(old_snapshot.nodes) == 1
         assert len(new_snapshot.nodes) == 1
-
-        # Check that exclusion settings were passed
-        assert excluded_types == ["App::Origin"]
-        assert excluded_properties == ["TimeStamp"]
 
     def test_execute_uses_settings(self) -> None:
         """Uses SettingsRepository for exclusions."""
@@ -202,12 +203,14 @@ class TestCompareSnapshotsAction:
             document_name="OldDoc",
             timestamp=datetime.datetime.now(),
             nodes=[],
+            git_path="",
         )
         new_snapshot = Snapshot(
             snapshot_id="",
             document_name="NewDoc",
             timestamp=datetime.datetime.now(),
             nodes=[],
+            git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
         new_id = snapshot_repo.add_snapshot(new_snapshot)
@@ -232,11 +235,11 @@ class TestCompareSnapshotsAction:
 
         # Assert
         assert result.success is True
-        assert len(diff_engine.compare_calls) == 1
+        assert len(diff_engine.compute_diff_calls) == 1
 
-        _, _, excluded_types, excluded_properties = diff_engine.compare_calls[0]
-        assert excluded_types == custom_excluded_types
-        assert excluded_properties == custom_excluded_properties
+        old_snapshot, new_snapshot = diff_engine.compute_diff_calls[0]
+        assert isinstance(old_snapshot, Snapshot)
+        assert isinstance(new_snapshot, Snapshot)
 
     def test_execute_logs_progress(self) -> None:
         """Logger receives progress messages."""
@@ -247,12 +250,14 @@ class TestCompareSnapshotsAction:
             document_name="OldDoc",
             timestamp=datetime.datetime.now(),
             nodes=[],
+            git_path="",
         )
         new_snapshot = Snapshot(
             snapshot_id="",
             document_name="NewDoc",
             timestamp=datetime.datetime.now(),
             nodes=[],
+            git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
         new_id = snapshot_repo.add_snapshot(new_snapshot)
@@ -282,12 +287,14 @@ class TestCompareSnapshotsAction:
             document_name="OldDoc",
             timestamp=datetime.datetime.now(),
             nodes=[],
+            git_path="",
         )
         new_snapshot = Snapshot(
             snapshot_id="",
             document_name="NewDoc",
             timestamp=datetime.datetime.now(),
             nodes=[],
+            git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
         new_id = snapshot_repo.add_snapshot(new_snapshot)
@@ -321,6 +328,7 @@ class TestCompareSnapshotsAction:
             document_name="TestDoc",
             timestamp=datetime.datetime.now(),
             nodes=[],
+            git_path="",
         )
         snapshot_id = snapshot_repo.add_snapshot(snapshot)
 

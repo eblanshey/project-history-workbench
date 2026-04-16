@@ -13,6 +13,7 @@ from enum import Enum, auto
 from typing import Any
 
 from ...utils import Log
+from ..snapshots import Snapshot
 from ..tree import Property, PropertyType
 
 
@@ -540,24 +541,32 @@ class DiffResult:
     as a tree structure that mirrors the original document hierarchy.
 
     Attributes:
-        old_snapshot_name: Name/identifier of the old snapshot
-        new_snapshot_name: Name/identifier of the new snapshot
+        old_snapshot: The old snapshot being compared
+        new_snapshot: The new snapshot being compared
+        warnings: List of warning messages for edge cases
         added_count: Number of added nodes
         deleted_count: Number of deleted nodes
         modified_count: Number of modified nodes
         hierarchy: The DiffHierarchy containing the node diffs in tree form
     """
 
-    old_snapshot_name: str
-    new_snapshot_name: str
+    old_snapshot: Snapshot
+    new_snapshot: Snapshot
+    warnings: list[str] = field(default_factory=list)
     added_count: int = 0
     deleted_count: int = 0
     modified_count: int = 0
     hierarchy: DiffHierarchy = field(default_factory=lambda: DiffHierarchy())
 
+    def __post_init__(self) -> None:
+        """Check for edge cases and add warnings."""
+        # Check if same snapshot instance is used for both old and new
+        if self.old_snapshot is self.new_snapshot:
+            object.__setattr__(self, "warnings", ["Same snapshot instance used for both old and new"])
+
     def __str__(self) -> str:
         return (
-            f"DiffResult({self.old_snapshot_name} vs {self.new_snapshot_name}): "
+            f"DiffResult({self.old_snapshot.document_name} vs {self.new_snapshot.document_name}): "
             f"{self.added_count} added, {self.deleted_count} deleted, {self.modified_count} modified"
         )
 

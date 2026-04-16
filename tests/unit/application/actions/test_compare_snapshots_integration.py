@@ -68,6 +68,7 @@ class TestCompareSnapshotsAction:
                     properties={"Label": Property(type_=PropertyType.STRING, value="OldPart")},
                 )
             ],
+            git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
 
@@ -87,6 +88,7 @@ class TestCompareSnapshotsAction:
                     properties={"Label": Property(type_=PropertyType.STRING, value="NewPart")},
                 )
             ],
+            git_path="",
         )
         new_id = snapshot_repo.add_snapshot(new_snapshot)
 
@@ -131,6 +133,7 @@ class TestCompareSnapshotsAction:
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
             nodes=[],
+            git_path="",
         )
         snapshot_repo.add_snapshot(new_snapshot)
 
@@ -161,6 +164,7 @@ class TestCompareSnapshotsAction:
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
             nodes=[],
+            git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
 
@@ -191,6 +195,7 @@ class TestCompareSnapshotsAction:
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
             nodes=[],
+            git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
 
@@ -199,6 +204,7 @@ class TestCompareSnapshotsAction:
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
             nodes=[],
+            git_path="",
         )
         new_id = snapshot_repo.add_snapshot(new_snapshot)
 
@@ -246,6 +252,7 @@ class TestCompareSnapshotsAction:
                     properties={},
                 )
             ],
+            git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
 
@@ -264,6 +271,7 @@ class TestCompareSnapshotsAction:
                     properties={},
                 )
             ],
+            git_path="",
         )
         new_id = snapshot_repo.add_snapshot(new_snapshot)
 
@@ -306,6 +314,7 @@ class TestCompareSnapshotsAction:
                     properties={},
                 )
             ],
+            git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
 
@@ -334,6 +343,7 @@ class TestCompareSnapshotsAction:
                     properties={},
                 ),
             ],
+            git_path="",
         )
         new_id = snapshot_repo.add_snapshot(new_snapshot)
 
@@ -386,6 +396,7 @@ class TestCompareSnapshotsAction:
                     properties={},
                 ),
             ],
+            git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
 
@@ -405,6 +416,7 @@ class TestCompareSnapshotsAction:
                     properties={},
                 ),
             ],
+            git_path="",
         )
         new_id = snapshot_repo.add_snapshot(new_snapshot)
 
@@ -471,6 +483,7 @@ class TestCompareSnapshotsAction:
                     properties={},
                 ),
             ],
+            git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
 
@@ -511,6 +524,7 @@ class TestCompareSnapshotsAction:
                     properties={},
                 ),
             ],
+            git_path="",
         )
         new_id = snapshot_repo.add_snapshot(new_snapshot)
 
@@ -585,6 +599,7 @@ class TestCompareSnapshotsAction:
                     properties={"Label": Property(type_=PropertyType.STRING, value="Pocket")},
                 ),
             ],
+            git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
 
@@ -625,6 +640,7 @@ class TestCompareSnapshotsAction:
                     properties={"Label": Property(type_=PropertyType.STRING, value="Fillet")},
                 ),
             ],
+            git_path="",
         )
         new_id = snapshot_repo.add_snapshot(new_snapshot)
 
@@ -695,6 +711,7 @@ class TestCompareSnapshotsAction:
                     },
                 ),
             ],
+            git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
 
@@ -718,6 +735,7 @@ class TestCompareSnapshotsAction:
                     },
                 ),
             ],
+            git_path="",
         )
         new_id = snapshot_repo.add_snapshot(new_snapshot)
 

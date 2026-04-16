@@ -63,9 +63,9 @@ class TakeSnapshotAction:
         if name is None:
             name = self._generate_default_name(doc)
 
-        # Step 3: Extract tree structure using the port (extractor needs port)
+        # Step 3: Extract tree structure from the document
         try:
-            snapshot = self._extractor.extract_tree(self._freecad_port)
+            snapshot = self._extractor.extract_tree(doc)
         except (ValueError, TypeError, AttributeError) as e:
             error_msg = f"Failed to extract snapshot: {str(e)}"
             self._freecad_port.message(error_msg)

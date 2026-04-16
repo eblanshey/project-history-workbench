@@ -70,19 +70,10 @@ class CompareSnapshotsAction:
                 error_message=error_msg,
             )
 
-        # Step 3: Get settings for exclusions
-        Log.info("Loading exclusion settings")
-        settings = self._settings_repo.get_settings()
-
-        # Step 4: Compute diff
+        # Step 3: Compute diff (settings are applied internally by DiffEngine)
         Log.info(f"Comparing snapshots: {old_id} vs {new_id}")
         try:
-            diff_result = self._diff_engine.compare(
-                old_snapshot,
-                new_snapshot,
-                excluded_types=settings.excluded_types,
-                excluded_properties=settings.excluded_properties,
-            )
+            diff_result = self._diff_engine.compute_diff(old_snapshot, new_snapshot)
         except (ValueError, TypeError, AttributeError) as e:
             error_msg = f"Failed to compute diff: {str(e)}"
             Log.error(error_msg)

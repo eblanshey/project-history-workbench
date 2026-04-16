@@ -180,7 +180,7 @@ class TestProtocolValidationUtility:
             def show_loading(self) -> None:
                 pass
 
-            def show_diff_tree(self, nodes: list) -> None:
+            def show_diff_tree(self, nodes: list, git_path: str = "") -> None:
                 pass
 
             def show_summary(self, added: int, deleted: int, modified: int) -> None:

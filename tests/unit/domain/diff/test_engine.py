@@ -168,15 +168,91 @@ class TestNodeDiff:
 class TestDiffResult:
     """Tests for the DiffResult class."""
 
-    def test_creation(self):
-        """Test diff result creation."""
-        diff = DiffResult(old_snapshot_name="v1", new_snapshot_name="v2")
-        assert diff.old_snapshot_name == "v1"
-        assert diff.new_snapshot_name == "v2"
+    def test_creation_with_snapshots(self):
+        """Test DiffResult created with old_snapshot and new_snapshot parameters."""
+        old_snapshot = Snapshot(
+            snapshot_id="old-id",
+            document_name="OldDoc",
+            timestamp=datetime.datetime.now(),
+            nodes=[],
+        )
+        new_snapshot = Snapshot(
+            snapshot_id="new-id",
+            document_name="NewDoc",
+            timestamp=datetime.datetime.now(),
+            nodes=[],
+        )
+        diff = DiffResult(old_snapshot=old_snapshot, new_snapshot=new_snapshot)
+        assert diff.old_snapshot is old_snapshot
+        assert diff.new_snapshot is new_snapshot
+
+    def test_warnings_initialized_empty_by_default(self):
+        """Test warnings list is initialized empty by default."""
+        old_snapshot = Snapshot(
+            snapshot_id="old-id",
+            document_name="OldDoc",
+            timestamp=datetime.datetime.now(),
+            nodes=[],
+        )
+        new_snapshot = Snapshot(
+            snapshot_id="new-id",
+            document_name="NewDoc",
+            timestamp=datetime.datetime.now(),
+            nodes=[],
+        )
+        diff = DiffResult(old_snapshot=old_snapshot, new_snapshot=new_snapshot)
+        assert diff.warnings == []
+
+    def test_same_snapshot_instance_triggers_warning(self):
+        """Test same snapshot instance for old/new triggers warning."""
+        snapshot = Snapshot(
+            snapshot_id="same-id",
+            document_name="SameDoc",
+            timestamp=datetime.datetime.now(),
+            nodes=[],
+        )
+        diff = DiffResult(old_snapshot=snapshot, new_snapshot=snapshot)
+        assert len(diff.warnings) == 1
+        assert "Same snapshot instance used for both old and new" in diff.warnings
+
+    def test_warnings_can_contain_multiple_strings(self):
+        """Test warnings can contain multiple strings."""
+        old_snapshot = Snapshot(
+            snapshot_id="old-id",
+            document_name="OldDoc",
+            timestamp=datetime.datetime.now(),
+            nodes=[],
+        )
+        new_snapshot = Snapshot(
+            snapshot_id="new-id",
+            document_name="NewDoc",
+            timestamp=datetime.datetime.now(),
+            nodes=[],
+        )
+        diff = DiffResult(
+            old_snapshot=old_snapshot,
+            new_snapshot=new_snapshot,
+            warnings=["Warning 1", "Warning 2"],
+        )
+        assert len(diff.warnings) == 2
+        assert "Warning 1" in diff.warnings
+        assert "Warning 2" in diff.warnings
 
     def test_has_changes_false(self):
         """Test has_changes when no changes."""
-        diff = DiffResult(old_snapshot_name="v1", new_snapshot_name="v2")
+        old_snapshot = Snapshot(
+            snapshot_id="old-id",
+            document_name="OldDoc",
+            timestamp=datetime.datetime.now(),
+            nodes=[],
+        )
+        new_snapshot = Snapshot(
+            snapshot_id="new-id",
+            document_name="NewDoc",
+            timestamp=datetime.datetime.now(),
+            nodes=[],
+        )
+        diff = DiffResult(old_snapshot=old_snapshot, new_snapshot=new_snapshot)
         assert diff.has_changes is False
 
     def test_has_changes_true(self):
@@ -189,7 +265,19 @@ class TestDiffResult:
         node_diff = NodeDiff(path="Body/Pad", type_id="PartDesign::Pad", property_diffs=[prop_diff])
         hierarchy = DiffHierarchy()
         hierarchy._roots.append(node_diff)
-        diff = DiffResult(old_snapshot_name="v1", new_snapshot_name="v2", hierarchy=hierarchy)
+        old_snapshot = Snapshot(
+            snapshot_id="old-id",
+            document_name="OldDoc",
+            timestamp=datetime.datetime.now(),
+            nodes=[],
+        )
+        new_snapshot = Snapshot(
+            snapshot_id="new-id",
+            document_name="NewDoc",
+            timestamp=datetime.datetime.now(),
+            nodes=[],
+        )
+        diff = DiffResult(old_snapshot=old_snapshot, new_snapshot=new_snapshot, hierarchy=hierarchy)
         assert diff.has_changes is True
 
     def test_get_all_changed_paths(self):
@@ -210,7 +298,19 @@ class TestDiffResult:
 
         hierarchy = DiffHierarchy()
         hierarchy._roots.extend([parent, unchanged])
-        diff = DiffResult(old_snapshot_name="v1", new_snapshot_name="v2", hierarchy=hierarchy)
+        old_snapshot = Snapshot(
+            snapshot_id="old-id",
+            document_name="OldDoc",
+            timestamp=datetime.datetime.now(),
+            nodes=[],
+        )
+        new_snapshot = Snapshot(
+            snapshot_id="new-id",
+            document_name="NewDoc",
+            timestamp=datetime.datetime.now(),
+            nodes=[],
+        )
+        diff = DiffResult(old_snapshot=old_snapshot, new_snapshot=new_snapshot, hierarchy=hierarchy)
 
         changed_paths = diff.get_all_changed_paths()
         assert "Body/Pad/Sub" in changed_paths
@@ -239,8 +339,8 @@ class TestDiffEngineComputeDiff:
         engine = DiffEngine()
         result = engine.compute_diff(old_snapshot, new_snapshot)
 
-        assert result.old_snapshot_name == "old"
-        assert result.new_snapshot_name == "new"
+        assert result.old_snapshot.document_name == "old"
+        assert result.new_snapshot.document_name == "new"
         assert result.hierarchy.roots == []
         assert result.has_changes is False
 
@@ -446,70 +546,34 @@ class TestDiffEngineComputeDiff:
         assert result.has_changes is False
 
 
-class TestDiffEngineCompare:
-    """Tests for DiffEngine.compare() with Snapshot objects."""
+class TestDiffEngineComputeDiffWithNone:
+    """Tests for DiffEngine.compute_diff() when old snapshot is None."""
 
-    def test_compare_with_empty_snapshots(self):
-        """Test compare with empty snapshots returns empty result."""
-        engine = DiffEngine()
-        old_snapshot = Snapshot(
-            snapshot_id="old",
-            document_name="OldDoc",
-            timestamp=datetime.datetime.now(),
-            nodes=[],
-        )
+    def test_compute_diff_with_none_old_snapshot(self):
+        """Test compute_diff with None for old snapshot adds appropriate warning."""
         new_snapshot = Snapshot(
-            snapshot_id="new",
-            document_name="NewDoc",
+            snapshot_id=str(uuid.uuid4()),
+            document_name="TestDoc",
             timestamp=datetime.datetime.now(),
             nodes=[],
-        )
-        result = engine.compare(
-            old_snapshot,
-            new_snapshot,
-            excluded_types=[],
-            excluded_properties=[],
-        )
-
-        assert result.hierarchy.roots == []
-        assert result.has_changes is False
-
-    def test_compare_detect_added_nodes(self):
-        """Test compare detects added nodes in snapshot."""
-        new_node = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-            properties={},
         )
 
         engine = DiffEngine()
-        old_snapshot = Snapshot(
-            snapshot_id="old",
-            document_name="OldDoc",
-            timestamp=datetime.datetime.now(),
-            nodes=[],
-        )
-        new_snapshot = Snapshot(
-            snapshot_id="new",
-            document_name="NewDoc",
-            timestamp=datetime.datetime.now(),
-            nodes=[new_node],
-        )
-        result = engine.compare(
-            old_snapshot,
-            new_snapshot,
-            excluded_types=[],
-            excluded_properties=[],
-        )
+        result = engine.compute_diff(None, new_snapshot)
 
-        assert result.has_changes is True
+        # Should use same snapshot for both
+        assert result.old_snapshot is new_snapshot
+        assert result.new_snapshot is new_snapshot
+        # Should have warning about same snapshot
+        assert len(result.warnings) == 1
+        assert "Same snapshot instance used for both old and new" in result.warnings
 
-    def test_compare_detect_deleted_nodes(self):
-        """Test compare detects deleted nodes in snapshot."""
+
+class TestDiffEngineComputeDiffWithSettings:
+    """Tests for DiffEngine.compute_diff() with custom settings."""
+
+    def test_compute_diff_with_custom_excluded_types(self):
+        """Test compute_diff with custom excluded types filters correctly."""
         old_node = TreeNode(
             id=1,
             name="Body",
@@ -519,111 +583,35 @@ class TestDiffEngineCompare:
             after=None,
             properties={},
         )
-
-        engine = DiffEngine()
         old_snapshot = Snapshot(
-            snapshot_id="old",
-            document_name="OldDoc",
+            snapshot_id=str(uuid.uuid4()),
+            document_name="old",
             timestamp=datetime.datetime.now(),
             nodes=[old_node],
         )
         new_snapshot = Snapshot(
-            snapshot_id="new",
-            document_name="NewDoc",
+            snapshot_id=str(uuid.uuid4()),
+            document_name="new",
             timestamp=datetime.datetime.now(),
             nodes=[],
         )
-        result = engine.compare(
-            old_snapshot,
-            new_snapshot,
-            excluded_types=[],
-            excluded_properties=[],
-        )
 
-        assert result.has_changes is True
+        # Use mock settings repo to exclude PartDesign::Body
+        class MockSettingsRepo:
+            def get_excluded_types(self):
+                return ["PartDesign::Body"]
 
-    def test_compare_with_modified_properties(self):
-        """Test compare detects modified properties in snapshot."""
-        from freecad.diff_wb.domain import Property
+            def get_excluded_properties(self):
+                return []
 
-        old_node = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-            properties={"Length": Property.create(PropertyType.FLOAT, 10.0)},
-        )
-        new_node = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-            properties={"Length": Property.create(PropertyType.FLOAT, 20.0)},
-        )
-
-        engine = DiffEngine()
-        old_snapshot = Snapshot(
-            snapshot_id="old",
-            document_name="OldDoc",
-            timestamp=datetime.datetime.now(),
-            nodes=[old_node],
-        )
-        new_snapshot = Snapshot(
-            snapshot_id="new",
-            document_name="NewDoc",
-            timestamp=datetime.datetime.now(),
-            nodes=[new_node],
-        )
-        result = engine.compare(
-            old_snapshot,
-            new_snapshot,
-            excluded_types=[],
-            excluded_properties=[],
-        )
-
-        assert result.has_changes is True
-
-    def test_compare_filters_excluded_types(self):
-        """Test compare filters excluded node types."""
-        old_node = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-            properties={},
-        )
-
-        engine = DiffEngine()
-        old_snapshot = Snapshot(
-            snapshot_id="old",
-            document_name="OldDoc",
-            timestamp=datetime.datetime.now(),
-            nodes=[old_node],
-        )
-        new_snapshot = Snapshot(
-            snapshot_id="new",
-            document_name="NewDoc",
-            timestamp=datetime.datetime.now(),
-            nodes=[],
-        )
-        result = engine.compare(
-            old_snapshot,
-            new_snapshot,
-            excluded_types=["PartDesign::Body"],
-            excluded_properties=[],
-        )
+        engine = DiffEngine(settings_repo=MockSettingsRepo())
+        result = engine.compute_diff(old_snapshot, new_snapshot)
 
         # With excluded type, should not report changes
         assert result.has_changes is False
 
-    def test_compare_filters_excluded_properties(self):
-        """Test compare filters excluded property names."""
+    def test_compute_diff_with_custom_excluded_properties(self):
+        """Test compute_diff with custom excluded properties filters correctly."""
         from freecad.diff_wb.domain import Property
 
         old_node = TreeNode(
@@ -651,25 +639,29 @@ class TestDiffEngineCompare:
             },
         )
 
-        engine = DiffEngine()
         old_snapshot = Snapshot(
-            snapshot_id="old",
-            document_name="OldDoc",
+            snapshot_id=str(uuid.uuid4()),
+            document_name="old",
             timestamp=datetime.datetime.now(),
             nodes=[old_node],
         )
         new_snapshot = Snapshot(
-            snapshot_id="new",
-            document_name="NewDoc",
+            snapshot_id=str(uuid.uuid4()),
+            document_name="new",
             timestamp=datetime.datetime.now(),
             nodes=[new_node],
         )
-        result = engine.compare(
-            old_snapshot,
-            new_snapshot,
-            excluded_types=[],
-            excluded_properties=["Length"],
-        )
+
+        # Use mock settings repo to exclude Length property
+        class MockSettingsRepo:
+            def get_excluded_types(self):
+                return []
+
+            def get_excluded_properties(self):
+                return ["Length"]
+
+        engine = DiffEngine(settings_repo=MockSettingsRepo())
+        result = engine.compute_diff(old_snapshot, new_snapshot)
 
         # Only Label property differs (but it's the same value)
         # Length should be excluded from comparison

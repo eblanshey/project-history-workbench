@@ -1,10 +1,77 @@
 """File responsibility: Unit tests for DiffPresenter."""
 
+import datetime
+
 from freecad.diff_wb.domain.diff.models import DiffHierarchy, DiffResult, DiffState, NodeDiff, PropertyDiff
+from freecad.diff_wb.domain.snapshots import Snapshot
 from freecad.diff_wb.domain.tree import Property, PropertyType
 from freecad.diff_wb.ui.presenters.diff_presenter import DiffPresenter
 from freecad.diff_wb.ui.presenters.presentation_models import NodePresentation, PropertyPresentation
 from tests.fakes.fake_diff_view import FakeDiffView
+
+
+class TestDiffPresenterGitPath:
+    """Tests for DiffPresenter git_path display functionality."""
+
+    def test_present_diff_passes_git_path_to_view(self) -> None:
+        """Passes git_path from new_snapshot to show_diff_tree."""
+        # Arrange
+        fake_view = FakeDiffView()
+        presenter = DiffPresenter(fake_view)
+        hierarchy = DiffHierarchy()
+        hierarchy.add_node(NodeDiff(path="Part", type_id="Part::Feature"))
+        diff_result = DiffResult(
+            old_snapshot=Snapshot(
+                snapshot_id="s1",
+                document_name="snapshot_v1",
+                timestamp=datetime.datetime.now(),
+            ),
+            new_snapshot=Snapshot(
+                snapshot_id="s2",
+                document_name="snapshot_v2",
+                timestamp=datetime.datetime.now(),
+                git_path="path/to/doc.FCStd",
+            ),
+            hierarchy=hierarchy,
+        )
+
+        # Act
+        presenter.present_diff(diff_result)
+
+        # Assert
+        calls = fake_view.get_calls()
+        assert calls[0]["method"] == "show_diff_tree"
+        assert calls[0]["git_path"] == "path/to/doc.FCStd"
+
+    def test_present_diff_uses_document_name_when_git_path_empty(self) -> None:
+        """Falls back to document_name when git_path is empty."""
+        # Arrange
+        fake_view = FakeDiffView()
+        presenter = DiffPresenter(fake_view)
+        hierarchy = DiffHierarchy()
+        hierarchy.add_node(NodeDiff(path="Part", type_id="Part::Feature"))
+        diff_result = DiffResult(
+            old_snapshot=Snapshot(
+                snapshot_id="s1",
+                document_name="snapshot_v1",
+                timestamp=datetime.datetime.now(),
+            ),
+            new_snapshot=Snapshot(
+                snapshot_id="s2",
+                document_name="MyDocument",
+                timestamp=datetime.datetime.now(),
+                git_path="",  # Empty git_path
+            ),
+            hierarchy=hierarchy,
+        )
+
+        # Act
+        presenter.present_diff(diff_result)
+
+        # Assert
+        calls = fake_view.get_calls()
+        assert calls[0]["method"] == "show_diff_tree"
+        assert calls[0]["git_path"] == "MyDocument"
 
 
 class TestDiffPresenter:
@@ -19,8 +86,8 @@ class TestDiffPresenter:
         hierarchy = DiffHierarchy()
         hierarchy.add_node(NodeDiff(path="Part", type_id="Part::Feature"))
         diff_result = DiffResult(
-            old_snapshot_name="snapshot_v1",
-            new_snapshot_name="snapshot_v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="snapshot_v1", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="snapshot_v2", timestamp=datetime.datetime.now()),
             hierarchy=hierarchy,
         )
 
@@ -46,8 +113,8 @@ class TestDiffPresenter:
         hierarchy = DiffHierarchy()
         hierarchy.add_node(node_diff)
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="v2", timestamp=datetime.datetime.now()),
             hierarchy=hierarchy,
         )
 
@@ -81,8 +148,8 @@ class TestDiffPresenter:
         hierarchy = DiffHierarchy()
         hierarchy.add_node(node_diff)
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="v2", timestamp=datetime.datetime.now()),
             hierarchy=hierarchy,
         )
 
@@ -102,8 +169,8 @@ class TestDiffPresenter:
         fake_view = FakeDiffView()
         presenter = DiffPresenter(fake_view)
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="v2", timestamp=datetime.datetime.now()),
             hierarchy=DiffHierarchy(),
         )
 
@@ -145,8 +212,8 @@ class TestDiffPresenter:
         hierarchy.add_node(modified_node)
         hierarchy.add_node(unchanged_node)
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="v2", timestamp=datetime.datetime.now()),
             hierarchy=hierarchy,
             added_count=1,
             deleted_count=1,
@@ -194,8 +261,8 @@ class TestDiffPresenterFormatsChildren:
         hierarchy = DiffHierarchy()
         hierarchy.add_node(parent)
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="v2", timestamp=datetime.datetime.now()),
             hierarchy=hierarchy,
         )
 
@@ -248,8 +315,8 @@ class TestDiffPresenterFormatsChildren:
         hierarchy = DiffHierarchy()
         hierarchy.add_node(part)
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="v2", timestamp=datetime.datetime.now()),
             hierarchy=hierarchy,
         )
 
@@ -305,8 +372,8 @@ class TestDiffPresenterFormatsChildren:
         hierarchy = DiffHierarchy()
         hierarchy.add_node(leaf_node)
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="v2", timestamp=datetime.datetime.now()),
             hierarchy=hierarchy,
         )
 
@@ -355,8 +422,8 @@ class TestTransformPropertyDiffsWithChildren:
         hierarchy = DiffHierarchy()
         hierarchy.add_node(node_diff)
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="v2", timestamp=datetime.datetime.now()),
             hierarchy=hierarchy,
         )
         presenter.present_diff(diff_result)
@@ -408,8 +475,8 @@ class TestTransformPropertyDiffsWithChildren:
         hierarchy = DiffHierarchy()
         hierarchy.add_node(node_diff)
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="v2", timestamp=datetime.datetime.now()),
             hierarchy=hierarchy,
         )
         presenter.present_diff(diff_result)
@@ -466,8 +533,8 @@ class TestTransformPropertyDiffsWithChildren:
         hierarchy = DiffHierarchy()
         hierarchy.add_node(node_diff)
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="v2", timestamp=datetime.datetime.now()),
             hierarchy=hierarchy,
         )
         presenter.present_diff(diff_result)
@@ -515,8 +582,8 @@ class TestTransformPropertyDiffsWithChildren:
         hierarchy = DiffHierarchy()
         hierarchy.add_node(node_diff)
         diff_result = DiffResult(
-            old_snapshot_name="v1",
-            new_snapshot_name="v2",
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="v2", timestamp=datetime.datetime.now()),
             hierarchy=hierarchy,
         )
         presenter.present_diff(diff_result)

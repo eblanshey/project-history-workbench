@@ -49,6 +49,7 @@ class TestSnapshotYamlSerializer:
             document_name="TestDocument",
             timestamp=datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
             nodes=nodes,
+            git_path="",
         )
 
     def test_serialize_snapshot_to_yaml_format(self):
@@ -270,6 +271,7 @@ objects:
             document_name="EmptyDoc",
             timestamp=datetime(2024, 3, 1, tzinfo=UTC),
             nodes=[],
+            git_path="",
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -310,6 +312,7 @@ objects: []
             document_name="SortTest",
             timestamp=datetime(2024, 1, 1, tzinfo=UTC),
             nodes=nodes,
+            git_path="",
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:

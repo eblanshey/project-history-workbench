@@ -580,7 +580,6 @@ def _build_flat_node_list(
 
 
 def _extract_tree_single_pass(
-    port: FreeCadPort,
     doc: DocumentLike,
     gui_doc: Any,
     document_name: str,
@@ -592,7 +591,6 @@ def _extract_tree_single_pass(
     direct children, so no recursive exclusion is needed.
 
     Args:
-        port: The FreeCadPort instance
         doc: The FreeCAD document
         gui_doc: The GUI document for ViewProvider access (can be None)
         document_name: Name of the document
@@ -627,7 +625,9 @@ def _extract_tree_single_pass(
     # Step 4: Single BFS pass to build flat node list
     nodes = _build_flat_node_list(doc, child_to_parent_map, parent_to_child_map, name_to_obj)
 
-    return Snapshot(snapshot_id=str(uuid.uuid4()), document_name=document_name, timestamp=datetime.now(), nodes=nodes)
+    return Snapshot(
+        snapshot_id=str(uuid.uuid4()), document_name=document_name, timestamp=datetime.now(), nodes=nodes, git_path=""
+    )
 
 
 class SnapshotExtractor:
@@ -642,34 +642,21 @@ class SnapshotExtractor:
         """Initialize the extractor."""
         pass
 
-    def extract_tree(self, port: FreeCadPort | None = None) -> Snapshot:
-        """Extract the document tree structure from the active FreeCAD document.
+    def extract_tree(self, doc: DocumentLike) -> Snapshot:
+        """Extract the document tree structure from a FreeCAD document.
 
-        This function traverses the active FreeCAD document and converts it into
+        This function traverses a FreeCAD document and converts it into
         a Snapshot domain object containing TreeNode hierarchy. It uses FreeCAD's
         GUI-level claimChildren() API to match the visual tree structure.
 
         Args:
-            port: Optional FreeCadPort instance. If None, returns empty snapshot.
+            doc: Required DocumentLike instance representing the FreeCAD document.
 
         Returns:
             A Snapshot object containing the document tree structure.
-            Returns an empty Snapshot if no port provided or extraction fails.
+            Returns an empty Snapshot if extraction fails.
         """
         from .models import Snapshot
-
-        if port is None:
-            Log.info("No port provided, returning empty snapshot")
-            return Snapshot(snapshot_id=str(uuid.uuid4()), document_name="NoPort", timestamp=datetime.now(), nodes=[])
-
-        doc = port.get_active_document()
-
-        if doc is None:
-            # No document open, return empty snapshot
-            Log.info("No document open, returning empty snapshot")
-            return Snapshot(
-                snapshot_id=str(uuid.uuid4()), document_name="NoDocument", timestamp=datetime.now(), nodes=[]
-            )
 
         document_name = getattr(doc, "Name", "Unnamed")
 
@@ -678,7 +665,7 @@ class SnapshotExtractor:
             gui_doc = _init_gui_and_get_doc(doc)
 
             # Use single-pass BFS algorithm for better performance
-            return _extract_tree_single_pass(port, doc, gui_doc, document_name)
+            return _extract_tree_single_pass(doc, gui_doc, document_name)
 
         except Exception as e:
             Log.exception(f"Error extracting document tree: {e}")
@@ -686,4 +673,6 @@ class SnapshotExtractor:
         # Use current time for timestamp
         timestamp = datetime.now()
 
-        return Snapshot(snapshot_id=str(uuid.uuid4()), document_name=document_name, timestamp=timestamp, nodes=[])
+        return Snapshot(
+            snapshot_id=str(uuid.uuid4()), document_name=document_name, timestamp=timestamp, nodes=[], git_path=""
+        )

@@ -41,12 +41,14 @@ class Snapshot:
         document_name: Name of the document
         timestamp: Timestamp when the snapshot was taken
         nodes: Flat list of all tree nodes in the document
+        git_path: Relative path from git root to the document file
     """
 
     snapshot_id: str
     document_name: str
     timestamp: datetime
     nodes: list[TreeNode] = field(default_factory=list)
+    git_path: str = ""
 
     @property
     def node_count(self) -> int:
@@ -58,6 +60,8 @@ class Snapshot:
         return len(self.nodes)
 
     def __str__(self) -> str:
+        if self.git_path:
+            return f"Snapshot({self.git_path}, {len(self.nodes)} objects, {self.node_count} total nodes)"
         return f"Snapshot({self.document_name}, {len(self.nodes)} objects, {self.node_count} total nodes)"
 
     def get_all_nodes(self) -> list[TreeNode]:

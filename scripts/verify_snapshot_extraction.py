@@ -255,7 +255,11 @@ def test_snapshot_domain_model(doc: FreeCAD.Document) -> None:
     from datetime import datetime
 
     snapshot = Snapshot(
-        snapshot_id=str(uuid.uuid4()), document_name=doc.Name, timestamp=datetime.now(), root_nodes=root_nodes
+        snapshot_id=str(uuid.uuid4()),
+        document_name=doc.Name,
+        timestamp=datetime.now(),
+        root_nodes=root_nodes,
+        git_path="",
     )
 
     print(f"\nCreated Snapshot: {snapshot}")

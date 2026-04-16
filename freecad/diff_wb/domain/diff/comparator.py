@@ -16,6 +16,7 @@
 # - EXPRESSION: String equality (expression changes are significant)
 """Tree and property comparison algorithms."""
 
+from ..snapshots import Snapshot
 from ..tree.node import TreeNode
 from ..tree.property import Property
 from .models import DiffHierarchy, DiffResult, DiffState, NodeDiff, PropertyDiff
@@ -333,8 +334,8 @@ class TreeComparator:
 
     def compare_snapshots(
         self,
-        old_nodes: list[TreeNode],
-        new_nodes: list[TreeNode],
+        old_snapshot: Snapshot,
+        new_snapshot: Snapshot,
         excluded_properties: list[str],
         excluded_types: list[str],
     ) -> DiffResult:
@@ -353,14 +354,18 @@ class TreeComparator:
         set lookups for exclusion filtering instead of O(n*m) prefix checks.
 
         Args:
-            old_nodes: Flat list of tree nodes from old snapshot
-            new_nodes: Flat list of tree nodes from new snapshot
+            old_snapshot: The old snapshot to compare
+            new_snapshot: The new snapshot to compare
             excluded_properties: List of property names to exclude from comparison
             excluded_types: List of type IDs to exclude from comparison
 
         Returns:
             DiffResult containing hierarchy and counts
         """
+        # Extract nodes from snapshots
+        old_nodes = old_snapshot.nodes
+        new_nodes = new_snapshot.nodes
+
         # Prepare data structures
         excluded_types_set = set(excluded_types)
         sorted_old_nodes = self._sort_nodes_by_path_length(old_nodes)
@@ -388,8 +393,8 @@ class TreeComparator:
 
         # Return DiffResult with hierarchy and counts
         return DiffResult(
-            old_snapshot_name="old",
-            new_snapshot_name="new",
+            old_snapshot=old_snapshot,
+            new_snapshot=new_snapshot,
             added_count=added_count,
             deleted_count=deleted_count,
             modified_count=modified_count,

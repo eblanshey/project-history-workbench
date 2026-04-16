@@ -825,7 +825,7 @@ class TestIdBasedCompareSnapshots:
             nodes=[new_node1, new_node2],
         )
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
 
         # ID 2 should be added, ID 1 unchanged
         assert result.added_count == 1
@@ -874,7 +874,7 @@ class TestIdBasedCompareSnapshots:
             nodes=[new_node1, new_node2],
         )
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
 
         assert result.added_count == 1
         assert result.deleted_count == 0
@@ -922,7 +922,7 @@ class TestIdBasedCompareSnapshots:
             nodes=[new_node],
         )
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
 
         assert result.added_count == 0
         assert result.deleted_count == 1
@@ -964,7 +964,7 @@ class TestIdBasedCompareSnapshots:
             nodes=[new_node],
         )
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
 
         assert result.added_count == 0
         assert result.deleted_count == 0
@@ -1014,7 +1014,7 @@ class TestIdBasedCompareSnapshots:
         old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=old_nodes)
         new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=new_nodes)
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
 
         # Correct counts: 1 added (ID 4), 1 deleted (ID 3), 1 modified (ID 2)
         assert result.added_count == 1
@@ -1055,7 +1055,7 @@ class TestIdBasedCompareSnapshots:
             nodes=[new_node],
         )
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
 
         # The NodeDiff should include old_path and new_path for move detection
         # Since the node is unchanged in properties but path changed
@@ -1101,7 +1101,7 @@ class TestIdBasedCompareSnapshots:
             nodes=[],
         )
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
 
         # Added node should have old_path = None
         box_diff = result.hierarchy.roots[0]
@@ -1134,7 +1134,7 @@ class TestIdBasedCompareSnapshots:
             nodes=[],
         )
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
 
         # Deleted node should have new_path = None
         box_diff = result.hierarchy.roots[0]
@@ -1163,7 +1163,7 @@ class TestIdBasedCompareSnapshots:
         old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=[body, pad])
         new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=[body, pad])
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
 
         # Should have hierarchical structure: Body -> Pad
         assert len(result.hierarchy.roots) == 1  # Root: Body
@@ -1210,7 +1210,7 @@ class TestExcludedTypesFiltering:
         )
 
         # Pass App::Origin in excluded_types
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], ["App::Origin"])
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], ["App::Origin"])
 
         # Origin node should be excluded
         assert len(result.hierarchy.roots) == 0
@@ -1269,7 +1269,7 @@ class TestExcludedTypesFiltering:
         )
 
         # Pass App::Origin in excluded_types - should exclude both origin and its child
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], ["App::Origin"])
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], ["App::Origin"])
 
         # Both nodes should be excluded
         assert len(result.hierarchy.roots) == 0
@@ -1309,7 +1309,7 @@ class TestExcludedTypesFiltering:
         )
 
         # Pass App::Origin in excluded_types (but our node is Part::Feature)
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], ["App::Origin"])
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], ["App::Origin"])
 
         # Box node should be included
         assert len(result.hierarchy.roots) == 1
@@ -1341,7 +1341,7 @@ class TestExcludedTypesFiltering:
             nodes=[new_node],
         )
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], ["App::Origin"])
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], ["App::Origin"])
 
         # Should have no diffs (excluded)
         assert len(result.hierarchy.roots) == 0
@@ -1372,7 +1372,7 @@ class TestExcludedTypesFiltering:
             nodes=[],
         )
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], ["App::Origin"])
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], ["App::Origin"])
 
         # Should have no diffs (excluded)
         assert len(result.hierarchy.roots) == 0
@@ -1448,7 +1448,7 @@ class TestExcludedParentPathFiltering:
         )
 
         # Exclude PartDesign::Pad (parent of Sketch)
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], ["PartDesign::Pad"])
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], ["PartDesign::Pad"])
 
         # Body should be included (not excluded type), but Pad and Sketch should be excluded
         paths_in_result = {diff.path for diff in _flatten_diffs(result.hierarchy.roots)}
@@ -1525,7 +1525,7 @@ class TestExcludedParentPathFiltering:
         )
 
         # Exclude PartDesign::Pad only
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], ["PartDesign::Pad"])
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], ["PartDesign::Pad"])
 
         # Body and Box should be included, Pad should be excluded
         paths_in_result = {diff.path for diff in _flatten_diffs(result.hierarchy.roots)}
@@ -1552,7 +1552,7 @@ class TestEmptySnapshots:
             nodes=[],
         )
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
 
         assert result.added_count == 0
         assert result.deleted_count == 0
@@ -1583,7 +1583,7 @@ class TestEmptySnapshots:
             nodes=[new_box],
         )
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
 
         assert result.added_count == 1
         assert result.deleted_count == 0
@@ -1615,7 +1615,7 @@ class TestEmptySnapshots:
             nodes=[],
         )
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
 
         assert result.added_count == 0
         assert result.deleted_count == 1
@@ -1649,7 +1649,7 @@ class TestEmptySnapshots:
             nodes=[],
         )
 
-        result = _tree_comparator.compare_snapshots(old_snapshot.nodes, new_snapshot.nodes, [], [])
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
 
         assert result.deleted_count == 1
         assert len(result.hierarchy.roots) == 1

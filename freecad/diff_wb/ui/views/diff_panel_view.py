@@ -542,11 +542,12 @@ class DiffPanelView(QWidget):
         pass
 
     # DiffView protocol methods
-    def show_diff_tree(self, nodes: list[NodePresentation]) -> None:
+    def show_diff_tree(self, nodes: list[NodePresentation], git_path: str = "") -> None:
         """Display the diff tree with color-coded nodes.
 
         Args:
             nodes: List of root-level NodePresentation objects with nested children.
+            git_path: The git path to display as top-level item
         """
         # Clear existing tree items
         self.tree_widget.clear()
@@ -555,13 +556,19 @@ class DiffPanelView(QWidget):
         if not nodes:
             return
 
-        # Recursively build tree from root nodes
+        # Create top-level item with git_path (or document_name fallback)
+        top_level_text = git_path or "Unnamed Document"
+        root_item = QTreeWidgetItem([top_level_text])
+
+        # Add child nodes from hierarchy
         for node in nodes:
             item = self._create_tree_item(node)
-            self.tree_widget.addTopLevelItem(item)
+            root_item.addChild(item)
+
+        self.tree_widget.addTopLevelItem(root_item)
 
         # Expand only nodes that have children with changes
-        self._expand_nodes_with_changes(self.tree_widget.invisibleRootItem())
+        self._expand_nodes_with_changes(root_item)
 
         # Ensure tree widget is visible (in case it was hidden)
         self.tree_widget.show()

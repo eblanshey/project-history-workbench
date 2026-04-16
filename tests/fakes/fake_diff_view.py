@@ -21,9 +21,9 @@ class FakeDiffView:
         """Capture loading call instead of showing UI."""
         self._record_call("show_loading")
 
-    def show_diff_tree(self, nodes: list[NodePresentation]) -> None:
+    def show_diff_tree(self, nodes: list[NodePresentation], git_path: str = "") -> None:
         """Capture diff tree call instead of showing UI."""
-        self._record_call("show_diff_tree", nodes=nodes)
+        self._record_call("show_diff_tree", nodes=nodes, git_path=git_path)
 
     def show_summary(self, added: int, deleted: int, modified: int) -> None:
         """Capture summary call instead of showing UI."""

@@ -3,6 +3,8 @@
 # and hardcoded value implementations of SnapshotRepository and SettingsRepository.
 """Fake repository implementations for testing."""
 
+import datetime
+
 from freecad.diff_wb.domain.diff.engine import DiffEngine
 from freecad.diff_wb.domain.diff.models import DiffHierarchy, DiffResult
 from freecad.diff_wb.domain.settings.models import Settings
@@ -67,31 +69,36 @@ class FakeDiffEngine(DiffEngine):
         """Initialize the fake diff engine.
 
         Args:
-            return_value: The DiffResult to return on compare() call. If None, returns empty result.
+            return_value: The DiffResult to return on compute_diff() call. If None, returns empty result.
             side_effect: Optional exception to raise instead of returning a result.
         """
+        # Create default snapshots for the fake result
+        default_old_snapshot = Snapshot(
+            snapshot_id="fake-old-id",
+            document_name="Comparison",
+            timestamp=datetime.datetime.now(),
+            nodes=[],
+        )
+        default_new_snapshot = Snapshot(
+            snapshot_id="fake-new-id",
+            document_name="Comparison",
+            timestamp=datetime.datetime.now(),
+            nodes=[],
+        )
         self._return_value = return_value or DiffResult(
-            old_snapshot_name="Comparison",
-            new_snapshot_name="Comparison",
+            old_snapshot=default_old_snapshot,
+            new_snapshot=default_new_snapshot,
             hierarchy=DiffHierarchy(),
         )
         self._side_effect = side_effect
-        self._compare_calls: list[tuple[Snapshot, Snapshot, list[str], list[str]]] = []
+        self._compute_diff_calls: list[tuple[Snapshot | None, Snapshot]] = []
 
-    def compare(
-        self,
-        old_snapshot: Snapshot,
-        new_snapshot: Snapshot,
-        excluded_types: list[str],
-        excluded_properties: list[str],
-    ) -> DiffResult:
+    def compute_diff(self, old: Snapshot | None, new: Snapshot) -> DiffResult:
         """Record the call and return the configured result.
 
         Args:
-            old_snapshot: Snapshot from the older version
-            new_snapshot: Snapshot from the newer version
-            excluded_types: List of type IDs to exclude from comparison
-            excluded_properties: List of property names to exclude from comparison
+            old: Snapshot from the older version (can be None)
+            new: Snapshot from the newer version
 
         Returns:
             Configured DiffResult
@@ -100,7 +107,7 @@ class FakeDiffEngine(DiffEngine):
             Exception: If side_effect is set
         """
         # Record the call for verification
-        self._compare_calls.append((old_snapshot, new_snapshot, excluded_types, excluded_properties))
+        self._compute_diff_calls.append((old, new))
 
         if self._side_effect is not None:
             raise self._side_effect
@@ -108,13 +115,13 @@ class FakeDiffEngine(DiffEngine):
         return self._return_value
 
     @property
-    def compare_calls(self) -> list[tuple[Snapshot, Snapshot, list[str], list[str]]]:
-        """Get all recorded compare() calls."""
-        return self._compare_calls.copy()
+    def compute_diff_calls(self) -> list[tuple[Snapshot | None, Snapshot]]:
+        """Get all recorded compute_diff() calls."""
+        return self._compute_diff_calls.copy()
 
     def reset(self) -> None:
         """Reset the fake to initial state."""
-        self._compare_calls.clear()
+        self._compute_diff_calls.clear()
 
 
 __all__ = ["FakeSnapshotRepository", "FakeSettingsRepository", "InMemorySnapshotRepository", "FakeDiffEngine"]
