@@ -8,7 +8,12 @@ from typing import Any
 from ...domain.diff.models import DiffState
 
 
-__all__ = ["NodePresentation", "PropertyPresentation", "SnapshotPresentation"]
+__all__ = [
+    "DiffTreePresentation",
+    "NodePresentation",
+    "PropertyPresentation",
+    "SnapshotPresentation",
+]
 
 
 @dataclass(frozen=True)
@@ -53,3 +58,18 @@ class SnapshotPresentation:
     name: str
     created_at: str
     node_count: int
+
+
+@dataclass(frozen=True)
+class DiffTreePresentation:
+    """Wrapper for presenting a single diff tree with metadata.
+
+    Attributes:
+        nodes: Transformed list of root NodePresentation objects
+        git_path: Git path of the document
+        warnings: List of warning strings from DiffResult.warnings
+    """
+
+    nodes: list[NodePresentation]
+    git_path: str
+    warnings: list[str]

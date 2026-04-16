@@ -7,7 +7,14 @@ import datetime
 import uuid
 
 from freecad.diff_wb.domain import Property, PropertyType
-from freecad.diff_wb.domain.diff import DiffHierarchy, DiffResult, DiffState, NodeDiff, PropertyDiff
+from freecad.diff_wb.domain.diff import (
+    WARNING_OLD_SNAPSHOT_MISSING,
+    DiffHierarchy,
+    DiffResult,
+    DiffState,
+    NodeDiff,
+    PropertyDiff,
+)
 from freecad.diff_wb.domain.diff.engine import DiffEngine
 from freecad.diff_wb.domain.snapshots import Snapshot
 from freecad.diff_wb.domain.tree.node import TreeNode
@@ -203,8 +210,8 @@ class TestDiffResult:
         diff = DiffResult(old_snapshot=old_snapshot, new_snapshot=new_snapshot)
         assert diff.warnings == []
 
-    def test_same_snapshot_instance_triggers_warning(self):
-        """Test same snapshot instance for old/new triggers warning."""
+    def test_same_snapshot_instance_has_no_warning(self):
+        """Test same snapshot instance for old/new does not trigger warning."""
         snapshot = Snapshot(
             snapshot_id="same-id",
             document_name="SameDoc",
@@ -212,8 +219,7 @@ class TestDiffResult:
             nodes=[],
         )
         diff = DiffResult(old_snapshot=snapshot, new_snapshot=snapshot)
-        assert len(diff.warnings) == 1
-        assert "Same snapshot instance used for both old and new" in diff.warnings
+        assert len(diff.warnings) == 0
 
     def test_warnings_can_contain_multiple_strings(self):
         """Test warnings can contain multiple strings."""
@@ -564,9 +570,9 @@ class TestDiffEngineComputeDiffWithNone:
         # Should use same snapshot for both
         assert result.old_snapshot is new_snapshot
         assert result.new_snapshot is new_snapshot
-        # Should have warning about same snapshot
+        # Should have warning about missing old snapshot
         assert len(result.warnings) == 1
-        assert "Same snapshot instance used for both old and new" in result.warnings
+        assert WARNING_OLD_SNAPSHOT_MISSING in result.warnings
 
 
 class TestDiffEngineComputeDiffWithSettings:

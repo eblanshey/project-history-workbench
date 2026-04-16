@@ -48,3 +48,20 @@ class GitPort(Protocol):
             List of GitCommit objects in DESC order (newest first).
         """
         ...
+
+    def is_path_in_repository(self, git_root: str, path: str) -> bool:
+        """Check if a path is within the git repository.
+
+        This method normalizes both paths to handle different path separators
+        and relative components (like .. and .), then checks if the given path
+        starts with the git repository root path at a directory boundary.
+
+        Args:
+            git_root: Absolute path to git repository root.
+            path: Path to check (file or directory).
+
+        Returns:
+            True if path is within git_root (including the root itself),
+            False otherwise (including empty paths).
+        """
+        ...

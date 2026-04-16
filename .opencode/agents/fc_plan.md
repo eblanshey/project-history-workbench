@@ -132,22 +132,17 @@ Follow these steps in order. Track your current step explicitly in your response
 - [ ] Write tests for [feature/component]
 - [ ] Implement [feature/component] to pass tests
 
+Code snippets here that demonstrate the approach
+
 ### Phase 2: [Name]
 - [ ] Write tests for [feature/component]
 - [ ] Implement [feature/component] to pass tests
 
+Code snippets here that demonstrate the approach
+
 ## Test Strategy
 - **Unit tests**: [What will be tested with fakes/mocks]
-- **Integration tests**: [What requires real FreeCAD]
-
-## Manual Test Cases
-Proposed manual test cases grouped by file location (following `docs/manual-testing/README.md`):
-
-### docs/manual-testing/[filename].md
-- **[Test Case Name]**: One short sentence description of the test case
-- **[Test Case Name]**: One short sentence description of the test case
-
-Only include essential test cases that require human verification (UI visual checks, UX validation, complex workflows).
+- **Integration tests**: [For application actions only -- no FreeCAD-dependent tests, which are manual only]
 
 ## Findings & Notes
 [API exploration results, edge cases discovered, lessons learned]
@@ -165,7 +160,6 @@ When creating implementation steps, ALWAYS follow this ordering:
 This applies to ALL phases including:
 - API Exploration phases (document expected behavior via tests)
 - TDD phases (write failing tests, then implement)
-- Integration phases (define integration test criteria before implementation)
 
 ---
 
@@ -216,9 +210,10 @@ After writing the plan file, inform the user that the plan is saved and they can
 4. **What tests come first?** - Define success criteria before implementation
 5. **What decisions were made?** - Document rationale and alternatives
 6. **What phases are needed?** - Break into logical implementation steps
-7. **Is SRP maintained?** - Does each module have one clear responsibility?
-8. **Are interfaces clear?** - Are public vs private APIs obvious?
-9. **Are boundaries respected?** - Do dependency flows follow the architecture?
+7. **How should phases be ordered?** - Implementation should not depend on classes/methods from future phases.
+8. **Is SRP maintained?** - Does each module have one clear responsibility?
+9. **Are interfaces clear?** - Are public vs private APIs obvious?
+10. **Are boundaries respected?** - Do dependency flows follow the architecture?
 
 ---
 

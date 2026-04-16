@@ -79,6 +79,15 @@ class FreeCadPort(Protocol):
         """Get the active document, or None if no document is open."""
         ...
 
+    def get_all_open_documents(self) -> list[DocumentLike]:
+        """Get all open documents.
+
+        Returns:
+            A list of DocumentLike objects representing all open documents.
+            Returns an empty list if no documents are open.
+        """
+        ...
+
     def get_object(self, doc: DocumentLike, name: str) -> object | None:
         """Get a document object by name."""
         ...

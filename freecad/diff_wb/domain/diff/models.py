@@ -33,6 +33,10 @@ class DiffState(Enum):
     UNCHANGED = auto()
 
 
+# Warning constants for edge cases
+WARNING_OLD_SNAPSHOT_MISSING = "Old snapshot missing"
+
+
 # TODO: The generic attribute-based comparison for UNKNOWN types works for many FreeCAD
 # objects (Constraint, Vector, Placement, etc.), but may need refinement for specific types.
 # Known edge cases and potential improvements:
@@ -558,12 +562,6 @@ class DiffResult:
     modified_count: int = 0
     hierarchy: DiffHierarchy = field(default_factory=lambda: DiffHierarchy())
 
-    def __post_init__(self) -> None:
-        """Check for edge cases and add warnings."""
-        # Check if same snapshot instance is used for both old and new
-        if self.old_snapshot is self.new_snapshot:
-            object.__setattr__(self, "warnings", ["Same snapshot instance used for both old and new"])
-
     def __str__(self) -> str:
         return (
             f"DiffResult({self.old_snapshot.document_name} vs {self.new_snapshot.document_name}): "
@@ -747,4 +745,11 @@ class DiffHierarchy:
             current[final_segment] = node_diff
 
 
-__all__ = ["DiffResult", "DiffHierarchy", "NodeDiff", "PropertyDiff", "DiffState"]
+__all__ = [
+    "DiffResult",
+    "DiffHierarchy",
+    "NodeDiff",
+    "PropertyDiff",
+    "DiffState",
+    "WARNING_OLD_SNAPSHOT_MISSING",
+]

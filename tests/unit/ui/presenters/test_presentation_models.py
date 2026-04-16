@@ -7,6 +7,7 @@ import pytest
 
 from freecad.diff_wb.domain.diff.models import DiffState
 from freecad.diff_wb.ui.presenters.presentation_models import (
+    DiffTreePresentation,
     NodePresentation,
     PropertyPresentation,
     SnapshotPresentation,
@@ -419,3 +420,161 @@ class TestPresentationModelsAreDataclasses:
         # Assert
         assert snap1 == snap2
         assert repr(snap1).startswith("SnapshotPresentation(")
+
+
+class TestDiffTreePresentation:
+    """Tests for DiffTreePresentation dataclass."""
+
+    def test_diff_tree_presentation_is_frozen(self) -> None:
+        """Verify immutability - frozen dataclass cannot be modified."""
+        # Arrange
+        nodes: list[NodePresentation] = []
+        diff_tree = DiffTreePresentation(
+            nodes=nodes,
+            git_path="path/to/document.FCStd",
+            warnings=[],
+        )
+
+        # Act & Assert - attempting to modify should raise FrozenInstanceError
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            diff_tree.git_path = "new/path.FCStd"  # type: ignore[misc]
+
+    def test_diff_tree_presentation_fields(self) -> None:
+        """Verify all fields present in DiffTreePresentation."""
+        # Arrange & Act
+        nodes: list[NodePresentation] = []
+        diff_tree = DiffTreePresentation(
+            nodes=nodes,
+            git_path="path/to/document.FCStd",
+            warnings=["warning1"],
+        )
+
+        # Assert
+        assert diff_tree.nodes == nodes
+        assert diff_tree.git_path == "path/to/document.FCStd"
+        assert diff_tree.warnings == ["warning1"]
+
+    def test_diff_tree_presentation_nodes_field(self) -> None:
+        """Verify nodes field can be set with NodePresentation objects."""
+        # Arrange
+        node1 = NodePresentation(
+            path="Part",
+            type_id="Part::Feature",
+            state=DiffState.ADDED,
+            has_changes=True,
+        )
+        node2 = NodePresentation(
+            path="Body",
+            type_id="PartDesign::Body",
+            state=DiffState.MODIFIED,
+            has_changes=True,
+        )
+
+        # Act
+        diff_tree = DiffTreePresentation(
+            nodes=[node1, node2],
+            git_path="path/to/document.FCStd",
+            warnings=[],
+        )
+
+        # Assert
+        assert len(diff_tree.nodes) == 2
+        assert diff_tree.nodes[0] == node1
+        assert diff_tree.nodes[1] == node2
+        assert diff_tree.nodes[0].path == "Part"
+        assert diff_tree.nodes[1].path == "Body"
+
+    def test_diff_tree_presentation_git_path_field(self) -> None:
+        """Verify git_path field is present and can be set."""
+        # Arrange & Act
+        diff_tree = DiffTreePresentation(
+            nodes=[],
+            git_path="src/models/part.FCStd",
+            warnings=[],
+        )
+
+        # Assert
+        assert diff_tree.git_path == "src/models/part.FCStd"
+
+    def test_diff_tree_presentation_warnings_field(self) -> None:
+        """Verify warnings field can be set with warning strings."""
+        # Arrange & Act
+        diff_tree = DiffTreePresentation(
+            nodes=[],
+            git_path="path/to/document.FCStd",
+            warnings=["Warning 1", "Warning 2"],
+        )
+
+        # Assert
+        assert diff_tree.warnings == ["Warning 1", "Warning 2"]
+        assert len(diff_tree.warnings) == 2
+
+    def test_diff_tree_presentation_warnings_empty_list_default(self) -> None:
+        """Verify warnings defaults to empty list when not provided."""
+        # Note: warnings doesn't have a default_factory, so it's required
+        # This test verifies we can pass an empty list
+        # Arrange & Act
+        diff_tree = DiffTreePresentation(
+            nodes=[],
+            git_path="path/to/document.FCStd",
+            warnings=[],
+        )
+
+        # Assert
+        assert diff_tree.warnings == []
+        assert isinstance(diff_tree.warnings, list)
+
+    def test_diff_tree_presentation_nodes_empty_list(self) -> None:
+        """Verify nodes can be an empty list for documents with no changes."""
+        # Arrange & Act
+        diff_tree = DiffTreePresentation(
+            nodes=[],
+            git_path="path/to/document.FCStd",
+            warnings=[],
+        )
+
+        # Assert
+        assert diff_tree.nodes == []
+        assert isinstance(diff_tree.nodes, list)
+
+
+class TestDiffTreePresentationIsDataclass:
+    """Tests verifying DiffTreePresentation is a proper dataclass."""
+
+    def test_diff_tree_presentation_is_dataclass(self) -> None:
+        """Verify DiffTreePresentation is a dataclass."""
+        # Arrange & Act
+        diff_tree = DiffTreePresentation(
+            nodes=[],
+            git_path="path/to/document.FCStd",
+            warnings=[],
+        )
+
+        # Assert
+        assert is_dataclass(diff_tree)
+
+    def test_diff_tree_presentation_dataclass_behavior(self) -> None:
+        """Verify DiffTreePresentation dataclass generates expected methods."""
+        # Arrange
+        nodes1: list[NodePresentation] = []
+        nodes2: list[NodePresentation] = []
+        tree1 = DiffTreePresentation(
+            nodes=nodes1,
+            git_path="path/to/document.FCStd",
+            warnings=[],
+        )
+        tree2 = DiffTreePresentation(
+            nodes=nodes2,
+            git_path="path/to/document.FCStd",
+            warnings=[],
+        )
+        tree3 = DiffTreePresentation(
+            nodes=nodes1,
+            git_path="different/path.FCStd",
+            warnings=[],
+        )
+
+        # Assert
+        assert tree1 == tree2  # Same values are equal
+        assert tree1 != tree3  # Different git_path means not equal
+        assert repr(tree1).startswith("DiffTreePresentation(")

@@ -6,131 +6,8 @@
 
 from typing import Protocol
 
-from freecad.diff_wb.domain.git import GitCommit, GitPort, GitRepository
-
-
-class FakeGitPort:
-    """Fake implementation of GitPort for testing purposes.
-
-    This fake implementation simulates git repository detection without
-    requiring actual git repositories or subprocess calls. It uses an
-    in-memory mapping of paths to their git roots.
-    """
-
-    def __init__(self) -> None:
-        """Initialize the fake git port with empty mappings."""
-        # Maps paths to their git root paths
-        self._git_roots: dict[str, str] = {}
-        # Maps git root paths to lists of commits
-        self._commits: dict[str, list[GitCommit]] = {}
-
-    def add_git_repo(self, root_path: str) -> None:
-        """Add a simulated git repository root.
-
-        Args:
-            root_path: The absolute path to the git repository root.
-        """
-        self._git_roots[root_path] = root_path
-        # Initialize empty commit list for this repo
-        self._commits[root_path] = []
-
-    def add_commit(
-        self,
-        root_path: str,
-        commit_id: str,
-        message: str,
-        author: str,
-        timestamp: str,
-    ) -> None:
-        """Add a simulated commit to a repository.
-
-        Commits are added in order (oldest first). The get_commits method
-        will return them in DESC order (newest first).
-
-        Args:
-            root_path: The absolute path to the git repository root.
-            commit_id: The commit hash.
-            message: The commit message.
-            author: The author name.
-            timestamp: ISO format timestamp.
-        """
-        if root_path not in self._commits:
-            self._commits[root_path] = []
-        commit = GitCommit(
-            id=commit_id,
-            message=message,
-            author=author,
-            timestamp=timestamp,
-        )
-        self._commits[root_path].append(commit)
-
-    def get_commits(self, path: str, limit: int = 20) -> list[GitCommit]:
-        """Get recent commits from the fake git repository.
-
-        This implementation returns the configured commits in DESC order
-        (newest first), limited by the specified limit parameter.
-
-        Args:
-            path: Starting path (file or directory) to check.
-            limit: Maximum number of commits to return (default 20).
-
-        Returns:
-            List of GitCommit objects in DESC order (newest first).
-        """
-        # Find the git root for this path
-        git_root = self.find_top_level_git_path(path)
-
-        if git_root is None or git_root not in self._commits:
-            return []
-
-        # Get all commits for this repository
-        all_commits = self._commits[git_root]
-
-        # Return in DESC order (newest first) - reverse the list
-        # and apply the limit
-        reversed_commits = list(reversed(all_commits))
-        return reversed_commits[:limit]
-
-    def find_top_level_git_path(self, path: str) -> str | None:
-        """Find git root by checking if path is within a known git repo.
-
-        This implementation checks if the given path or any of its parent
-        directories match a known git root.
-
-        Args:
-            path: Starting path (file or directory) to check.
-
-        Returns:
-            Absolute path to git root as string if path is in a known git repo,
-            or None if not in a known git repo.
-        """
-        # Normalize the path
-        normalized_path = path.rstrip("/")
-
-        # Check if the path itself is a git root
-        if normalized_path in self._git_roots:
-            return self._git_roots[normalized_path]
-
-        # Traverse up the directory tree to find a git root
-        current_path = normalized_path
-        while True:
-            # Get parent directory
-            parent_path = "/".join(current_path.split("/")[:-1])
-
-            # If we've reached the root, stop searching
-            if parent_path == "" or parent_path == "/":
-                # Check root explicitly
-                if "/" in self._git_roots:
-                    return self._git_roots["/"]
-                break
-
-            # Check if parent is a git root
-            if parent_path in self._git_roots:
-                return self._git_roots[parent_path]
-
-            current_path = parent_path
-
-        return None
+from freecad.diff_wb.domain.git import GitPort, GitRepository
+from tests.fakes.fake_git_port import FakeGitPort
 
 
 class TestGitPortProtocol:
@@ -381,7 +258,7 @@ class TestGitPortGetCommits:
         assert result[0].id == "abc123def456"
         assert result[0].message == "Initial commit"
         assert result[0].author == "John Doe"
-        assert result[0].timestamp == "2024-01-15T10:30:00Z"
+        assert result[0].timestamp.isoformat() == "2024-01-15T10:30:00+00:00"
 
     def test_get_commits_returns_multiple_commits(self):
         """Test that get_commits returns multiple commits when configured."""
@@ -499,7 +376,7 @@ class TestGitPortGetCommits:
         assert commit.id == "test-commit-hash-12345"
         assert commit.message == "Test commit message\n\nThis is the commit body."
         assert commit.author == "Test Author <test@example.com>"
-        assert commit.timestamp == "2024-06-15T14:30:45Z"
+        assert commit.timestamp.isoformat() == "2024-06-15T14:30:45+00:00"
 
     def test_get_commits_returns_empty_list_for_nonexistent_repo(self):
         """Test that get_commits returns empty list for paths outside any git repo."""
@@ -559,3 +436,141 @@ class TestGitPortGetCommitsMultipleRepos:
         assert result_a[0].id == "commit_a1"
         assert len(result_b) == 1
         assert result_b[0].id == "commit_b1"
+
+
+class TestGitPortIsPathInRepository:
+    """Tests for the is_path_in_repository method of GitPort protocol."""
+
+    def test_fake_port_implements_is_path_in_repository_method(self):
+        """Test that FakeGitPort implements the is_path_in_repository method."""
+        fake_port = FakeGitPort()
+
+        # Verify the method exists and is callable
+        assert hasattr(fake_port, "is_path_in_repository")
+        assert callable(fake_port.is_path_in_repository)
+
+    def test_is_path_in_repository_returns_true_for_git_root(self):
+        """Test that is_path_in_repository returns True when path equals git_root."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/my_project")
+
+        result = fake_port.is_path_in_repository("/home/user/my_project", "/home/user/my_project")
+
+        assert result is True
+
+    def test_is_path_in_repository_returns_true_for_subdirectory(self):
+        """Test that is_path_in_repository returns True for subdirectories."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/my_project")
+
+        result = fake_port.is_path_in_repository("/home/user/my_project", "/home/user/my_project/src")
+
+        assert result is True
+
+    def test_is_path_in_repository_returns_true_for_nested_subdirectory(self):
+        """Test that is_path_in_repository works with deeply nested paths."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/my_project")
+
+        result = fake_port.is_path_in_repository("/home/user/my_project", "/home/user/my_project/src/module/submodule")
+
+        assert result is True
+
+    def test_is_path_in_repository_returns_true_for_file_in_repo(self):
+        """Test that is_path_in_repository returns True for files within the repo."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/my_project")
+
+        result = fake_port.is_path_in_repository("/home/user/my_project", "/home/user/my_project/src/main.py")
+
+        assert result is True
+
+    def test_is_path_in_repository_returns_false_for_path_outside_repo(self):
+        """Test that is_path_in_repository returns False for paths outside the repo."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/my_project")
+
+        result = fake_port.is_path_in_repository("/home/user/my_project", "/home/user/other_project/src/main.py")
+
+        assert result is False
+
+    def test_is_path_in_repository_returns_false_for_completely_different_path(self):
+        """Test that is_path_in_repository returns False for completely different paths."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/my_project")
+
+        result = fake_port.is_path_in_repository("/home/user/my_project", "/tmp/random_file.txt")
+
+        assert result is False
+
+    def test_is_path_in_repository_returns_false_for_empty_git_root(self):
+        """Test that is_path_in_repository returns False for empty git_root."""
+        fake_port = FakeGitPort()
+
+        result = fake_port.is_path_in_repository("", "/home/user/my_project/src/main.py")
+
+        assert result is False
+
+    def test_is_path_in_repository_returns_false_for_empty_path(self):
+        """Test that is_path_in_repository returns False for empty path."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/my_project")
+
+        result = fake_port.is_path_in_repository("/home/user/my_project", "")
+
+        assert result is False
+
+    def test_is_path_in_repository_handles_trailing_slash(self):
+        """Test that is_path_in_repository handles trailing slashes correctly."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/my_project")
+
+        result = fake_port.is_path_in_repository("/home/user/my_project/", "/home/user/my_project/src/main.py")
+
+        assert result is True
+
+    def test_is_path_in_repository_with_multiple_repos(self):
+        """Test behavior when multiple git repos are configured."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/project_a")
+        fake_port.add_git_repo("/home/user/project_b")
+
+        result_a = fake_port.is_path_in_repository("/home/user/project_a", "/home/user/project_a/src")
+        result_b = fake_port.is_path_in_repository("/home/user/project_b", "/home/user/project_b/src")
+
+        assert result_a is True
+        assert result_b is True
+
+    def test_is_path_in_repository_returns_false_for_similar_but_different_path(self):
+        """Test that similar paths are correctly distinguished."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/project")
+
+        # project_a should not be considered inside /home/user/project
+        result = fake_port.is_path_in_repository("/home/user/project", "/home/user/project_a/src/main.py")
+
+        assert result is False
+
+
+class TestGitPortIsPathInRepositoryWithRealPaths:
+    """Tests that verify is_path_in_repository correctly uses os.path operations."""
+
+    def test_is_path_in_repository_uses_os_path_normpath(self):
+        """Test that the method correctly normalizes paths using os.path.normpath."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/test-repo")
+
+        # Path with redundant separators should still work
+        result = fake_port.is_path_in_repository("/home/user/test-repo", "/home/user//test-repo/src/main.py")
+
+        assert result is True
+
+    def test_is_path_in_repository_preserves_absolute_paths(self):
+        """Test that the method preserves and compares absolute paths correctly."""
+        fake_port = FakeGitPort()
+        test_path = "/absolute/path/to/repository"
+        fake_port.add_git_repo(test_path)
+
+        result = fake_port.is_path_in_repository(test_path, test_path + "/subdir/file.py")
+
+        assert result is True

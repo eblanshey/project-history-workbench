@@ -583,6 +583,7 @@ def _extract_tree_single_pass(
     doc: DocumentLike,
     gui_doc: Any,
     document_name: str,
+    git_path: str = "",  # NEW
 ) -> Snapshot:
     """Extract tree using single-pass BFS algorithm.
 
@@ -594,6 +595,7 @@ def _extract_tree_single_pass(
         doc: The FreeCAD document
         gui_doc: The GUI document for ViewProvider access (can be None)
         document_name: Name of the document
+        git_path: Relative path from git root to the document file
 
     Returns:
         Snapshot containing the flat node list
@@ -626,7 +628,11 @@ def _extract_tree_single_pass(
     nodes = _build_flat_node_list(doc, child_to_parent_map, parent_to_child_map, name_to_obj)
 
     return Snapshot(
-        snapshot_id=str(uuid.uuid4()), document_name=document_name, timestamp=datetime.now(), nodes=nodes, git_path=""
+        snapshot_id=str(uuid.uuid4()),
+        document_name=document_name,
+        timestamp=datetime.now(),
+        nodes=nodes,
+        git_path=git_path,
     )
 
 
@@ -642,7 +648,7 @@ class SnapshotExtractor:
         """Initialize the extractor."""
         pass
 
-    def extract_tree(self, doc: DocumentLike) -> Snapshot:
+    def extract_tree(self, doc: DocumentLike, git_path: str = "") -> Snapshot:
         """Extract the document tree structure from a FreeCAD document.
 
         This function traverses a FreeCAD document and converts it into
@@ -651,6 +657,7 @@ class SnapshotExtractor:
 
         Args:
             doc: Required DocumentLike instance representing the FreeCAD document.
+            git_path: Optional relative path from git root to the document file.
 
         Returns:
             A Snapshot object containing the document tree structure.
@@ -665,7 +672,7 @@ class SnapshotExtractor:
             gui_doc = _init_gui_and_get_doc(doc)
 
             # Use single-pass BFS algorithm for better performance
-            return _extract_tree_single_pass(doc, gui_doc, document_name)
+            return _extract_tree_single_pass(doc, gui_doc, document_name, git_path)
 
         except Exception as e:
             Log.exception(f"Error extracting document tree: {e}")
@@ -674,5 +681,9 @@ class SnapshotExtractor:
         timestamp = datetime.now()
 
         return Snapshot(
-            snapshot_id=str(uuid.uuid4()), document_name=document_name, timestamp=timestamp, nodes=[], git_path=""
+            snapshot_id=str(uuid.uuid4()),
+            document_name=document_name,
+            timestamp=timestamp,
+            nodes=[],
+            git_path=git_path,
         )

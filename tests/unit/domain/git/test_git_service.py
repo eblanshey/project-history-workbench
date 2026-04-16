@@ -8,7 +8,7 @@ import dataclasses
 import os
 
 from freecad.diff_wb.domain.git import GitRepository, GitService
-from tests.unit.domain.git.test_git_port import FakeGitPort
+from tests.fakes.fake_git_port import FakeGitPort
 
 
 class TestGitServiceInitialization:
@@ -332,7 +332,7 @@ class TestGitServiceGetCommitsWithSingleCommit:
         assert result[0].id == "abc123def456"
         assert result[0].message == "Initial commit"
         assert result[0].author == "John Doe"
-        assert result[0].timestamp == "2024-01-15T10:30:00Z"
+        assert result[0].timestamp.isoformat() == "2024-01-15T10:30:00+00:00"
 
 
 class TestGitServiceGetCommitsWithMultipleCommits:
@@ -396,7 +396,7 @@ class TestGitServiceGetCommitsWithMultipleCommits:
         assert commit.id == "test-commit-hash-12345"
         assert commit.message == "Test commit message\n\nThis is the commit body."
         assert commit.author == "Test Author <test@example.com>"
-        assert commit.timestamp == "2024-06-15T14:30:45Z"
+        assert commit.timestamp.isoformat() == "2024-06-15T14:30:45+00:00"
 
 
 class TestGitServiceGetCommitsLimitParameter:
@@ -583,3 +583,297 @@ class TestGitServiceGetCommitsIntegration:
         # Most recent commit should be first (DESC order)
         assert "diff comparison feature" in commits[0].message
         assert commits[0].author == "Developer One"
+
+
+class MockDocument:
+    """Mock document class for testing get_eligible_docs."""
+
+    def __init__(self, file_name: str, name: str = "") -> None:
+        self.FileName = file_name
+        self.Name = name or file_name.split("/")[-1]
+
+
+class TestGitServiceGetEligibleDocsInitialization:
+    """Tests for GitService.get_eligible_docs() initialization."""
+
+    def test_get_eligible_docs_method_exists(self):
+        """Test that get_eligible_docs method exists on GitService."""
+        fake_port = FakeGitPort()
+        service = GitService(git_port=fake_port)
+
+        assert hasattr(service, "get_eligible_docs")
+        assert callable(service.get_eligible_docs)
+
+    def test_get_eligible_docs_method_signature(self):
+        """Test that get_eligible_docs has correct signature."""
+        fake_port = FakeGitPort()
+        service = GitService(git_port=fake_port)
+
+        import inspect
+
+        sig = inspect.signature(service.get_eligible_docs)
+        params = list(sig.parameters.keys())
+
+        assert "repo" in params
+        assert "documents" in params
+
+
+class TestGitServiceGetEligibleDocsEmptyCases:
+    """Tests for GitService.get_eligible_docs() with empty inputs."""
+
+    def test_get_eligible_docs_returns_empty_list_for_empty_documents(self):
+        """Test that get_eligible_docs returns empty list when no documents provided."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/my_project")
+        service = GitService(git_port=fake_port)
+
+        repo = service.get_repository("/home/user/my_project")
+        assert repo is not None
+
+        result = service.get_eligible_docs(repo=repo, documents=[])
+
+        assert result == []
+        assert isinstance(result, list)
+
+    def test_get_eligible_docs_returns_empty_list_when_no_documents_in_repo(self):
+        """Test that empty list is returned when no documents are in git repo."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/my_project")
+        service = GitService(git_port=fake_port)
+
+        repo = service.get_repository("/home/user/my_project")
+        assert repo is not None
+
+        # All documents are outside the git repo
+        documents = [
+            MockDocument("/tmp/unsaved.FCStd"),
+            MockDocument("/home/user/other_project/doc.FCStd"),
+        ]
+
+        result = service.get_eligible_docs(repo=repo, documents=documents)
+
+        assert result == []
+
+    def test_get_eligible_docs_filters_out_documents_outside_git_repo(self):
+        """Test that documents outside git repo are filtered out."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/my_project")
+        service = GitService(git_port=fake_port)
+
+        repo = service.get_repository("/home/user/my_project")
+        assert repo is not None
+
+        documents = [
+            MockDocument("/home/user/my_project/doc1.FCStd"),  # In repo
+            MockDocument("/tmp/temp.FCStd"),  # Outside repo
+            MockDocument("/home/user/other/doc2.FCStd"),  # Outside repo
+        ]
+
+        result = service.get_eligible_docs(repo=repo, documents=documents)
+
+        assert len(result) == 1
+        assert result[0].FileName == "/home/user/my_project/doc1.FCStd"
+
+
+class TestGitServiceGetEligibleDocsWithValidDocuments:
+    """Tests for GitService.get_eligible_docs() with valid documents."""
+
+    def test_get_eligible_docs_returns_only_documents_within_git_repo(self):
+        """Test that get_eligible_docs returns only documents within git repo."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/my_project")
+        service = GitService(git_port=fake_port)
+
+        repo = service.get_repository("/home/user/my_project")
+        assert repo is not None
+
+        documents = [
+            MockDocument("/home/user/my_project/doc1.FCStd"),
+            MockDocument("/home/user/my_project/src/doc2.FCStd"),
+            MockDocument("/home/user/my_project/nested/deep/doc3.FCStd"),
+        ]
+
+        result = service.get_eligible_docs(repo=repo, documents=documents)
+
+        assert len(result) == 3
+        assert all(doc.FileName.startswith("/home/user/my_project") for doc in result)
+
+    def test_get_eligible_docs_works_with_mixed_documents(self):
+        """Test that it works with mixed documents (some in, some out)."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/my_project")
+        service = GitService(git_port=fake_port)
+
+        repo = service.get_repository("/home/user/my_project")
+        assert repo is not None
+
+        documents = [
+            MockDocument("/home/user/my_project/in_repo.FCStd"),  # In repo
+            MockDocument("/tmp/outside.FCStd"),  # Outside repo
+            MockDocument("/home/user/my_project/src/also_in.FCStd"),  # In repo
+            MockDocument("/var/tmp/neither.FCStd"),  # Outside repo
+        ]
+
+        result = service.get_eligible_docs(repo=repo, documents=documents)
+
+        assert len(result) == 2
+        filenames = [doc.FileName for doc in result]
+        assert "/home/user/my_project/in_repo.FCStd" in filenames
+        assert "/home/user/my_project/src/also_in.FCStd" in filenames
+
+    def test_get_eligible_docs_filters_documents_without_filename(self):
+        """Test that documents without FileName are filtered out."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/my_project")
+        service = GitService(git_port=fake_port)
+
+        repo = service.get_repository("/home/user/my_project")
+        assert repo is not None
+
+        class DocWithoutFileName:
+            pass
+
+        documents = [
+            MockDocument("/home/user/my_project/valid.FCStd"),
+            DocWithoutFileName(),  # No FileName attribute
+            MockDocument("/home/user/my_project/also_valid.FCStd"),
+        ]
+
+        result = service.get_eligible_docs(repo=repo, documents=documents)
+
+        assert len(result) == 2
+        assert all(hasattr(doc, "FileName") for doc in result)
+
+    def test_get_eligible_docs_filters_documents_with_empty_filename(self):
+        """Test that documents with empty FileName are filtered out."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/my_project")
+        service = GitService(git_port=fake_port)
+
+        repo = service.get_repository("/home/user/my_project")
+        assert repo is not None
+
+        documents = [
+            MockDocument("/home/user/my_project/valid.FCStd"),
+            MockDocument(""),  # Empty FileName
+            MockDocument("/home/user/my_project/also_valid.FCStd"),
+        ]
+
+        result = service.get_eligible_docs(repo=repo, documents=documents)
+
+        assert len(result) == 2
+        assert all(doc.FileName for doc in result)
+
+
+class TestGitServiceGetEligibleDocsEdgeCases:
+    """Tests for edge cases in GitService.get_eligible_docs()."""
+
+    def test_get_eligible_docs_handles_trailing_slash_in_git_root(self):
+        """Test that trailing slash in git root is handled correctly."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/my_project")
+        service = GitService(git_port=fake_port)
+
+        # Create repo object with trailing slash (simulating different path formats)
+        from freecad.diff_wb.domain.git import GitRepository
+
+        repo = GitRepository(name="my_project", absolute_path="/home/user/my_project/")
+
+        documents = [
+            MockDocument("/home/user/my_project/doc.FCStd"),
+        ]
+
+        result = service.get_eligible_docs(repo=repo, documents=documents)
+
+        assert len(result) == 1
+
+    def test_get_eligible_docs_preserves_document_order(self):
+        """Test that the order of eligible documents is preserved."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/my_project")
+        service = GitService(git_port=fake_port)
+
+        repo = service.get_repository("/home/user/my_project")
+        assert repo is not None
+
+        documents = [
+            MockDocument("/tmp/first_outside.FCStd"),
+            MockDocument("/home/user/my_project/second_in.FCStd"),
+            MockDocument("/var/third_outside.FCStd"),
+            MockDocument("/home/user/my_project/fourth_in.FCStd"),
+        ]
+
+        result = service.get_eligible_docs(repo=repo, documents=documents)
+
+        assert len(result) == 2
+        assert result[0].FileName == "/home/user/my_project/second_in.FCStd"
+        assert result[1].FileName == "/home/user/my_project/fourth_in.FCStd"
+
+    def test_get_eligible_docs_with_special_characters_in_path(self):
+        """Test handling of paths with special characters."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/my-project_v2.0")
+        service = GitService(git_port=fake_port)
+
+        repo = service.get_repository("/home/user/my-project_v2.0")
+        assert repo is not None
+
+        documents = [
+            MockDocument("/home/user/my-project_v2.0/src/file-name.FCStd"),
+            MockDocument("/tmp/other.FCStd"),
+        ]
+
+        result = service.get_eligible_docs(repo=repo, documents=documents)
+
+        assert len(result) == 1
+        assert result[0].FileName == "/home/user/my-project_v2.0/src/file-name.FCStd"
+
+
+class TestGitServiceGetEligibleDocsIntegration:
+    """Integration tests for GitService.get_eligible_docs()."""
+
+    def test_workflow_filter_documents_for_realistic_scenario(self):
+        """Test complete workflow of filtering documents for a project."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/freecad_workbench")
+        service = GitService(git_port=fake_port)
+
+        # Simulate realistic scenario with multiple open documents
+        documents = [
+            MockDocument("/home/user/freecad_workbench/part1.FCStd", "Part1"),
+            MockDocument("/home/user/freecad_workbench/freecad/diff_wb/part2.FCStd", "Part2"),
+            MockDocument("/tmp/unsaved_temp.FCStd", "Unsaved"),
+            MockDocument("/home/user/downloads/random.FCStd", "Random"),
+            MockDocument("/home/user/freecad_workbench/docs/readme.md", "Readme"),
+        ]
+
+        repo = service.get_repository("/home/user/freecad_workbench")
+        assert repo is not None
+
+        eligible = service.get_eligible_docs(repo=repo, documents=documents)
+
+        # Should only include documents within the git repository
+        assert len(eligible) == 3
+        filenames = [doc.FileName for doc in eligible]
+        assert all("freecad_workbench" in f for f in filenames)
+        assert all(not f.startswith("/tmp") and not f.startswith("/home/user/downloads") for f in filenames)
+
+    def test_workflow_all_documents_outside_repo(self):
+        """Test workflow when all documents are outside the git repository."""
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("/home/user/project")
+        service = GitService(git_port=fake_port)
+
+        # All documents are outside the repo
+        documents = [
+            MockDocument("/tmp/doc1.FCStd"),
+            MockDocument("/var/tmp/doc2.FCStd"),
+            MockDocument("/home/user/other_project/doc3.FCStd"),
+        ]
+
+        repo = service.get_repository("/home/user/project")
+        assert repo is not None
+
+        eligible = service.get_eligible_docs(repo=repo, documents=documents)
+
+        assert eligible == []

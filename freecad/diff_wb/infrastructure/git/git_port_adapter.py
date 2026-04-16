@@ -137,3 +137,31 @@ class GitPortAdapter(GitPort):
         except (NotADirectoryError, OSError) as e:
             Log.warning(f"Git error for path {path}: {e}")
             return []
+
+    def is_path_in_repository(self, git_root: str, path: str) -> bool:
+        """Check if a path is within the git repository.
+
+        This method normalizes both paths and checks if the given path starts
+        with the git repository root path.
+
+        Args:
+            git_root: Absolute path to git repository root.
+            path: Path to check (file or directory).
+
+        Returns:
+            True if path is within git_root, False otherwise.
+        """
+        if not git_root or not path:
+            return False
+
+        # Normalize paths to handle different separators and relative components
+        normalized_git_root = os.path.normpath(git_root).rstrip(os.sep)
+        normalized_path = os.path.normpath(path)
+
+        # Check if path starts with git_root
+        # We need to ensure we're matching at a directory boundary
+        if normalized_path == normalized_git_root:
+            return True
+
+        # Check if path is a subdirectory/file within git_root
+        return normalized_path.startswith(normalized_git_root + os.sep)

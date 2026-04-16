@@ -456,3 +456,78 @@ class TestGitPortAdapterGetCommits:
 
             # Incomplete data (less than 4 fields per commit) should be skipped
             assert commits == []
+
+
+class TestGitPortAdapterIsPathInRepository:
+    """Tests for the is_path_in_repository method of GitPortAdapter."""
+
+    def setup_method(self) -> None:
+        """Set up test fixtures before each test method."""
+        self.adapter = GitPortAdapter()
+
+    @pytest.mark.parametrize(
+        "git_root,path,expected",
+        [
+            # Normal paths - file within repo
+            ("/home/user/project", "/home/user/project/src/file.py", True),
+            ("/home/user/project", "/home/user/project/doc.md", True),
+            # Nested paths
+            ("/home/user/project", "/home/user/project/src/subdir/deep/file.py", True),
+            ("/home/user/project", "/home/user/project/a/b/c/d/e/f.py", True),
+            # Directory paths within repo
+            ("/home/user/project", "/home/user/project/src", True),
+            ("/home/user/project", "/home/user/project/src/nested/dir", True),
+            # Path exactly at git root
+            ("/home/user/project", "/home/user/project", True),
+            # Paths outside repo
+            ("/home/user/project", "/home/user/other/file.py", False),
+            ("/home/user/project", "/tmp/file.py", False),
+            ("/home/user/project", "/home/user/project-sibling/file.py", False),
+            # Trailing slashes
+            ("/home/user/project/", "/home/user/project/src/file.py", True),
+            ("/home/user/project", "/home/user/project/src/file.py/", True),
+            # Empty or invalid paths
+            ("", "/home/user/project/file.py", False),
+            ("/home/user/project", "", False),
+            ("", "", False),
+        ],
+    )
+    def test_is_path_in_repository_various_scenarios(self, git_root: str, path: str, expected: bool) -> None:
+        """Test is_path_in_repository with various path scenarios.
+
+        This verifies that the method correctly handles:
+        - Normal file and directory paths
+        - Nested paths
+        - Paths exactly at git root
+        - Paths outside the repository
+        - Trailing slashes
+        - Different path separators
+        - Empty or invalid paths
+        """
+        result = self.adapter.is_path_in_repository(git_root, path)
+        assert result == expected
+
+    def test_is_path_in_repository_with_relative_paths_normalized(self) -> None:
+        """Test that relative path components are properly normalized.
+
+        The method should handle paths with .. and . components correctly.
+        """
+        # Path with parent directory reference that still resolves inside repo
+        result = self.adapter.is_path_in_repository("/home/user/project", "/home/user/project/src/../docs/file.md")
+        assert result is True
+
+        # Path with parent directory reference that goes outside repo
+        result = self.adapter.is_path_in_repository("/home/user/project", "/home/user/project/../other/file.md")
+        assert result is False
+
+    def test_is_path_in_repository_case_sensitive(self) -> None:
+        """Test that path matching is case-sensitive.
+
+        On Linux, paths should be case-sensitive.
+        """
+        # Different case should not match
+        result = self.adapter.is_path_in_repository("/home/user/Project", "/home/user/project/file.py")
+        assert result is False
+
+        result = self.adapter.is_path_in_repository("/home/user/project", "/home/user/Project/file.py")
+        assert result is False

@@ -7,6 +7,7 @@
 
 import os
 
+from ..freecad_ports import DocumentLike
 from .models import GitCommit, GitRepository
 from .ports import GitPort
 
@@ -59,3 +60,23 @@ class GitService:
             List of GitCommit objects in DESC order.
         """
         return self._git_port.get_commits(repo.absolute_path, limit)
+
+    def get_eligible_docs(self, repo: GitRepository, documents: list[DocumentLike]) -> list[DocumentLike]:
+        """Filter documents to those within the git repository.
+
+        This method filters a list of documents (DocumentLike objects) to only
+        include those whose file paths are within the given git repository.
+
+        Args:
+            repo: GitRepository to check documents against.
+            documents: List of DocumentLike objects to filter.
+
+        Returns:
+            List of documents that are within the git repository.
+        """
+        eligible = []
+        for doc in documents:
+            doc_path = getattr(doc, "FileName", "")
+            if doc_path and self._git_port.is_path_in_repository(repo.absolute_path, doc_path):
+                eligible.append(doc)
+        return eligible
