@@ -275,35 +275,8 @@ class TestPropertyViewerPhase6:
         doc = freecad_app.open(str(doc_path))
 
         try:
-            # Create a simple port that wraps the document
-            class TestPort:
-                def get_active_document(self):
-                    return doc
-
-                def get_object(self, doc, name):
-                    return doc.getObject(name)
-
-                def try_recompute_active_document(self):
-                    pass
-
-                def log(self, text):
-                    pass
-
-                def warn(self, text):
-                    pass
-
-                def message(self, text):
-                    pass
-
-                def info(self, message):
-                    pass
-
-                def error(self, text):
-                    pass
-
-            port = TestPort()
             extractor = SnapshotExtractor()
-            result = extractor.extract_tree(port)
+            result = extractor.extract_tree(doc)
 
             # Create DiffPanelView
             panel = DiffPanelView()
@@ -368,35 +341,8 @@ class TestPropertyViewerPhase6:
         doc = freecad_app.open(str(doc_path))
 
         try:
-            # Create a simple port that wraps the document
-            class TestPort:
-                def get_active_document(self):
-                    return doc
-
-                def get_object(self, doc, name):
-                    return doc.getObject(name)
-
-                def try_recompute_active_document(self):
-                    pass
-
-                def log(self, text):
-                    pass
-
-                def warn(self, text):
-                    pass
-
-                def message(self, text):
-                    pass
-
-                def info(self, message):
-                    pass
-
-                def error(self, text):
-                    pass
-
-            port = TestPort()
             extractor = SnapshotExtractor()
-            result = extractor.extract_tree(port)
+            result = extractor.extract_tree(doc)
 
             # Track which object types we've seen
             object_types = set()

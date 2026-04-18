@@ -1,9 +1,8 @@
 """File responsibility: Diff panel view with 3-column layout, implementing DiffView and SnapshotView protocols."""
 
 from collections.abc import Callable
-from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any
 
 from PySide6.QtCore import QCoreApplication, QSize, Qt
 from PySide6.QtGui import QBrush, QColor, QIcon
@@ -52,19 +51,7 @@ from ..translation_strings import (
     REPOSITORY_INFO_TEMPLATE,
     REPOSITORY_NO_REPO_MESSAGE,
 )
-
-
-@dataclass(frozen=True)
-class HistorySelection:
-    """Represents a selected item in the history list.
-
-    Attributes:
-        item_kind: One of "WORKING_TREE", "STAGING", or "COMMIT"
-        commit_hash: Only set when item_kind == "COMMIT"
-    """
-
-    item_kind: Literal["WORKING_TREE", "STAGING", "COMMIT"]
-    commit_hash: str | None
+from .models import HistorySelection
 
 
 def _camelcase_to_spaces(name: str) -> str:

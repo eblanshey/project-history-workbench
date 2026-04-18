@@ -25,19 +25,25 @@ if TYPE_CHECKING:
 def pytest_configure(config: object) -> None:
     """Configure pytest and validate FreeCAD environment."""
     freecad_root = os.environ.get("FREECAD_ROOT")
+
     if not freecad_root:
-        pytest.skip("FREECAD_ROOT environment variable not set")
+        print("\n⚠️  WARNING: FREECAD_ROOT environment variable is not set.\n")
+        print("Integration tests that require FreeCAD runtime will be skipped.")
+        print("To run all integration tests, use:\n")
+        print("  ./run_integration_tests.sh\n")
+        print("-" * 60 + "\n")
 
-    # Validate FreeCAD Python is being used
-    current_python = sys.executable
-    expected_python = os.path.join(freecad_root, "usr/bin/python")
+    # Validate FreeCAD Python is being used (only if FREECAD_ROOT is set)
+    if freecad_root:
+        current_python = sys.executable
+        expected_python = os.path.join(freecad_root, "usr/bin/python")
 
-    # Only warn if not using FreeCAD Python (tests may still work if paths are configured)
-    if current_python != expected_python and "run_integration_tests.sh" not in current_python:
-        print("Warning: Not using FreeCAD Python interpreter.")
-        print(f"  Expected: {expected_python}")
-        print(f"  Using: {current_python}")
-        print("  Consider using ./run_integration_tests.sh")
+        # Only warn if not using FreeCAD Python (tests may still work if paths are configured)
+        if current_python != expected_python and "run_integration_tests.sh" not in current_python:
+            print("Warning: Not using FreeCAD Python interpreter.")
+            print(f"  Expected: {expected_python}")
+            print(f"  Using: {current_python}")
+            print("  Consider using ./run_integration_tests.sh")
 
 
 @pytest.fixture(scope="session")

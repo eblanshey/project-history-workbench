@@ -9,20 +9,12 @@ from __future__ import annotations
 import pytest
 
 from freecad.diff_wb.domain.snapshots.gui_extractor import SnapshotExtractor
-from freecad.diff_wb.infrastructure.freecad.ports import get_freecad_runtime_context, get_port
 
 
 @pytest.fixture
 def extractor() -> SnapshotExtractor:
     """Create a SnapshotExtractor instance."""
     return SnapshotExtractor()
-
-
-@pytest.fixture
-def freecad_port():
-    """Get a FreeCadPort for testing."""
-    ctx = get_freecad_runtime_context()
-    return get_port(ctx)
 
 
 class TestSnapshotExtractorFlatStructure:
@@ -32,7 +24,7 @@ class TestSnapshotExtractorFlatStructure:
     with id, path, and after fields as specified in the domain model.
     """
 
-    def test_extracted_snapshot_has_flat_node_list(self, freecad_app, extractor, freecad_port, project_root):
+    def test_extracted_snapshot_has_flat_node_list(self, freecad_app, extractor, project_root):
         """Test that extracted snapshot has flat node list (no hierarchical tree).
 
         The Snapshot should have a 'nodes' list attribute, not 'root_nodes'.
@@ -45,7 +37,7 @@ class TestSnapshotExtractorFlatStructure:
 
         try:
             # Extract the snapshot
-            snapshot = extractor.extract_tree(freecad_port)
+            snapshot = extractor.extract_tree(doc)
 
             # Verify it's a flat list
             assert hasattr(snapshot, "nodes"), "Snapshot should have 'nodes' attribute"
@@ -54,7 +46,7 @@ class TestSnapshotExtractorFlatStructure:
         finally:
             freecad_app.closeDocument(doc.Name)
 
-    def test_each_node_has_id_path_after(self, freecad_app, extractor, freecad_port, project_root):
+    def test_each_node_has_id_path_after(self, freecad_app, extractor, project_root):
         """Test that each node has id, path, and after fields populated correctly."""
         from pathlib import Path
 
@@ -64,7 +56,7 @@ class TestSnapshotExtractorFlatStructure:
 
         try:
             # Extract the snapshot
-            snapshot = extractor.extract_tree(freecad_port)
+            snapshot = extractor.extract_tree(doc)
 
             # Check each node has required fields
             for node in snapshot.nodes:
@@ -77,7 +69,7 @@ class TestSnapshotExtractorFlatStructure:
         finally:
             freecad_app.closeDocument(doc.Name)
 
-    def test_root_nodes_have_after_null(self, freecad_app, extractor, freecad_port, project_root):
+    def test_root_nodes_have_after_null(self, freecad_app, extractor, project_root):
         """Test that root nodes have after=None (they are first in document order).
 
         Root nodes are those that have no parent in the claimChildren hierarchy.
@@ -90,7 +82,7 @@ class TestSnapshotExtractorFlatStructure:
 
         try:
             # Extract the snapshot
-            snapshot = extractor.extract_tree(freecad_port)
+            snapshot = extractor.extract_tree(doc)
 
             # Find root nodes (those with no parent - path doesn't contain '/')
             root_nodes = [n for n in snapshot.nodes if "/" not in n.path]
@@ -108,7 +100,7 @@ class TestSnapshotExtractorFlatStructure:
         finally:
             freecad_app.closeDocument(doc.Name)
 
-    def test_first_child_has_after_null(self, freecad_app, extractor, freecad_port, project_root):
+    def test_first_child_has_after_null(self, freecad_app, extractor, project_root):
         """Test that first child of any parent has after=None."""
         from pathlib import Path
 
@@ -118,7 +110,7 @@ class TestSnapshotExtractorFlatStructure:
 
         try:
             # Extract the snapshot
-            snapshot = extractor.extract_tree(freecad_port)
+            snapshot = extractor.extract_tree(doc)
 
             # Find nodes that are children (have '/' in path)
             child_nodes = [n for n in snapshot.nodes if "/" in n.path]
@@ -142,7 +134,7 @@ class TestSnapshotExtractorFlatStructure:
         finally:
             freecad_app.closeDocument(doc.Name)
 
-    def test_subsequent_children_have_after_set(self, freecad_app, extractor, freecad_port, project_root):
+    def test_subsequent_children_have_after_set(self, freecad_app, extractor, project_root):
         """Test that subsequent children have after set to previous sibling name."""
         from pathlib import Path
 
@@ -152,7 +144,7 @@ class TestSnapshotExtractorFlatStructure:
 
         try:
             # Extract the snapshot
-            snapshot = extractor.extract_tree(freecad_port)
+            snapshot = extractor.extract_tree(doc)
 
             # Find nodes that are children (have '/' in path)
             child_nodes = [n for n in snapshot.nodes if "/" in n.path]
@@ -178,7 +170,7 @@ class TestSnapshotExtractorFlatStructure:
         finally:
             freecad_app.closeDocument(doc.Name)
 
-    def test_all_nodes_have_unique_ids(self, freecad_app, extractor, freecad_port, project_root):
+    def test_all_nodes_have_unique_ids(self, freecad_app, extractor, project_root):
         """Test that all nodes have unique ids."""
         from pathlib import Path
 
@@ -188,7 +180,7 @@ class TestSnapshotExtractorFlatStructure:
 
         try:
             # Extract the snapshot
-            snapshot = extractor.extract_tree(freecad_port)
+            snapshot = extractor.extract_tree(doc)
 
             # Check all ids are unique
             ids = [node.id for node in snapshot.nodes]
@@ -201,7 +193,7 @@ class TestSnapshotExtractorFlatStructure:
         finally:
             freecad_app.closeDocument(doc.Name)
 
-    def test_path_format_root_vs_child(self, freecad_app, extractor, freecad_port, project_root):
+    def test_path_format_root_vs_child(self, freecad_app, extractor, project_root):
         """Test that root nodes have path=name, children have path=ParentName/ChildName."""
         from pathlib import Path
 
@@ -211,7 +203,7 @@ class TestSnapshotExtractorFlatStructure:
 
         try:
             # Extract the snapshot
-            snapshot = extractor.extract_tree(freecad_port)
+            snapshot = extractor.extract_tree(doc)
 
             # Find the Part node (should be root)
             part_node = next((n for n in snapshot.nodes if n.name == "Part"), None)
@@ -229,7 +221,7 @@ class TestSnapshotExtractorFlatStructure:
         finally:
             freecad_app.closeDocument(doc.Name)
 
-    def test_node_id_is_object_id_property(self, freecad_app, extractor, freecad_port, project_root):
+    def test_node_id_is_object_id_property(self, freecad_app, extractor, project_root):
         """Test that node id uses FreeCAD's object.ID property.
 
         The id should match the unique integer ID that FreeCAD assigns to each object.
@@ -250,7 +242,7 @@ class TestSnapshotExtractorFlatStructure:
                 body_id = body_obj.ID
 
                 # Extract the snapshot
-                snapshot = extractor.extract_tree(freecad_port)
+                snapshot = extractor.extract_tree(doc)
 
                 # Find the nodes
                 part_node = next((n for n in snapshot.nodes if n.name == "Part"), None)

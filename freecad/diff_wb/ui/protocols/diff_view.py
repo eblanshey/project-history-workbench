@@ -28,7 +28,7 @@ from ..presenters.presentation_models import (
     NodePresentation,
     PropertyPresentation,
 )
-from ..views.diff_panel_view import HistorySelection
+from ..views.models import HistorySelection
 
 
 __all__ = ["DiffView"]

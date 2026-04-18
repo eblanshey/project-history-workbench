@@ -12,7 +12,7 @@ from ...domain.tree import Property
 from ...utils import Log
 from ..protocols.diff_view import DiffView
 from ..state import UIState
-from ..views.diff_panel_view import HistorySelection
+from ..views.models import HistorySelection
 from .presentation_models import DiffTreePresentation, NodePresentation, PropertyPresentation
 
 
