@@ -4,8 +4,6 @@
 # to views and state, registering presenters globally, and connecting callbacks.
 """UI Composer - Composes and registers UI components."""
 
-from PySide6.QtCore import Qt
-
 from ..application.di.container import ApplicationContainer
 from ..ui.registry import ui_registry
 from ..ui.state import UIState
@@ -63,10 +61,8 @@ def compose_and_register_ui(container: ApplicationContainer) -> DiffPanelView:
     )
     ui_registry.register_diff_presenter(diff_presenter)
 
-    # Connect tree widget callback
-    view.tree_widget.itemClicked.connect(
-        lambda item, col: diff_presenter.on_node_selected(item.data(0, Qt.ItemDataRole.UserRole))
-    )
+    # Connect tree widget callback using the new callback method
+    view.set_node_selection_callback(diff_presenter.on_node_selected)
 
     # Connect add button callback
     view.set_add_button_callback(diff_presenter.on_add_button_clicked)

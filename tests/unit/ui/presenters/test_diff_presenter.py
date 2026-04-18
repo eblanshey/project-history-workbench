@@ -458,7 +458,7 @@ class TestTransformPropertyDiffsWithChildren:
         presenter.present_diff(diff_result)
 
         # Act - use on_node_selected to trigger the transform
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("v2", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -510,7 +510,7 @@ class TestTransformPropertyDiffsWithChildren:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("v2", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -567,7 +567,7 @@ class TestTransformPropertyDiffsWithChildren:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("v2", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -615,7 +615,7 @@ class TestTransformPropertyDiffsWithChildren:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("v2", "Part")
 
         # Assert
         calls = fake_view.get_calls()

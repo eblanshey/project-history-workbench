@@ -208,8 +208,8 @@ class TestComposerConnectsTreeWidgetCallback:
         mock_container.get_commits_action = MagicMock()
         return mock_container
 
-    def test_tree_widget_itemClicked_signal_is_connected(self):
-        """Tree widget itemClicked signal should be connected to on_node_selected."""
+    def test_set_node_selection_callback_is_called(self):
+        """set_node_selection_callback should be called with presenter's on_node_selected method."""
         mock_container = self._create_mock_container()
 
         with (
@@ -223,11 +223,11 @@ class TestComposerConnectsTreeWidgetCallback:
 
             compose_and_register_ui(mock_container)
 
-            # Verify itemClicked signal was connected
-            mock_view.tree_widget.itemClicked.connect.assert_called_once()
+            # Verify set_node_selection_callback was called with on_node_selected
+            mock_view.set_node_selection_callback.assert_called_once_with(mock_presenter.on_node_selected)
 
-    def test_connection_calls_on_node_selected_with_item_data(self):
-        """Connected callback should call on_node_selected with item data."""
+    def test_callback_invokes_on_node_selected_with_git_path_and_node_path(self):
+        """Callback should invoke on_node_selected with both git_path and node_path."""
 
         mock_container = self._create_mock_container()
 
@@ -242,19 +242,14 @@ class TestComposerConnectsTreeWidgetCallback:
 
             compose_and_register_ui(mock_container)
 
-            # Get the connected callback
-            connect_call = mock_view.tree_widget.itemClicked.connect.call_args
-            callback = connect_call[0][0]
+            # Get the callback that was registered
+            callback = mock_view.set_node_selection_callback.call_args[0][0]
 
-            # Simulate a tree item click
-            mock_item = MagicMock()
-            mock_item.data.return_value = "test_node_path"
+            # Simulate calling the callback directly with both parameters
+            callback("test_git_path", "test_node_path")
 
-            # Call the callback
-            callback(mock_item, 0)
-
-            # Verify on_node_selected was called with the item data
-            mock_presenter.on_node_selected.assert_called_once_with("test_node_path")
+            # Verify on_node_selected was called with both arguments
+            mock_presenter.on_node_selected.assert_called_once_with("test_git_path", "test_node_path")
 
 
 class TestComposerInitializesGitRepositoryPresenter:

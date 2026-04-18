@@ -75,7 +75,7 @@ class TestDiffPresenterPropertyHandling:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -110,7 +110,7 @@ class TestDiffPresenterPropertyHandling:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("NonExistentPath")
+        presenter.on_node_selected("", "NonExistentPath")
 
         # Assert
         calls = fake_view.get_calls()
@@ -126,7 +126,7 @@ class TestDiffPresenterPropertyHandling:
         # No diff result has been presented
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -164,7 +164,7 @@ class TestDiffPresenterPropertyHandling:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -219,7 +219,7 @@ class TestDiffPresenterPropertyHandling:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -268,7 +268,7 @@ class TestDiffPresenterPropertyHandling:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -310,7 +310,7 @@ class TestDiffPresenterPropertyHandling:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -371,7 +371,7 @@ class TestDiffPresenterPropertyHandling:
         presenter.present_diff(diff_result)
 
         # Act - select nested path
-        presenter.on_node_selected("Part/Body/Pad")
+        presenter.on_node_selected("v2", "Part/Body/Pad")
 
         # Assert
         calls = fake_view.get_calls()
@@ -401,7 +401,7 @@ class TestDiffPresenterPropertyHandling:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -448,7 +448,7 @@ class TestPropertyValueTypeExtraction:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Sketch")
+        presenter.on_node_selected("", "Sketch")
 
         # Assert
         calls = fake_view.get_calls()
@@ -495,7 +495,7 @@ class TestPropertyValueTypeExtraction:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -541,7 +541,7 @@ class TestPropertyValueTypeExtraction:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -590,7 +590,7 @@ class TestPropertyValueTypeExtraction:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -636,7 +636,7 @@ class TestPropertyValueTypeExtraction:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -678,7 +678,7 @@ class TestPropertyValueTypeExtraction:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -718,7 +718,7 @@ class TestPropertyValueTypeExtraction:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -761,7 +761,7 @@ class TestPhase2OldValueAndExpression:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -801,7 +801,7 @@ class TestPhase2OldValueAndExpression:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -839,7 +839,7 @@ class TestPhase2OldValueAndExpression:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -879,7 +879,7 @@ class TestPhase2OldValueAndExpression:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -917,7 +917,7 @@ class TestPhase2OldValueAndExpression:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("", "Part")
 
         # Assert
         calls = fake_view.get_calls()
@@ -956,7 +956,7 @@ class TestPhase2OldValueAndExpression:
         presenter.present_diff(diff_result)
 
         # Act
-        presenter.on_node_selected("Part")
+        presenter.on_node_selected("", "Part")
 
         # Assert
         calls = fake_view.get_calls()

@@ -199,6 +199,7 @@ class DiffPanelView(QWidget):
         self._on_history_selection_callback: Callable[[HistorySelection], None] | None = None
         self._on_refresh_callback: Callable[[], None] | None = None
         self._on_add_button_callback: Callable[[str], None] | None = None
+        self._on_node_selection_callback: Callable[[str, str], None] | None = None
         # Create the delegate for property value double-click editing (for copying)
         self._property_value_delegate = _PropertyValueDelegate(self)
         self._setup_ui()
@@ -441,6 +442,38 @@ class DiffPanelView(QWidget):
         """
         self._on_add_button_callback = callback
 
+    def set_node_selection_callback(self, callback: Callable[[str, str], None]) -> None:
+        """Set callback for node selection with (git_path, node_path).
+
+        Args:
+            callback: A callable receiving (git_path, node_path) when a node is clicked.
+        """
+        self._on_node_selection_callback = callback
+        # Connect to internal handler that extracts both values
+        self.tree_widget.itemClicked.connect(self._on_tree_item_clicked)
+
+    def _on_tree_item_clicked(self, item: QTreeWidgetItem, column: int) -> None:
+        """Extract git_path from root and node_path from clicked item, then invoke callback.
+
+        Args:
+            item: The clicked tree item
+            column: The column that was clicked
+        """
+        if self._on_node_selection_callback is None:
+            return
+
+        # Extract node_path from clicked item (set in _create_tree_item)
+        node_path = item.data(0, Qt.ItemDataRole.UserRole)
+
+        # Walk up to find root item and extract git_path
+        root = item
+        while root.parent():
+            root = root.parent()
+        git_path = root.data(0, Qt.ItemDataRole.UserRole)
+
+        if git_path and node_path:
+            self._on_node_selection_callback(git_path, node_path)
+
     def _on_item_clicked(self, item: QListWidgetItem) -> None:
         """Handle item click by triggering callback with HistorySelection."""
         if self._on_history_selection_callback is None:
@@ -552,6 +585,8 @@ class DiffPanelView(QWidget):
 
             # Create root item
             root_item = QTreeWidgetItem([top_level_text])
+            # Store git_path in root item's UserRole for later retrieval when children are clicked
+            root_item.setData(0, Qt.ItemDataRole.UserRole, diff.git_path)
             if warning_text:
                 root_item.setToolTip(0, warning_text)
 

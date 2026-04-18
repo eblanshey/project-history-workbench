@@ -66,14 +66,14 @@ class DiffPresenter:
         Args:
             diff_result: DiffResult from CompareSnapshotsAction.execute()
         """
-        # Store diff result for property lookup
+        # Store diff result for property lookup (also add to dict for multi-doc support)
         self._diff_result = diff_result
+        git_path = diff_result.new_snapshot.git_path or diff_result.new_snapshot.document_name
+        if git_path:
+            self._diff_results_by_path[git_path] = diff_result
 
         # Transform domain objects to presentation models
         nodes = [self._format_node(node) for node in diff_result.hierarchy.roots]
-
-        # Get git_path for top-level item (use document_name as fallback)
-        git_path = diff_result.new_snapshot.git_path or diff_result.new_snapshot.document_name
 
         # Call view methods to trigger UI rendering
         self._view.show_diff_tree(nodes, git_path)
@@ -231,26 +231,34 @@ class DiffPresenter:
             children=[self._format_node(child) for child in node_diff.children],
         )
 
-    def on_node_selected(self, path: str) -> None:
+    def on_node_selected(self, git_path: str, node_path: str) -> None:
         """Handle tree node selection to display property diffs.
 
         Called by view when user clicks a node in the diff tree.
         Looks up the property diffs for that path and displays them.
 
         Args:
-            path: The path of the selected node (from QTreeWidgetItem.UserRole)
+            git_path: The document path (key in _diff_results_by_path)
+            node_path: The path of the selected node within that document
         """
-        # Guard: No diff result stored
-        if not hasattr(self, "_diff_result") or self._diff_result is None:
+        # Guard: No diff results stored
+        if not self._diff_results_by_path:
             self._view.show_properties([])
             return
 
-        # Find NodeDiff by path using hierarchy lookup
-        node_diff = self._diff_result.hierarchy.find_by_path(path)
+        # Look up the correct DiffResult for this document
+        diff_result = self._diff_results_by_path.get(git_path)
+        if diff_result is None:
+            Log.debug(f"[PRESENTER] No DiffResult found for git_path: {git_path}")
+            self._view.show_properties([])
+            return
+
+        # Find NodeDiff by path within this document's hierarchy
+        node_diff = diff_result.hierarchy.find_by_path(node_path)
 
         # If not found, clear properties
         if node_diff is None:
-            Log.debug(f"[PRESENTER] NodeDiff not found for path: {path}")
+            Log.debug(f"[PRESENTER] NodeDiff not found for path: {node_path} in document {git_path}")
             self._view.show_properties([])
             return
 
