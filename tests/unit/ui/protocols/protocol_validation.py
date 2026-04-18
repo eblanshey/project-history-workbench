@@ -30,20 +30,19 @@ def get_protocol_methods(protocol: type[Protocol]) -> dict[str, inspect.Signatur
     methods: dict[str, inspect.Signature] = {}
 
     for name, obj in inspect.getmembers(protocol):
-        if not name.startswith("_") and callable(obj):
+        if not name.startswith("_") and callable(obj) and isinstance(obj, type(lambda: None)):
             # Get signature, handling both function and method descriptors
-            if isinstance(obj, type(lambda: None)):
-                try:
-                    sig = inspect.signature(obj)
-                    # Remove 'self' parameter for instance methods
-                    params = list(sig.parameters.values())
-                    if params and params[0].name == "self":
-                        params = params[1:]
-                    sig = sig.replace(parameters=params)
-                    methods[name] = sig
-                except (ValueError, TypeError):
-                    # Some objects can't be inspected, skip them
-                    pass
+            try:
+                sig = inspect.signature(obj)
+                # Remove 'self' parameter for instance methods
+                params = list(sig.parameters.values())
+                if params and params[0].name == "self":
+                    params = params[1:]
+                sig = sig.replace(parameters=params)
+                methods[name] = sig
+            except (ValueError, TypeError):
+                # Some objects can't be inspected, skip them
+                continue
 
     return methods
 
@@ -73,7 +72,7 @@ def _get_implementation_methods(cls: type[Any]) -> dict[str, inspect.Signature]:
                     methods[name] = sig
             except (ValueError, TypeError):
                 # Some objects can't be inspected, skip them
-                pass
+                continue
 
     return methods
 

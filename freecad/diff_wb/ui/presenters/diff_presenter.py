@@ -2,12 +2,18 @@
 
 from typing import Any
 
+from ...application.actions.create_diff import CreateDiffAction
+from ...application.actions.create_document_snapshot_commit import CreateDocumentSnapshotForCommitAction
+from ...application.actions.create_document_snapshot_working import CreateDocumentSnapshotForWorkingTreeAction
+from ...application.actions.get_open_eligible_documents import GetOpenEligibleDocumentsAction
 from ...domain.diff.engine import DiffResult
 from ...domain.diff.models import DiffState, NodeDiff, PropertyDiff
 from ...domain.tree import Property
 from ...utils import Log
 from ..protocols.diff_view import DiffView
-from .presentation_models import NodePresentation, PropertyPresentation
+from ..views.diff_panel_view import HistorySelection
+from .application_state import ApplicationState
+from .presentation_models import DiffTreePresentation, NodePresentation, PropertyPresentation
 
 
 class DiffPresenter:
@@ -20,13 +26,34 @@ class DiffPresenter:
     Dependencies are injected for testability.
     """
 
-    def __init__(self, view: DiffView) -> None:
+    def __init__(
+        self,
+        view: DiffView,
+        application_state: ApplicationState,
+        get_eligible_docs_action: GetOpenEligibleDocumentsAction,
+        create_working_snapshot_action: CreateDocumentSnapshotForWorkingTreeAction,
+        create_commit_snapshot_action: CreateDocumentSnapshotForCommitAction,
+        create_diff_action: CreateDiffAction,
+    ) -> None:
         """Initialize with required dependencies.
 
         Args:
             view: DiffView implementation to display diff results
+            application_state: Application state holder containing git repository info
+            get_eligible_docs_action: Action to get eligible open documents
+            create_working_snapshot_action: Action to create working tree snapshots
+            create_commit_snapshot_action: Action to create commit snapshots (stub)
+            create_diff_action: Action to compute diffs between snapshots
         """
         self._view = view
+        self._application_state = application_state
+        self._get_eligible_docs = get_eligible_docs_action
+        self._create_working_tree_snapshot = create_working_snapshot_action
+        self._create_commit_snapshot = create_commit_snapshot_action
+        self._create_diff = create_diff_action
+
+        # Wire up the callback for history selection
+        self._view.set_history_selection_callback(self.on_history_item_selected)
 
     def present_diff(self, diff_result: DiffResult) -> None:
         """Transform domain data and call view methods to render UI.
@@ -52,6 +79,94 @@ class DiffPresenter:
             added=diff_result.added_count,
             deleted=diff_result.deleted_count,
             modified=diff_result.modified_count,
+        )
+
+    def on_history_item_selected(self, selection: HistorySelection) -> None:
+        """Handle single item selection from history list.
+
+        Args:
+            selection: HistorySelection containing item_kind and optional commit_hash
+        """
+        if selection.item_kind == "WORKING_TREE":
+            self._on_working_tree_selected()
+        elif selection.item_kind == "STAGING":
+            self._on_staging_selected()
+        elif selection.item_kind == "COMMIT":
+            self._on_commit_selected(selection.commit_hash)
+
+    def _on_working_tree_selected(self) -> None:
+        """Handle Working Tree item selection.
+
+        For each eligible document:
+        1. Create working tree snapshot
+        2. Create diff against None (old snapshot)
+        3. Collect results, logging warnings for failures
+        """
+        repo = self._application_state.git_repository
+        if repo is None:
+            Log.warning("No git repository detected")
+            return
+
+        docs_result = self._get_eligible_docs.execute(repo)
+        if not docs_result.is_success or not docs_result.data:
+            Log.warning(f"No eligible documents: {docs_result.message}")
+            return
+
+        eligible_docs = docs_result.data
+        all_diff_results: list[DiffResult] = []
+
+        for doc in eligible_docs:
+            working_result = self._create_working_tree_snapshot.execute(repo, doc)
+            if not working_result.is_success or working_result.data is None:
+                Log.warning(f"Failed to create working snapshot: {working_result.message}")
+                continue
+
+            working_snapshot = working_result.data
+
+            commit_result = self._create_commit_snapshot.execute(repo, None, working_snapshot.git_path)
+            commit_snapshot = commit_result.data if commit_result.is_success else None
+
+            diff_result = self._create_diff.execute(commit_snapshot, working_snapshot)
+            if diff_result.is_success and diff_result.data is not None:
+                all_diff_results.append(diff_result.data)
+            else:
+                Log.warning(f"Failed to compute diff: {diff_result.message}")
+
+        if all_diff_results:
+            self.present_diffs(all_diff_results)
+        else:
+            Log.warning("No diff results to display")
+
+    def _on_staging_selected(self) -> None:
+        """Handle Staging item selection. STUB: For now, does nothing."""
+        pass
+
+    def _on_commit_selected(self, commit_hash: str | None) -> None:
+        """Handle commit item selection. STUB: For now, does nothing."""
+        pass
+
+    def present_diffs(self, diff_results: list[DiffResult]) -> None:
+        """Transform multiple DiffResults into presentation models and display."""
+        if not diff_results:
+            self._view.show_diff_trees([])
+            return
+
+        presentations = []
+        for diff_result in diff_results:
+            nodes = [self._format_node(node) for node in diff_result.hierarchy.roots]
+            git_path = diff_result.new_snapshot.git_path or diff_result.new_snapshot.document_name
+            warnings = list(diff_result.warnings)
+
+            presentations.append(DiffTreePresentation(nodes=nodes, git_path=git_path, warnings=warnings))
+
+        self._view.show_diff_trees(presentations)
+
+        # Show summary from first document (for now)
+        first = diff_results[0]
+        self._view.show_summary(
+            added=first.added_count,
+            deleted=first.deleted_count,
+            modified=first.modified_count,
         )
 
     def _format_node(self, node_diff: NodeDiff) -> NodePresentation:

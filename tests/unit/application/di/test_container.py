@@ -4,6 +4,8 @@ These tests verify that the DI container correctly wires all application
 layer dependencies together, including git repository detection components.
 """
 
+from typing import Any
+
 import pytest
 
 from freecad.diff_wb.application.actions.get_commits import GetCommitsAction
@@ -100,11 +102,38 @@ class TestApplicationContainer:
 
         # We need to manually wire with fake views since the container uses None
         # This test verifies that presenters can accept views
+        from freecad.diff_wb.ui.presenters.application_state import ApplicationState
         from freecad.diff_wb.ui.presenters.diff_presenter import DiffPresenter
         from freecad.diff_wb.ui.presenters.snapshot_presenter import SnapshotPresenter
 
         snapshot_presenter = SnapshotPresenter(view=fake_snapshot_view)
-        diff_presenter = DiffPresenter(view=fake_diff_view)
+
+        # Create stub actions for DiffPresenter dependencies
+        class StubGetEligibleDocsAction:
+            def execute(self, *args: Any, **kwargs: Any) -> Any:
+                return type("Result", (), {"is_success": True, "data": []})()
+
+        class StubCreateWorkingSnapshotAction:
+            def execute(self, *args: Any, **kwargs: Any) -> Any:
+                return type("Result", (), {"is_success": True, "data": None})()
+
+        class StubCreateCommitSnapshotAction:
+            def execute(self, *args: Any, **kwargs: Any) -> Any:
+                return type("Result", (), {"is_success": True, "data": None})()
+
+        class StubCreateDiffAction:
+            def execute(self, *args: Any, **kwargs: Any) -> Any:
+                return type("Result", (), {"is_success": True, "data": None})()
+
+        application_state = ApplicationState(git_repository=None)
+        diff_presenter = DiffPresenter(
+            view=fake_diff_view,
+            application_state=application_state,
+            get_eligible_docs_action=StubGetEligibleDocsAction(),  # type: ignore[arg-type]
+            create_working_snapshot_action=StubCreateWorkingSnapshotAction(),  # type: ignore[arg-type]
+            create_commit_snapshot_action=StubCreateCommitSnapshotAction(),  # type: ignore[arg-type]
+            create_diff_action=StubCreateDiffAction(),  # type: ignore[arg-type]
+        )
 
         # Verify
         assert snapshot_presenter._view is fake_snapshot_view

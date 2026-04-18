@@ -14,6 +14,7 @@ The tests verify:
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
 from freecad.diff_wb.ui.protocols.diff_view import DiffView
 from freecad.diff_wb.ui.protocols.snapshot_view import SnapshotView
@@ -180,7 +181,10 @@ class TestProtocolValidationUtility:
             def show_loading(self) -> None:
                 pass
 
-            def show_diff_tree(self, nodes: list, git_path: str = "") -> None:
+            def show_diff_tree(self, nodes: list[Any], git_path: str = "") -> None:
+                pass
+
+            def show_diff_trees(self, diffs: list[Any]) -> None:
                 pass
 
             def show_summary(self, added: int, deleted: int, modified: int) -> None:
@@ -189,7 +193,7 @@ class TestProtocolValidationUtility:
             def show_error(self, message: str) -> None:
                 pass
 
-            def show_properties(self, properties: list) -> None:
+            def show_properties(self, properties: list[Any]) -> None:
                 pass
 
             def show_repository(self, repo: object | None) -> None:

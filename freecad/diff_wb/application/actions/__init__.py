@@ -1,6 +1,8 @@
 """Module responsibility: Action use cases."""
 
 from .commands import CompareSnapshotsAction, TakeSnapshotAction
+from .create_diff import CreateDiffAction
+from .create_document_snapshot_commit import CreateDocumentSnapshotForCommitAction
 from .create_document_snapshot_working import CreateDocumentSnapshotForWorkingTreeAction
 from .find_active_git_repository import FindActiveGitRepositoryAction
 from .get_commits import GetCommitsAction
@@ -18,6 +20,8 @@ __all__ = [
     "GetCommitsAction",
     "GetOpenEligibleDocumentsAction",
     "CreateDocumentSnapshotForWorkingTreeAction",
+    "CreateDocumentSnapshotForCommitAction",
+    "CreateDiffAction",
     # Queries
     "ListSnapshotsAction",
     # Result models

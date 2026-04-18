@@ -1,13 +1,47 @@
 """File responsibility: Unit tests for DiffPresenter property handling methods."""
 
 import datetime
+from unittest.mock import MagicMock
 
+from freecad.diff_wb.application.actions.create_diff import CreateDiffAction
+from freecad.diff_wb.application.actions.create_document_snapshot_commit import CreateDocumentSnapshotForCommitAction
+from freecad.diff_wb.application.actions.create_document_snapshot_working import (
+    CreateDocumentSnapshotForWorkingTreeAction,
+)
+from freecad.diff_wb.application.actions.get_open_eligible_documents import GetOpenEligibleDocumentsAction
 from freecad.diff_wb.domain.diff.models import DiffHierarchy, DiffResult, DiffState, NodeDiff, PropertyDiff
 from freecad.diff_wb.domain.snapshots import Snapshot
 from freecad.diff_wb.domain.tree import Property, PropertyType
+from freecad.diff_wb.ui.presenters.application_state import ApplicationState
 from freecad.diff_wb.ui.presenters.diff_presenter import DiffPresenter
 from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 from tests.fakes.fake_diff_view import FakeDiffView
+
+
+def _create_test_presenter() -> tuple[FakeDiffView, DiffPresenter]:
+    """Helper to create a DiffPresenter with mock dependencies.
+
+    Returns:
+        Tuple of (FakeDiffView, DiffPresenter) for test setup.
+    """
+    view = FakeDiffView()
+    application_state = ApplicationState(git_repository=None)
+
+    # Create mock actions
+    get_eligible_docs_action = MagicMock(spec=GetOpenEligibleDocumentsAction)
+    create_working_snapshot_action = MagicMock(spec=CreateDocumentSnapshotForWorkingTreeAction)
+    create_commit_snapshot_action = MagicMock(spec=CreateDocumentSnapshotForCommitAction)
+    create_diff_action = MagicMock(spec=CreateDiffAction)
+
+    presenter = DiffPresenter(
+        view=view,
+        application_state=application_state,
+        get_eligible_docs_action=get_eligible_docs_action,
+        create_working_snapshot_action=create_working_snapshot_action,
+        create_commit_snapshot_action=create_commit_snapshot_action,
+        create_diff_action=create_diff_action,
+    )
+    return view, presenter
 
 
 class TestDiffPresenterPropertyHandling:
@@ -16,8 +50,7 @@ class TestDiffPresenterPropertyHandling:
     def test_on_node_selected_with_valid_path_calls_view(self) -> None:
         """When path is valid, view.show_properties() is called with PropertyPresentation list."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         old_prop = Property.create(PropertyType.FLOAT, 10.0)
         new_prop = Property.create(PropertyType.FLOAT, 20.0)
@@ -57,8 +90,7 @@ class TestDiffPresenterPropertyHandling:
     def test_on_node_selected_with_invalid_path_clears_properties(self) -> None:
         """When path not found in diff, clears properties."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         node_diff = NodeDiff(
             path="Part",
@@ -87,8 +119,7 @@ class TestDiffPresenterPropertyHandling:
     def test_on_node_selected_with_no_diff_result_clears_properties(self) -> None:
         """When no diff computed, clears properties."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
         # No diff result has been presented
 
         # Act
@@ -107,8 +138,7 @@ class TestDiffPresenterPropertyHandling:
         Expression changes appear as separate rows per specification.
         """
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         # Test MODIFIED property with expression change (old has expression, new doesn't)
         old_prop = Property.create(PropertyType.FLOAT, 10.0, expression="Sketch.X")
@@ -164,8 +194,7 @@ class TestDiffPresenterPropertyHandling:
         only the expression row should show DELETED.
         """
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         # Old property has expression, new property has same value but no expression
         old_prop = Property.create(PropertyType.FLOAT, 3.0, expression="Sketch.X")
@@ -215,8 +244,7 @@ class TestDiffPresenterPropertyHandling:
     def test_property_presentation_for_added_property(self) -> None:
         """PropertyDiff transforms to PropertyPresentation correctly for added property."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         # Test ADDED property (old_value is None)
         new_prop = Property.create(PropertyType.STRING, "NewValue")
@@ -258,8 +286,7 @@ class TestDiffPresenterPropertyHandling:
     def test_property_presentation_for_deleted_property(self) -> None:
         """PropertyDiff transforms to PropertyPresentation correctly for deleted property."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         # Test DELETED property (new_value is None)
         old_prop = Property.create(PropertyType.INT, 42)
@@ -301,8 +328,7 @@ class TestDiffPresenterPropertyHandling:
     def test_on_node_selected_finds_nested_path(self) -> None:
         """on_node_selected finds node in nested tree structure."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         grandchild = NodeDiff(
             path="Part/Body/Pad",
@@ -355,8 +381,7 @@ class TestDiffPresenterPropertyHandling:
     def test_on_node_selected_with_unchanged_node_no_properties(self) -> None:
         """When selected node has no property diffs, shows empty properties."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         node_diff = NodeDiff(
             path="Part",
@@ -396,8 +421,7 @@ class TestPropertyValueTypeExtraction:
         the new_value field should contain the list itself, not the Property wrapper.
         """
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         # Simulate a list of constraint objects as property value
         # Using UNKNOWN type preserves the raw list value (as FreeCAD integration does)
@@ -444,8 +468,7 @@ class TestPropertyValueTypeExtraction:
     def test_property_with_dict_value_expands_correctly(self) -> None:
         """Property with dict value passes the dict (not Property) to presentation.new_value."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         # Simulate a dict value using UNKNOWN type to preserve raw dict
         old_dict = {"key1": "value1", "key2": "value2"}
@@ -492,8 +515,7 @@ class TestPropertyValueTypeExtraction:
         # Arrange
         from freecad.diff_wb.domain.tree import Vector
 
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         old_vec = Vector(x=1.0, y=2.0, z=3.0)
         new_vec = Vector(x=4.0, y=5.0, z=6.0)
@@ -542,8 +564,7 @@ class TestPropertyValueTypeExtraction:
         # Arrange
         from freecad.diff_wb.domain.tree import Placement, Rotation, Vector
 
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         old_placement = Placement(position=Vector(0, 0, 0), rotation=Rotation(0, 0, 1, 0))
         new_placement = Placement(position=Vector(10, 20, 30), rotation=Rotation(0, 0, 1, 90))
@@ -591,8 +612,7 @@ class TestPropertyValueTypeExtraction:
     def test_property_deleted_uses_old_value_for_expansion(self) -> None:
         """When property is deleted (new_value is None), uses old_value.value for expansion."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         old_list = ["item1", "item2"]
         old_prop = Property(type_=PropertyType.UNKNOWN, value=old_list)
@@ -634,8 +654,7 @@ class TestPropertyValueTypeExtraction:
     def test_property_added_uses_new_value_for_expansion(self) -> None:
         """When property is added (old_value is None), uses new_value.value for expansion."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         new_list = ["new_item"]
         new_prop = Property(type_=PropertyType.UNKNOWN, value=new_list)
@@ -677,8 +696,7 @@ class TestPropertyValueTypeExtraction:
     def test_property_both_none_has_no_value(self) -> None:
         """When both old and new values are None, presentation.value is None."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         node_diff = NodeDiff(
             path="Part",
@@ -719,8 +737,7 @@ class TestPhase2OldValueAndExpression:
     def test_property_presentation_includes_old_value(self) -> None:
         """PropertyPresentation includes old_value field with actual old value."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         old_prop = Property.create(PropertyType.FLOAT, 10.0)
         new_prop = Property.create(PropertyType.FLOAT, 20.0)
@@ -758,8 +775,7 @@ class TestPhase2OldValueAndExpression:
     def test_expandable_property_passes_both_old_and_new_values(self) -> None:
         """Expandable properties pass both old and new dict values for child diff computation."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         old_dict = {"x": 1.0, "y": 2.0, "z": 3.0}
         new_dict = {"x": 4.0, "y": 5.0, "z": 6.0}
@@ -799,8 +815,7 @@ class TestPhase2OldValueAndExpression:
     def test_expression_row_has_correct_display_name(self) -> None:
         """Expression rows have name "-> Expression" instead of just "Expression"."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         old_prop = Property.create(PropertyType.FLOAT, 10.0, expression="Sketch.X")
         new_prop = Property.create(PropertyType.FLOAT, 20.0, expression="Sketch.Y")
@@ -838,8 +853,7 @@ class TestPhase2OldValueAndExpression:
     def test_expression_row_passes_actual_expression_strings(self) -> None:
         """Expression rows pass actual expression strings as old_value/new_value (not display strings)."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         old_expr_str = "Sketch.X"
         new_expr_str = "Sketch.Y"
@@ -879,8 +893,7 @@ class TestPhase2OldValueAndExpression:
     def test_expression_added_has_correct_values(self) -> None:
         """When expression is added, old_value is None and new_value is the expression string."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         old_prop = Property.create(PropertyType.FLOAT, 10.0, expression=None)
         new_prop = Property.create(PropertyType.FLOAT, 10.0, expression="Sketch.X")
@@ -919,8 +932,7 @@ class TestPhase2OldValueAndExpression:
     def test_expression_deleted_has_correct_values(self) -> None:
         """When expression is deleted, old_value is the expression string and new_value is None."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         old_prop = Property.create(PropertyType.FLOAT, 10.0, expression="Sketch.X")
         new_prop = Property.create(PropertyType.FLOAT, 10.0, expression=None)

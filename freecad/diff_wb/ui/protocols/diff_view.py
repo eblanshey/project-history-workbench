@@ -23,7 +23,12 @@ from collections.abc import Callable
 from typing import Protocol
 
 from ...domain.git.models import GitRepository
-from ..presenters.presentation_models import NodePresentation, PropertyPresentation
+from ..presenters.presentation_models import (
+    DiffTreePresentation,
+    NodePresentation,
+    PropertyPresentation,
+)
+from ..views.diff_panel_view import HistorySelection
 
 
 __all__ = ["DiffView"]
@@ -96,4 +101,19 @@ class DiffView(Protocol):
 
         Args:
             callback: A no-argument callable to invoke on refresh.
+        """
+
+    def set_history_selection_callback(self, callback: Callable[[HistorySelection], None]) -> None:
+        """Set the callback for history list selection.
+
+        Args:
+            callback: A callable that receives HistorySelection with item_kind and commit_hash
+        """
+
+    def show_diff_trees(self, diffs: list[DiffTreePresentation]) -> None:
+        """Display multiple diff trees (one per document).
+
+        Args:
+            diffs: List of DiffTreePresentation objects, each representing
+                  a diff tree for one document with its metadata.
         """

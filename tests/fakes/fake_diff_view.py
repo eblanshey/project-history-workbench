@@ -3,11 +3,16 @@
 from collections.abc import Callable
 from typing import Any
 
-from freecad.diff_wb.ui.presenters.presentation_models import NodePresentation, PropertyPresentation
+from freecad.diff_wb.domain.git.models import GitRepository
+from freecad.diff_wb.ui.presenters.presentation_models import (
+    DiffTreePresentation,
+    NodePresentation,
+    PropertyPresentation,
+)
 
 
 class FakeDiffView:
-    """Fake implementation of DiffView for testing DiffPresenter.
+    """Fake implementation of DiffView protocol for testing DiffPresenter.
 
     Captures method calls for verification in tests instead of rendering UI.
     """
@@ -16,6 +21,7 @@ class FakeDiffView:
         self._calls: list[dict[str, Any]] = []
         self._last_call: dict[str, Any] | None = None
         self._refresh_callback: Callable[[], None] | None = None
+        self._history_selection_callback: Callable[[Any], None] | None = None
 
     def show_loading(self) -> None:
         """Capture loading call instead of showing UI."""
@@ -24,6 +30,15 @@ class FakeDiffView:
     def show_diff_tree(self, nodes: list[NodePresentation], git_path: str = "") -> None:
         """Capture diff tree call instead of showing UI."""
         self._record_call("show_diff_tree", nodes=nodes, git_path=git_path)
+
+    def show_diff_trees(self, diff_trees: list[DiffTreePresentation]) -> None:
+        """Capture multiple diff trees call instead of showing UI.
+
+        Args:
+            diff_trees: List of DiffTreePresentation objects to display.
+                       Each represents a diff tree for one document.
+        """
+        self._record_call("show_diff_trees", diff_trees=diff_trees)
 
     def show_summary(self, added: int, deleted: int, modified: int) -> None:
         """Capture summary call instead of showing UI."""
@@ -37,6 +52,10 @@ class FakeDiffView:
         """Capture properties call instead of showing UI."""
         self._record_call("show_properties", properties=properties)
 
+    def show_repository(self, repo: GitRepository | None) -> None:
+        """Capture repository display call instead of showing UI."""
+        self._record_call("show_repository", repo=repo)
+
     def set_refresh_callback(self, callback: Callable[[], None]) -> None:
         """Capture refresh callback registration instead of connecting to button.
 
@@ -45,6 +64,15 @@ class FakeDiffView:
         """
         self._record_call("set_refresh_callback", callback=callback)
         self._refresh_callback = callback
+
+    def set_history_selection_callback(self, callback: Callable[[Any], None]) -> None:
+        """Capture history selection callback registration instead of connecting to view.
+
+        Args:
+            callback: A callable that takes a HistorySelection argument to invoke on selection.
+        """
+        self._record_call("set_history_selection_callback", callback=callback)
+        self._history_selection_callback = callback
 
     def _record_call(self, method: str, **kwargs: Any) -> dict[str, Any]:
         """Record a method call for later verification."""

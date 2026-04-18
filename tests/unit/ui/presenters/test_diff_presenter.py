@@ -1,13 +1,49 @@
 """File responsibility: Unit tests for DiffPresenter."""
 
 import datetime
+from unittest.mock import MagicMock
 
+from freecad.diff_wb.application.actions.create_diff import CreateDiffAction
+from freecad.diff_wb.application.actions.create_document_snapshot_commit import CreateDocumentSnapshotForCommitAction
+from freecad.diff_wb.application.actions.create_document_snapshot_working import (
+    CreateDocumentSnapshotForWorkingTreeAction,
+)
+from freecad.diff_wb.application.actions.get_open_eligible_documents import GetOpenEligibleDocumentsAction
 from freecad.diff_wb.domain.diff.models import DiffHierarchy, DiffResult, DiffState, NodeDiff, PropertyDiff
+from freecad.diff_wb.domain.git.models import GitRepository
 from freecad.diff_wb.domain.snapshots import Snapshot
 from freecad.diff_wb.domain.tree import Property, PropertyType
+from freecad.diff_wb.ui.presenters.application_state import ApplicationState
 from freecad.diff_wb.ui.presenters.diff_presenter import DiffPresenter
 from freecad.diff_wb.ui.presenters.presentation_models import NodePresentation, PropertyPresentation
+from freecad.diff_wb.ui.views.diff_panel_view import HistorySelection
 from tests.fakes.fake_diff_view import FakeDiffView
+
+
+def _create_test_presenter() -> tuple[FakeDiffView, DiffPresenter]:
+    """Helper to create a DiffPresenter with mock dependencies.
+
+    Returns:
+        Tuple of (FakeDiffView, DiffPresenter) for test setup.
+    """
+    view = FakeDiffView()
+    application_state = ApplicationState(git_repository=None)
+
+    # Create mock actions
+    get_eligible_docs_action = MagicMock(spec=GetOpenEligibleDocumentsAction)
+    create_working_snapshot_action = MagicMock(spec=CreateDocumentSnapshotForWorkingTreeAction)
+    create_commit_snapshot_action = MagicMock(spec=CreateDocumentSnapshotForCommitAction)
+    create_diff_action = MagicMock(spec=CreateDiffAction)
+
+    presenter = DiffPresenter(
+        view=view,
+        application_state=application_state,
+        get_eligible_docs_action=get_eligible_docs_action,
+        create_working_snapshot_action=create_working_snapshot_action,
+        create_commit_snapshot_action=create_commit_snapshot_action,
+        create_diff_action=create_diff_action,
+    )
+    return view, presenter
 
 
 class TestDiffPresenterGitPath:
@@ -16,8 +52,7 @@ class TestDiffPresenterGitPath:
     def test_present_diff_passes_git_path_to_view(self) -> None:
         """Passes git_path from new_snapshot to show_diff_tree."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
         hierarchy = DiffHierarchy()
         hierarchy.add_node(NodeDiff(path="Part", type_id="Part::Feature"))
         diff_result = DiffResult(
@@ -46,8 +81,7 @@ class TestDiffPresenterGitPath:
     def test_present_diff_uses_document_name_when_git_path_empty(self) -> None:
         """Falls back to document_name when git_path is empty."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
         hierarchy = DiffHierarchy()
         hierarchy.add_node(NodeDiff(path="Part", type_id="Part::Feature"))
         diff_result = DiffResult(
@@ -80,8 +114,7 @@ class TestDiffPresenter:
     def test_present_diff_calls_view_methods(self) -> None:
         """Calls show_diff_tree and show_summary on view."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
         # Create a node with no property changes so it's UNCHANGED
         hierarchy = DiffHierarchy()
         hierarchy.add_node(NodeDiff(path="Part", type_id="Part::Feature"))
@@ -103,8 +136,7 @@ class TestDiffPresenter:
     def test_formats_node_diffs_correctly(self) -> None:
         """Transforms NodeDiff to NodePresentation correctly."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
         node_diff = NodeDiff(
             path="Part001",
             type_id="Part::Feature",
@@ -135,8 +167,7 @@ class TestDiffPresenter:
     def test_formats_property_changes(self) -> None:
         """Formats PropertyDiff with expressions correctly."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
         old_prop = Property.create(PropertyType.FLOAT, 10.0, expression="Sketch.X")
         new_prop = Property.create(PropertyType.FLOAT, 20.0, expression=None)
         node_diff = NodeDiff(
@@ -166,8 +197,7 @@ class TestDiffPresenter:
     def test_handles_empty_diff(self) -> None:
         """Handles case with no changes."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
         diff_result = DiffResult(
             old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
             new_snapshot=Snapshot(snapshot_id="s2", document_name="v2", timestamp=datetime.datetime.now()),
@@ -189,8 +219,7 @@ class TestDiffPresenter:
     def test_calculates_summary_counts(self) -> None:
         """Calculates correct added/deleted/modified counts."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
         added_node = NodeDiff(path="NewPart", type_id="Part::Feature", _force_state=DiffState.ADDED)
         deleted_node = NodeDiff(path="OldPart", type_id="Part::Feature", _force_state=DiffState.DELETED)
         modified_node = NodeDiff(
@@ -237,8 +266,7 @@ class TestDiffPresenterFormatsChildren:
     def test_format_node_populates_children_recursive(self) -> None:
         """Test _format_node() populates children recursively from NodeDiff.children."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         # Create a nested tree structure using factory functions
         grandchild = NodeDiff(
@@ -292,8 +320,7 @@ class TestDiffPresenterFormatsChildren:
     def test_complete_tree_structure_preserved_through_transformation(self) -> None:
         """Test complete tree structure is preserved through transformation."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         # Create a complex multi-level tree with multiple branches
         leaf1 = NodeDiff(path="Part/Body/Pad", type_id="PartDesign::Pad", _force_state=DiffState.ADDED)
@@ -361,8 +388,7 @@ class TestDiffPresenterFormatsChildren:
     def test_format_node_handles_empty_children(self) -> None:
         """Test _format_node() handles nodes with no children."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         leaf_node = NodeDiff(
             path="Part/Leaf",
@@ -394,8 +420,7 @@ class TestTransformPropertyDiffsWithChildren:
     def test_transform_property_diffs_includes_children(self) -> None:
         """Test that property diffs with children are transformed correctly."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         # Create property with children (simulating Placement with Position/Rotation)
         old_placement = Property.create(
@@ -453,8 +478,7 @@ class TestTransformPropertyDiffsWithChildren:
     def test_transform_children_recursive(self) -> None:
         """Test that children are transformed recursively."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         # Create a property with nested children (e.g., Position with x, y, z)
         old_position = Property.create(PropertyType.VECTOR, (0.0, 0.0, 0.0))
@@ -505,8 +529,7 @@ class TestTransformPropertyDiffsWithChildren:
     def test_transform_children_preserves_parent_values(self) -> None:
         """Test that parent old_value and new_value are preserved alongside children."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         # Create a property with both parent value and children
         old_placement = Property.create(
@@ -562,8 +585,7 @@ class TestTransformPropertyDiffsWithChildren:
     def test_transform_children_empty_for_primitives(self) -> None:
         """Test that primitive properties have empty children list."""
         # Arrange
-        fake_view = FakeDiffView()
-        presenter = DiffPresenter(fake_view)
+        fake_view, presenter = _create_test_presenter()
 
         # Need to set up a diff_result first because on_node_selected requires it
         old_prop = Property.create(PropertyType.FLOAT, 10.0)
@@ -606,3 +628,421 @@ class TestTransformPropertyDiffsWithChildren:
 
         # Primitive should have empty children
         assert prop_pres.children == []
+
+
+class TestDiffPresenterHistorySelection:
+    """Tests for DiffPresenter history selection handling."""
+
+    def test_on_history_item_selected_method_exists(self) -> None:
+        """DiffPresenter has on_history_item_selected() method."""
+        _, presenter = _create_test_presenter()
+        assert hasattr(presenter, "on_history_item_selected")
+        assert callable(presenter.on_history_item_selected)
+
+    def test_on_history_item_selected_routes_working_tree(self) -> None:
+        """on_history_item_selected() routes WORKING_TREE to _on_working_tree_selected()."""
+        fake_view, presenter = _create_test_presenter()
+
+        # Mock the internal methods
+        with (
+            MagicMock() as mock_working,
+            MagicMock() as mock_staging,
+            MagicMock() as mock_commit,
+        ):
+            presenter._on_working_tree_selected = mock_working  # type: ignore
+            presenter._on_staging_selected = mock_staging  # type: ignore
+            presenter._on_commit_selected = mock_commit  # type: ignore
+
+            # Act
+            selection = HistorySelection(item_kind="WORKING_TREE", commit_hash=None)
+            presenter.on_history_item_selected(selection)
+
+            # Assert
+            mock_working.assert_called_once()
+            mock_staging.assert_not_called()
+            mock_commit.assert_not_called()
+
+    def test_on_history_item_selected_routes_staging(self) -> None:
+        """on_history_item_selected() routes STAGING to _on_staging_selected()."""
+        fake_view, presenter = _create_test_presenter()
+
+        with (
+            MagicMock() as mock_working,
+            MagicMock() as mock_staging,
+            MagicMock() as mock_commit,
+        ):
+            presenter._on_working_tree_selected = mock_working  # type: ignore
+            presenter._on_staging_selected = mock_staging  # type: ignore
+            presenter._on_commit_selected = mock_commit  # type: ignore
+
+            # Act
+            selection = HistorySelection(item_kind="STAGING", commit_hash=None)
+            presenter.on_history_item_selected(selection)
+
+            # Assert
+            mock_working.assert_not_called()
+            mock_staging.assert_called_once()
+            mock_commit.assert_not_called()
+
+    def test_on_history_item_selected_routes_commit(self) -> None:
+        """on_history_item_selected() routes COMMIT to _on_commit_selected()."""
+        fake_view, presenter = _create_test_presenter()
+
+        with (
+            MagicMock() as mock_working,
+            MagicMock() as mock_staging,
+            MagicMock() as mock_commit,
+        ):
+            presenter._on_working_tree_selected = mock_working  # type: ignore
+            presenter._on_staging_selected = mock_staging  # type: ignore
+            presenter._on_commit_selected = mock_commit  # type: ignore
+
+            # Act
+            commit_hash = "abc123"
+            selection = HistorySelection(item_kind="COMMIT", commit_hash=commit_hash)
+            presenter.on_history_item_selected(selection)
+
+            # Assert
+            mock_working.assert_not_called()
+            mock_staging.assert_not_called()
+            mock_commit.assert_called_once_with(commit_hash)
+
+
+class TestDiffPresenterPresentDiffs:
+    """Tests for DiffPresenter.present_diffs() method."""
+
+    def test_present_diffs_accepts_list_of_diff_results(self) -> None:
+        """present_diffs() accepts list[DiffResult]."""
+        fake_view, presenter = _create_test_presenter()
+
+        diff_result = DiffResult(
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="v2", timestamp=datetime.datetime.now()),
+            hierarchy=DiffHierarchy(),
+        )
+
+        # Act
+        presenter.present_diffs([diff_result])
+
+        # Assert
+        assert fake_view.get_call_count() >= 1
+
+    def test_present_diffs_transforms_to_diff_tree_presentation(self) -> None:
+        """Each DiffResult is transformed to DiffTreePresentation."""
+        from freecad.diff_wb.ui.presenters.presentation_models import DiffTreePresentation
+
+        fake_view, presenter = _create_test_presenter()
+
+        hierarchy = DiffHierarchy()
+        hierarchy.add_node(NodeDiff(path="Part", type_id="Part::Feature"))
+
+        diff_result = DiffResult(
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(
+                snapshot_id="s2", document_name="v2", timestamp=datetime.datetime.now(), git_path="test.FCStd"
+            ),
+            hierarchy=hierarchy,
+        )
+
+        # Act
+        presenter.present_diffs([diff_result])
+
+        # Assert
+        calls = fake_view.get_calls()
+        show_trees_call = next((c for c in calls if c["method"] == "show_diff_trees"), None)
+        assert show_trees_call is not None
+        presentations = show_trees_call["diff_trees"]
+        assert len(presentations) == 1
+        assert isinstance(presentations[0], DiffTreePresentation)
+        assert presentations[0].git_path == "test.FCStd"
+
+    def test_present_diffs_handles_empty_list(self) -> None:
+        """present_diffs() handles empty list."""
+        fake_view, presenter = _create_test_presenter()
+
+        # Act
+        presenter.present_diffs([])
+
+        # Assert
+        calls = fake_view.get_calls()
+        show_trees_call = next((c for c in calls if c["method"] == "show_diff_trees"), None)
+        assert show_trees_call is not None
+        assert show_trees_call["diff_trees"] == []
+
+
+class TestDiffPresenterWorkingTreeOrchestration:
+    """Tests for DiffPresenter._on_working_tree_selected() orchestration."""
+
+    def test_on_working_tree_selected_calls_get_eligible_docs(self) -> None:
+        """_on_working_tree_selected() calls GetOpenEligibleDocumentsAction.execute() with correct repo."""
+
+        fake_view, presenter = _create_test_presenter()
+
+        # Setup mock repo
+        mock_repo = GitRepository(name="test-repo", absolute_path="/test/path")
+        presenter._application_state.git_repository = mock_repo  # type: ignore
+
+        # Setup mock action
+        mock_docs_result = MagicMock()
+        mock_docs_result.is_success = True
+        mock_docs_result.data = []
+        mock_docs_result.message = ""
+        presenter._get_eligible_docs.execute.return_value = mock_docs_result  # type: ignore
+
+        # Act
+        presenter._on_working_tree_selected()
+
+        # Assert
+        presenter._get_eligible_docs.execute.assert_called_once_with(mock_repo)
+
+    def test_on_working_tree_selected_creates_working_snapshots(self) -> None:
+        """For each eligible document, creates working tree snapshot."""
+        from tests.fakes.fake_freecad_port import DocumentLike
+
+        fake_view, presenter = _create_test_presenter()
+
+        # Setup mock repo
+        mock_repo = GitRepository(name="test-repo", absolute_path="/test/path")
+        presenter._application_state.git_repository = mock_repo  # type: ignore
+
+        # Setup mock documents
+        mock_doc1 = MagicMock(spec=DocumentLike)
+        mock_doc1.FileName = "/test/path/doc1.FCStd"
+        mock_docs_result = MagicMock()
+        mock_docs_result.is_success = True
+        mock_docs_result.data = [mock_doc1]
+        mock_docs_result.message = ""
+        presenter._get_eligible_docs.execute.return_value = mock_docs_result  # type: ignore
+
+        # Setup mock working snapshot
+        mock_working_snapshot = Snapshot(
+            snapshot_id="ws1",
+            document_name="doc1.FCStd",
+            timestamp=datetime.datetime.now(),
+            git_path="doc1.FCStd",
+        )
+        mock_working_result = MagicMock()
+        mock_working_result.is_success = True
+        mock_working_result.data = mock_working_snapshot
+        mock_working_result.message = ""
+        presenter._create_working_tree_snapshot.execute.return_value = mock_working_result  # type: ignore
+
+        # Setup mock commit result (stub returns None)
+        mock_commit_result = MagicMock()
+        mock_commit_result.is_success = True
+        mock_commit_result.data = None
+        presenter._create_commit_snapshot.execute.return_value = mock_commit_result  # type: ignore
+
+        # Setup mock diff result
+        mock_diff_result = DiffResult(
+            old_snapshot=None,  # type: ignore
+            new_snapshot=mock_working_snapshot,
+            hierarchy=DiffHierarchy(),
+        )
+        mock_create_diff_result = MagicMock()
+        mock_create_diff_result.is_success = True
+        mock_create_diff_result.data = mock_diff_result
+        presenter._create_diff.execute.return_value = mock_create_diff_result  # type: ignore
+
+        # Act
+        presenter._on_working_tree_selected()
+
+        # Assert
+        presenter._create_working_tree_snapshot.execute.assert_called_once_with(mock_repo, mock_doc1)
+
+    def test_on_working_tree_selected_creates_diff_with_none_old_snapshot(self) -> None:
+        """Creates diff with None old_snapshot and working tree snapshot as new."""
+        from tests.fakes.fake_freecad_port import DocumentLike
+
+        fake_view, presenter = _create_test_presenter()
+
+        # Setup mock repo
+        mock_repo = GitRepository(name="test-repo", absolute_path="/test/path")
+        presenter._application_state.git_repository = mock_repo  # type: ignore
+
+        # Setup mock document
+        mock_doc = MagicMock(spec=DocumentLike)
+        mock_doc.FileName = "/test/path/doc.FCStd"
+        mock_docs_result = MagicMock()
+        mock_docs_result.is_success = True
+        mock_docs_result.data = [mock_doc]
+        mock_docs_result.message = ""
+        presenter._get_eligible_docs.execute.return_value = mock_docs_result  # type: ignore
+
+        # Setup mock working snapshot
+        mock_working_snapshot = Snapshot(
+            snapshot_id="ws1",
+            document_name="doc.FCStd",
+            timestamp=datetime.datetime.now(),
+            git_path="doc.FCStd",
+        )
+        mock_working_result = MagicMock()
+        mock_working_result.is_success = True
+        mock_working_result.data = mock_working_snapshot
+        presenter._create_working_tree_snapshot.execute.return_value = mock_working_result  # type: ignore
+
+        # Setup mock commit result
+        mock_commit_result = MagicMock()
+        mock_commit_result.is_success = True
+        mock_commit_result.data = None
+        presenter._create_commit_snapshot.execute.return_value = mock_commit_result  # type: ignore
+
+        # Mock the diff creation
+        captured_old_snapshot = []
+
+        def capture_diff(old, new):
+            captured_old_snapshot.append(old)
+            mock_diff_result = MagicMock()
+            mock_diff_result.is_success = True
+            mock_diff_result.data = DiffResult(
+                old_snapshot=old,  # type: ignore
+                new_snapshot=new,
+                hierarchy=DiffHierarchy(),
+            )
+            return mock_diff_result
+
+        presenter._create_diff.execute.side_effect = capture_diff  # type: ignore
+
+        # Act
+        presenter._on_working_tree_selected()
+
+        # Assert
+        assert len(captured_old_snapshot) == 1
+        assert captured_old_snapshot[0] is None
+
+    def test_on_working_tree_selected_logs_warning_and_continues_on_failure(self) -> None:
+        """Logs warning for failed snapshots but continues processing."""
+        from tests.fakes.fake_freecad_port import DocumentLike
+
+        fake_view, presenter = _create_test_presenter()
+
+        # Setup mock repo
+        mock_repo = GitRepository(name="test-repo", absolute_path="/test/path")
+        presenter._application_state.git_repository = mock_repo  # type: ignore
+
+        # Setup multiple documents
+        mock_doc1 = MagicMock(spec=DocumentLike)
+        mock_doc1.FileName = "/test/path/doc1.FCStd"
+        mock_doc2 = MagicMock(spec=DocumentLike)
+        mock_doc2.FileName = "/test/path/doc2.FCStd"
+        mock_docs_result = MagicMock()
+        mock_docs_result.is_success = True
+        mock_docs_result.data = [mock_doc1, mock_doc2]
+        mock_docs_result.message = ""
+        presenter._get_eligible_docs.execute.return_value = mock_docs_result  # type: ignore
+
+        # First doc fails, second succeeds
+        failed_result = MagicMock()
+        failed_result.is_success = False
+        failed_result.data = None
+        failed_result.message = "Failed to extract"
+
+        successful_snapshot = Snapshot(
+            snapshot_id="ws2",
+            document_name="doc2.FCStd",
+            timestamp=datetime.datetime.now(),
+            git_path="doc2.FCStd",
+        )
+        successful_result = MagicMock()
+        successful_result.is_success = True
+        successful_result.data = successful_snapshot
+        successful_result.message = ""
+
+        call_count = [0]
+
+        def create_working_side_effect(repo, doc):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return failed_result
+            return successful_result
+
+        presenter._create_working_tree_snapshot.execute.side_effect = create_working_side_effect  # type: ignore
+
+        # Setup commit and diff mocks
+        mock_commit_result = MagicMock()
+        mock_commit_result.is_success = True
+        mock_commit_result.data = None
+        presenter._create_commit_snapshot.execute.return_value = mock_commit_result  # type: ignore
+
+        mock_diff_result = MagicMock()
+        mock_diff_result.is_success = True
+        mock_diff_result.data = DiffResult(
+            old_snapshot=None,  # type: ignore
+            new_snapshot=successful_snapshot,
+            hierarchy=DiffHierarchy(),
+        )
+        presenter._create_diff.execute.return_value = mock_diff_result  # type: ignore
+
+        # Act
+        presenter._on_working_tree_selected()
+
+        # Assert - both docs should have been processed
+        assert presenter._create_working_tree_snapshot.execute.call_count == 2
+
+    def test_on_working_tree_selected_collects_all_successful_diffs(self) -> None:
+        """Collects all successful DiffResults and passes to present_diffs()."""
+        from tests.fakes.fake_freecad_port import DocumentLike
+
+        fake_view, presenter = _create_test_presenter()
+
+        # Setup mock repo
+        mock_repo = GitRepository(name="test-repo", absolute_path="/test/path")
+        presenter._application_state.git_repository = mock_repo  # type: ignore
+
+        # Setup two documents
+        mock_doc1 = MagicMock(spec=DocumentLike)
+        mock_doc1.FileName = "/test/path/doc1.FCStd"
+        mock_doc2 = MagicMock(spec=DocumentLike)
+        mock_doc2.FileName = "/test/path/doc2.FCStd"
+        mock_docs_result = MagicMock()
+        mock_docs_result.is_success = True
+        mock_docs_result.data = [mock_doc1, mock_doc2]
+        mock_docs_result.message = ""
+        presenter._get_eligible_docs.execute.return_value = mock_docs_result  # type: ignore
+
+        # Create snapshots for both docs
+        snapshot1 = Snapshot(
+            snapshot_id="ws1", document_name="doc1.FCStd", timestamp=datetime.datetime.now(), git_path="doc1.FCStd"
+        )
+        snapshot2 = Snapshot(
+            snapshot_id="ws2", document_name="doc2.FCStd", timestamp=datetime.datetime.now(), git_path="doc2.FCStd"
+        )
+
+        def create_working_side_effect(repo, doc):
+            result = MagicMock()
+            result.is_success = True
+            result.data = snapshot1 if doc == mock_doc1 else snapshot2
+            result.message = ""
+            return result
+
+        presenter._create_working_tree_snapshot.execute.side_effect = create_working_side_effect  # type: ignore
+
+        # Setup commit and diff mocks
+        mock_commit_result = MagicMock()
+        mock_commit_result.is_success = True
+        mock_commit_result.data = None
+        presenter._create_commit_snapshot.execute.return_value = mock_commit_result  # type: ignore
+
+        def create_diff_side_effect(old, new):
+            result = MagicMock()
+            result.is_success = True
+            result.data = DiffResult(
+                old_snapshot=None,  # type: ignore
+                new_snapshot=new,
+                hierarchy=DiffHierarchy(),
+                added_count=1,
+                deleted_count=0,
+                modified_count=0,
+            )
+            return result
+
+        presenter._create_diff.execute.side_effect = create_diff_side_effect  # type: ignore
+
+        # Act
+        presenter._on_working_tree_selected()
+
+        # Assert - show_diff_trees should be called with 2 presentations
+        calls = fake_view.get_calls()
+        show_trees_call = next((c for c in calls if c["method"] == "show_diff_trees"), None)
+        assert show_trees_call is not None
+        assert len(show_trees_call["diff_trees"]) == 2

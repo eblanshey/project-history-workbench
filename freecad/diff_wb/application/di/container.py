@@ -23,8 +23,12 @@ from ...ui.protocols.diff_view import DiffView
 from ...ui.protocols.snapshot_view import SnapshotView
 from ..actions.commands.compare_snapshots import CompareSnapshotsAction
 from ..actions.commands.take_snapshot import TakeSnapshotAction
+from ..actions.create_diff import CreateDiffAction
+from ..actions.create_document_snapshot_commit import CreateDocumentSnapshotForCommitAction
+from ..actions.create_document_snapshot_working import CreateDocumentSnapshotForWorkingTreeAction
 from ..actions.find_active_git_repository import FindActiveGitRepositoryAction
 from ..actions.get_commits import GetCommitsAction
+from ..actions.get_open_eligible_documents import GetOpenEligibleDocumentsAction
 from ..actions.queries.list_snapshots import ListSnapshotsAction
 
 
@@ -74,6 +78,10 @@ class ApplicationContainer:
     take_snapshot_action: TakeSnapshotAction
     compare_snapshots_action: CompareSnapshotsAction
     list_snapshots_action: ListSnapshotsAction
+    get_open_eligible_docs_action: GetOpenEligibleDocumentsAction
+    create_working_snapshot_action: CreateDocumentSnapshotForWorkingTreeAction
+    create_commit_snapshot_action: CreateDocumentSnapshotForCommitAction
+    create_diff_action: CreateDiffAction
 
     # Presenters (UI layer)
     snapshot_presenter: SnapshotPresenter
@@ -170,15 +178,38 @@ def create_application_container(
 
     get_commits_action = GetCommitsAction(git_service=git_service)
 
+    # Create new actions for working tree diff
+    get_open_eligible_docs_action = GetOpenEligibleDocumentsAction(
+        freecad_port=freecad_port,
+        git_service=git_service,
+    )
+    create_working_snapshot_action = CreateDocumentSnapshotForWorkingTreeAction(
+        git_service=git_service,
+        extractor=extractor,
+    )
+    create_commit_snapshot_action = CreateDocumentSnapshotForCommitAction(git_service=git_service)
+    create_diff_action = CreateDiffAction(diff_engine=diff_engine)
+
     # Create presenters (UI layer - interface adapters)
     snapshot_presenter = SnapshotPresenter(
         view=snapshot_view or NullSnapshotView(),
         list_snapshots_action=list_snapshots_action,
     )
-    diff_presenter = DiffPresenter(view=diff_view) if diff_view else None
 
-    # Create application state (UI state holder)
     application_state = ApplicationState(git_repository=None)
+
+    # Create DiffPresenter with all dependencies if diff_view is available
+    if diff_view is not None:
+        diff_presenter = DiffPresenter(
+            view=diff_view,
+            application_state=application_state,
+            get_eligible_docs_action=get_open_eligible_docs_action,
+            create_working_snapshot_action=create_working_snapshot_action,
+            create_commit_snapshot_action=create_commit_snapshot_action,
+            create_diff_action=create_diff_action,
+        )
+    else:
+        diff_presenter = None
 
     return ApplicationContainer(
         _freecad_port=freecad_port,
@@ -186,6 +217,10 @@ def create_application_container(
         take_snapshot_action=take_snapshot_action,
         compare_snapshots_action=compare_snapshots_action,
         list_snapshots_action=list_snapshots_action,
+        get_open_eligible_docs_action=get_open_eligible_docs_action,
+        create_working_snapshot_action=create_working_snapshot_action,
+        create_commit_snapshot_action=create_commit_snapshot_action,
+        create_diff_action=create_diff_action,
         snapshot_presenter=snapshot_presenter,
         diff_presenter=diff_presenter,
         git_port=git_port,

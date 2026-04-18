@@ -121,11 +121,11 @@ Tree widget displays multiple top-level items (one per document)
 ### Phase 5.1: Add WARNING_OLD_SNAPSHOT_MISSING Constant
 
 **Test First:**
-- [ ] Write test: `DiffResult` has static attribute `WARNING_OLD_SNAPSHOT_MISSING`
-- [ ] Write test: Warning string is non-empty and descriptive
+- [x] Write test: `DiffResult` has static attribute `WARNING_OLD_SNAPSHOT_MISSING`
+- [x] Write test: Warning string is non-empty and descriptive
 
 **Implementation:**
-- [ ] Update `domain/diff/models.py`:
+- [x] Update `domain/diff/models.py`:
   ```python
   WARNING_OLD_SNAPSHOT_MISSING = "Old snapshot missing"
   ```
@@ -136,13 +136,13 @@ Tree widget displays multiple top-level items (one per document)
 ### Phase 5.2: Add is_path_in_repository to GitPort and get_eligible_docs to GitService
 
 **Test First:**
-- [ ] Write test: `GitService.get_eligible_docs()` returns only documents within git repo
-- [ ] Write test: Empty list returned when no documents are in git repo
-- [ ] Write test: Documents outside git repo are filtered out
-- [ ] Write test: Works with mixed documents (some in, some out)
+- [x] Write test: `GitService.get_eligible_docs()` returns only documents within git repo
+- [x] Write test: Empty list returned when no documents are in git repo
+- [x] Write test: Documents outside git repo are filtered out
+- [x] Write test: Works with mixed documents (some in, some out)
 
 **Implementation:**
-- [ ] Update `domain/git/ports.py` - add to `GitPort` protocol:
+- [x] Update `domain/git/ports.py` - add to `GitPort` protocol:
   ```python
   def is_path_in_repository(self, git_root: str, path: str) -> bool:
       """Check if a path is within the git repository.
@@ -178,12 +178,12 @@ Tree widget displays multiple top-level items (one per document)
 ### Phase 5.3: Add get_all_open_documents() to FreeCadPort
 
 **Test First:**
-- [ ] Write test: `FreeCadPort.get_all_open_documents()` returns list of DocumentLike
-- [ ] Write test: Returns empty list when no documents are open
-- [ ] Write test: Each returned document has FileName and Objects attributes
+- [x] Write test: `FreeCadPort.get_all_open_documents()` returns list of DocumentLike
+- [x] Write test: Returns empty list when no documents are open
+- [x] Write test: Each returned document has FileName and Objects attributes
 
 **Implementation:**
-- [ ] Update `domain/freecad_ports.py` - add to `FreeCadPort` protocol:
+- [x] Update `domain/freecad_ports.py` - add to `FreeCadPort` protocol:
   ```python
   def get_all_open_documents(self) -> list[DocumentLike]:
       """Get all open documents."""
@@ -200,12 +200,12 @@ Tree widget displays multiple top-level items (one per document)
 ### Phase 5.4: Create GetOpenEligibleDocumentsAction
 
 **Test First:**
-- [ ] Write test: Action returns Result with list of DocumentLike on success
-- [ ] Write test: Action returns failure Result when no documents eligible
-- [ ] Write test: Action filters correctly using GitService.get_eligible_docs()
+- [x] Write test: Action returns Result with list of DocumentLike on success
+- [x] Write test: Action returns failure Result when no documents eligible
+- [x] Write test: Action filters correctly using GitService.get_eligible_docs()
 
 **Implementation:**
-- [ ] Create `application/actions/get_open_eligible_documents.py`:
+- [x] Create `application/actions/get_open_eligible_documents.py`:
   ```python
   """Application action for getting eligible open documents."""
 
@@ -236,13 +236,13 @@ Tree widget displays multiple top-level items (one per document)
 ### Phase 5.5: Create CreateDocumentSnapshotForWorkingTreeAction
 
 **Test First:**
-- [ ] Write test: Action returns Result with Snapshot on success
-- [ ] Write test: Action returns failure Result when document not in git repo
-- [ ] Write test: Snapshot has correct git_path set
-- [ ] Write test: Snapshot has correct document_name and nodes
+- [x] Write test: Action returns Result with Snapshot on success
+- [x] Write test: Action returns failure Result when document not in git repo
+- [x] Write test: Snapshot has correct git_path set
+- [x] Write test: Snapshot has correct document_name and nodes
 
 **Implementation:**
-- [ ] Create `application/actions/create_document_snapshot_working.py`:
+- [x] Create `application/actions/create_document_snapshot_working.py`:
   ```python
   """Application action for creating snapshot from working tree document."""
 
@@ -308,11 +308,11 @@ Tree widget displays multiple top-level items (one per document)
 ### Phase 5.6: Create CreateDocumentSnapshotForCommitAction (Stub)
 
 **Test First:**
-- [ ] Write test: Action returns Result with None (for stub)
-- [ ] Write test: Action signature accepts repo, commit, git_path parameters
+- [x] Write test: Action returns Result with None (for stub)
+- [x] Write test: Action signature accepts repo, commit, git_path parameters
 
 **Implementation:**
-- [ ] Create `application/actions/create_document_snapshot_commit.py`:
+- [x] Create `application/actions/create_document_snapshot_commit.py`:
   ```python
   """Application action for creating snapshot from a git commit (STUB)."""
 
@@ -339,12 +339,12 @@ Tree widget displays multiple top-level items (one per document)
 ### Phase 5.7: Create CreateDiffAction
 
 **Test First:**
-- [ ] Write test: Action returns Result with DiffResult on success
-- [ ] Write test: When old_snapshot is None, DiffResult has WARNING_OLD_SNAPSHOT_MISSING
-- [ ] Write test: When old_snapshot equals new_snapshot, DiffResult has "same snapshot" warning
+- [x] Write test: Action returns Result with DiffResult on success
+- [x] Write test: When old_snapshot is None, DiffResult has WARNING_OLD_SNAPSHOT_MISSING
+- [x] Write test: When old_snapshot equals new_snapshot, DiffResult has "same snapshot" warning
 
 **Implementation:**
-- [ ] Create `application/actions/create_diff.py`:
+- [x] Create `application/actions/create_diff.py`:
   ```python
   """Application action for computing diff between snapshots."""
 
@@ -373,11 +373,11 @@ Tree widget displays multiple top-level items (one per document)
 ### Phase 5.8: Add DiffTreePresentation Model
 
 **Test First:**
-- [ ] Write test: `DiffTreePresentation` dataclass can be created with nodes, git_path, warnings
-- [ ] Write test: All fields are properly accessible
+- [x] Write test: `DiffTreePresentation` dataclass can be created with nodes, git_path, warnings
+- [x] Write test: All fields are properly accessible
 
 **Implementation:**
-- [ ] Add to `ui/presenters/presentation_models.py`:
+- [x] Add to `ui/presenters/presentation_models.py`:
   ```python
   @dataclass(frozen=True)
   class DiffTreePresentation:
@@ -399,11 +399,11 @@ Tree widget displays multiple top-level items (one per document)
 ### Phase 5.9: Update DiffView Protocol for Multi-Document
 
 **Test First:**
-- [ ] Write test: DiffView has `show_diff_trees()` method in protocol
-- [ ] Write test: Signature accepts `list[DiffTreePresentation]`
+- [x] Write test: DiffView has `show_diff_trees()` method in protocol
+- [x] Write test: Signature accepts `list[DiffTreePresentation]`
 
 **Implementation:**
-- [ ] Update `ui/protocols/diff_view.py`:
+- [x] Update `ui/protocols/diff_view.py`:
   ```python
   from ..presenters.presentation_models import DiffTreePresentation, NodePresentation, PropertyPresentation
 
@@ -417,16 +417,16 @@ Tree widget displays multiple top-level items (one per document)
 ### Phase 5.10: Implement show_diff_trees in DiffPanelView
 
 **Test First:**
-- [ ] Write test: `show_diff_trees()` clears existing items and displays multiple diffs
-- [ ] Write test: Each diff appears as top-level item with its git_path
-- [ ] Write test: Warning emoji (⚠️) appears when DiffTreePresentation.warnings is non-empty
-- [ ] Write test: Warning tooltip contains the warning text
+- [x] Write test: `show_diff_trees()` clears existing items and displays multiple diffs
+- [x] Write test: Each diff appears as top-level item with its git_path
+- [x] Write test: Warning emoji (⚠️) appears when DiffTreePresentation.warnings is non-empty
+- [x] Write test: Warning tooltip contains the warning text
 
 **Implementation:**
 
 #### Step 1: Add show_diff_trees method
 
-- [ ] Add to `ui/views/diff_panel_view.py`:
+- [x] Add to `ui/views/diff_panel_view.py`:
   ```python
   def show_diff_trees(self, diffs: list[DiffTreePresentation]) -> None:
       """Display multiple diff trees in the tree widget."""
@@ -466,7 +466,7 @@ Tree widget displays multiple top-level items (one per document)
 
 #### Step 1: Add HistorySelection dataclass
 
-- [ ] Add to `ui/views/diff_panel_view.py` near top of file (after imports):
+- [x] Add to `ui/views/diff_panel_view.py` near top of file (after imports):
   ```python
   from dataclasses import dataclass
 
@@ -480,34 +480,31 @@ Tree widget displays multiple top-level items (one per document)
       """
       item_kind: Literal["WORKING_TREE", "STAGING", "COMMIT"]
       commit_hash: str | None
-  ```
 
-- [ ] Write test: `HistorySelection` dataclass can be created with all three item kinds
-- [ ] Write test: `HistorySelection` stores commit_hash correctly for COMMIT kind
-- [ ] Write test: `HistorySelection` has commit_hash=None for WORKING_TREE and STAGING
+- [x] Write test: `HistorySelection` dataclass can be created with all three item kinds
+- [x] Write test: `HistorySelection` stores commit_hash correctly for COMMIT kind
+- [x] Write test: `HistorySelection` has commit_hash=None for WORKING_TREE and STAGING
 
 #### Step 2: Remove selection tracking data structures
 
-- [ ] Remove from `ui/views/diff_panel_view.py`:
+- [x] Remove from `ui/views/diff_panel_view.py`:
   ```python
   # REMOVE: _SelectedItem dataclass
   # REMOVE: self._selected_items: dict[int, _SelectedItem] in __init__
   # REMOVE: _WORKING_TREE_ROLE, _STAGING_ROLE constants (no longer needed with HistorySelection)
-  ```
 
 #### Step 3: Remove custom delegate for role-based coloring
 
-- [ ] Remove from `ui/views/diff_panel_view.py`:
+- [x] Remove from `ui/views/diff_panel_view.py`:
   ```python
   # REMOVE: _SnapshotListItemDelegate class entirely
   # REMOVE: self._delegate initialization in __init__
   # REMOVE: history_list.setItemDelegate(self._delegate)
   # REMOVE: _delegate._parent = self.history_list
-  ```
 
 #### Step 4: Remove all selection management methods
 
-- [ ] Remove from `ui/views/diff_panel_view.py`:
+- [x] Remove from `ui/views/diff_panel_view.py`:
   ```python
   # REMOVE: _on_selection_changed()
   # REMOVE: _handle_deselection()
@@ -519,21 +516,19 @@ Tree widget displays multiple top-level items (one per document)
   # REMOVE: get_selected_snapshot_ids()
   # REMOVE: clear_selection()
   # REMOVE: _get_default_background()
-  ```
 
 #### Step 5: Simplify history list setup
 
-- [ ] Update `ui/views/diff_panel_view.py` in `_setup_ui()`:
+- [x] Update `ui/views/diff_panel_view.py` in `_setup_ui()`:
   ```python
   # Change from MultiSelection to SingleSelection
   self.history_list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
   # REMOVE: self.history_list.itemSelectionChanged.connect(self._on_selection_changed)
   # Now we'll connect to a simpler handler that just calls the callback
-  ```
 
 #### Step 6: Update show_commits to use HistorySelection
 
-- [ ] Update `ui/views/diff_panel_view.py` in `show_commits()`:
+- [x] Update `ui/views/diff_panel_view.py` in `show_commits()`:
   ```python
   def show_commits(self, commits: list[GitCommit]) -> None:
       """Display git commits in the history list."""
@@ -584,21 +579,20 @@ Tree widget displays multiple top-level items (one per document)
 ### Phase 5.12: Add Callback Wiring
 
 **Test First:**
-- [ ] Write test: View has `set_history_selection_callback()` method
-- [ ] Write test: Selecting any item triggers callback immediately with correct `HistorySelection`
+- [x] Write test: View has `set_history_selection_callback()` method
+- [x] Write test: Selecting any item triggers callback immediately with correct `HistorySelection`
 
 **Implementation:**
 
 #### Step 1: Add callback mechanism
 
-- [ ] Add to `ui/views/diff_panel_view.py` in `__init__`:
+- [x] Add to `ui/views/diff_panel_view.py` in `__init__`:
   ```python
   self._on_history_selection_callback: Callable[[HistorySelection], None] | None = None
-  ```
 
 #### Step 2: Add setter method and click handler
 
-- [ ] Add setter method:
+- [x] Add setter method:
   ```python
   def set_history_selection_callback(self, callback: Callable[[HistorySelection], None]) -> None:
       """Set the callback for history list selection.
@@ -625,23 +619,23 @@ Tree widget displays multiple top-level items (one per document)
 ### Phase 5.13: Refactor DiffPresenter for Multi-Document and History Selection
 
 **Test First:**
-- [ ] Write test: `DiffPresenter` has `on_history_item_selected()` method
-- [ ] Write test: `on_history_item_selected()` routes WORKING_TREE to `_on_working_tree_selected()`
-- [ ] Write test: `on_history_item_selected()` routes STAGING to `_on_staging_selected()`
-- [ ] Write test: `on_history_item_selected()` routes COMMIT to `_on_commit_selected()`
-- [ ] Write test: `present_diffs()` accepts `list[DiffResult]`
-- [ ] Write test: Each DiffResult is transformed to `DiffTreePresentation`
-- [ ] Write test: `_on_working_tree_selected()` calls `GetOpenEligibleDocumentsAction.execute()` with correct repo
-- [ ] Write test: For each eligible document, creates working tree snapshot
-- [ ] Write test: Creates diff with None old_snapshot and working tree snapshot as new
-- [ ] Write test: Logs warning for failed snapshots but continues processing
-- [ ] Write test: Collects all successful DiffResults and passes to `present_diffs()`
+- [x] Write test: `DiffPresenter` has `on_history_item_selected()` method
+- [x] Write test: `on_history_item_selected()` routes WORKING_TREE to `_on_working_tree_selected()`
+- [x] Write test: `on_history_item_selected()` routes STAGING to `_on_staging_selected()`
+- [x] Write test: `on_history_item_selected()` routes COMMIT to `_on_commit_selected()`
+- [x] Write test: `present_diffs()` accepts `list[DiffResult]`
+- [x] Write test: Each DiffResult is transformed to `DiffTreePresentation`
+- [x] Write test: `_on_working_tree_selected()` calls `GetOpenEligibleDocumentsAction.execute()` with correct repo
+- [x] Write test: For each eligible document, creates working tree snapshot
+- [x] Write test: Creates diff with None old_snapshot and working tree snapshot as new
+- [x] Write test: Logs warning for failed snapshots but continues processing
+- [x] Write test: Collects all successful DiffResults and passes to `present_diffs()`
 
 **Implementation:**
 
 #### Step 1: Update DiffPresenter imports and constructor
 
-- [ ] Update `ui/presenters/diff_presenter.py`:
+- [x] Update `ui/presenters/diff_presenter.py`:
   ```python
   from ...application.actions.create_diff import CreateDiffAction
   from ...application.actions.create_document_snapshot_commit import CreateDocumentSnapshotForCommitAction
@@ -652,7 +646,7 @@ Tree widget displays multiple top-level items (one per document)
   from .presentation_models import DiffTreePresentation, NodePresentation, PropertyPresentation
   ```
 
-- [ ] Update constructor:
+- [x] Update constructor:
   ```python
   def __init__(
       self,
@@ -666,14 +660,14 @@ Tree widget displays multiple top-level items (one per document)
       self._view = view
       self._application_state = application_state
       self._get_eligible_docs = get_eligible_docs_action
-      self._create_working = create_working_snapshot_action
-      self._create_commit = create_commit_snapshot_action
+      self._create_working_tree_snapshot = create_working_snapshot_action
+      self._create_commit_snapshot = create_commit_snapshot_action
       self._create_diff = create_diff_action
   ```
 
 #### Step 2: Add history item selection handler
 
-- [ ] Add to `ui/presenters/diff_presenter.py`:
+- [x] Add to `ui/presenters/diff_presenter.py`:
   ```python
   def on_history_item_selected(self, selection: HistorySelection) -> None:
       """Handle single item selection from history list.
@@ -691,7 +685,7 @@ Tree widget displays multiple top-level items (one per document)
 
 #### Step 3: Add working tree orchestration method
 
-- [ ] Add to `ui/presenters/diff_presenter.py`:
+- [x] Add to `ui/presenters/diff_presenter.py`:
   ```python
   def _on_working_tree_selected(self) -> None:
       """Handle Working Tree item selection.
@@ -715,14 +709,14 @@ Tree widget displays multiple top-level items (one per document)
       all_diff_results: list[DiffResult] = []
 
       for doc in eligible_docs:
-          working_result = self._create_working.execute(repo, doc)
+          working_result = self._create_working_tree_snapshot.execute(repo, doc)
           if not working_result.is_success or working_result.data is None:
               Log.warning(f"Failed to create working snapshot: {working_result.message}")
               continue
 
           working_snapshot = working_result.data
 
-          commit_result = self._create_commit.execute(repo, None, working_snapshot.git_path)
+          commit_result = self._create_commit_snapshot.execute(repo, None, working_snapshot.git_path)
           commit_snapshot = commit_result.data if commit_result.is_success else None
 
           diff_result = self._create_diff.execute(commit_snapshot, working_snapshot)
@@ -739,7 +733,7 @@ Tree widget displays multiple top-level items (one per document)
 
 #### Step 4: Add stub methods for staging and commit
 
-- [ ] Add to `ui/presenters/diff_presenter.py`:
+- [x] Add to `ui/presenters/diff_presenter.py`:
   ```python
   def _on_staging_selected(self) -> None:
       """Handle Staging item selection. STUB: For now, does nothing."""
@@ -752,7 +746,7 @@ Tree widget displays multiple top-level items (one per document)
 
 #### Step 5: Add present_diffs method
 
-- [ ] Add to `ui/presenters/diff_presenter.py`:
+- [x] Add to `ui/presenters/diff_presenter.py`:
   ```python
   def present_diffs(self, diff_results: list[DiffResult]) -> None:
       """Transform multiple DiffResults into presentation models and display."""
@@ -788,7 +782,7 @@ Tree widget displays multiple top-level items (one per document)
 ### Phase 5.14: Update Container Wiring
 
 **Implementation:**
-- [ ] Update `application/di/container.py`:
+- [x] Update `application/di/container.py`:
   - Add new actions to `ApplicationContainer` dataclass
   - Add `DiffPresenter` to `ApplicationContainer` dataclass (with new dependencies)
   - Wire all dependencies in `create_application_container()`
