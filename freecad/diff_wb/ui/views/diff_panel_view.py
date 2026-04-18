@@ -25,15 +25,17 @@ from PySide6.QtWidgets import (
 )
 
 
-# Module-level icon loading for refresh button
+# Module-level icon loading for refresh button and warning icon
 # This is done once at import time rather than per-instance to avoid repeated imports
 try:
     import FreeCADGui as Gui
 
     _REFRESH_ICON: QIcon | None = Gui.getIcon("view-refresh.svg")
+    _WARNING_ICON: QIcon | None = Gui.getIcon("Warning.svg")
 except (ImportError, AttributeError):
     # FreeCADGui not available (e.g., during unit tests or non-GUI environments)
     _REFRESH_ICON = None
+    _WARNING_ICON = None
 
 from ...application.actions.result_models import SnapshotSummary
 from ...domain.diff.models import DiffState
@@ -570,15 +572,11 @@ class DiffPanelView(QWidget):
             return
 
         for diff in diffs:
-            # Build top-level text with warning indicator if needed
+            # Build top-level text (no emoji - icon will be shown separately)
             top_level_text = diff.git_path or "Unnamed Document"
 
-            if diff.warnings:
-                # Join warnings with emoji and add warning indicator
-                warning_text = " ⚠️ ".join(diff.warnings)
-                top_level_text = f"{top_level_text} ⚠️"
-            else:
-                warning_text = ""
+            # Prepare warning text for tooltip (newline-separated)
+            warning_tooltip = "\n".join(diff.warnings) if diff.warnings else ""
 
             # Check if document has changes
             has_changes = any(node.has_changes for node in diff.nodes)
@@ -587,8 +585,6 @@ class DiffPanelView(QWidget):
             root_item = QTreeWidgetItem([top_level_text])
             # Store git_path in root item's UserRole for later retrieval when children are clicked
             root_item.setData(0, Qt.ItemDataRole.UserRole, diff.git_path)
-            if warning_text:
-                root_item.setToolTip(0, warning_text)
 
             # Create "+ Stage" button
             add_button = QPushButton("+ Stage")
@@ -604,7 +600,17 @@ class DiffPanelView(QWidget):
             container = QWidget()
             layout = QHBoxLayout(container)
             layout.setContentsMargins(4, 2, 4, 2)
+
+            # Add text label
             layout.addWidget(QLabel(top_level_text))
+
+            # Add warning icon label if warnings exist
+            if diff.warnings and _WARNING_ICON is not None:
+                warning_icon_label = QLabel()
+                warning_icon_label.setPixmap(_WARNING_ICON.pixmap(16, 16))
+                warning_icon_label.setToolTip(warning_tooltip)
+                layout.addWidget(warning_icon_label)
+
             layout.addStretch()
             layout.addWidget(add_button)
 
