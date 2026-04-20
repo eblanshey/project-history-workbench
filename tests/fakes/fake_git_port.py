@@ -22,13 +22,15 @@ class FakeGitPort:
         _commits: Dictionary mapping repo paths to lists of GitCommit objects.
         _staged_paths: List of staged paths for get_staged_paths.
         _file_contents: Mapping of (commit, git_path) to file contents.
+        _last_commit_call: Tuple of (git_root, message) from the last commit() call, or None.
     """
 
-    def __init__(self, fail_stage: bool = False) -> None:
+    def __init__(self, fail_stage: bool = False, fail_commit: bool = False) -> None:
         """Initialize the fake git port with empty mappings.
 
         Args:
             fail_stage: If True, stage_files will return False (for testing failure cases).
+            fail_commit: If True, commit will return False (for testing failure cases).
         """
         # Maps paths to their git root paths
         self._git_roots: dict[str, str] = {}
@@ -36,10 +38,14 @@ class FakeGitPort:
         self._commits: dict[str, list[GitCommit]] = {}
         # Flag to simulate staging failures
         self._fail_stage = fail_stage
+        # Flag to simulate commit failures
+        self._fail_commit = fail_commit
         # Staged paths for get_staged_paths
         self._staged_paths: list[str] = []
         # File contents mapping: (commit, git_path) -> content
         self._file_contents: dict[tuple[str | None, str], str] = {}
+        # Tracks the last commit() call for argument verification
+        self._last_commit_call: tuple[str, str] | None = None
 
     def add_git_repo(self, root_path: str) -> None:
         """Add a simulated git repository root.
@@ -245,3 +251,20 @@ class FakeGitPort:
         if key in self._file_contents:
             return self._file_contents[key]
         return None
+
+    def commit(self, git_root: str, message: str) -> bool:
+        """Fake implementation of commit for testing.
+
+        This fake implementation returns True by default, or False if configured
+        to fail (via fail_commit parameter in __init__). Tracks the last call
+        arguments in _last_commit_call for test verification.
+
+        Args:
+            git_root: Absolute path to git repository root.
+            message: Commit message text.
+
+        Returns:
+            True if not configured to fail, False otherwise.
+        """
+        self._last_commit_call = (git_root, message)
+        return not self._fail_commit

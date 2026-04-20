@@ -126,3 +126,15 @@ class GitPort(Protocol):
             File contents as string, or None if file doesn't exist or error.
         """
         ...
+
+    def commit(self, git_root: str, message: str) -> bool:
+        """Commit staged changes in the git repository.
+
+        Args:
+            git_root: Absolute path to git repository root.
+            message: Commit message text.
+
+        Returns:
+            True if commit succeeded, False otherwise.
+        """
+        ...

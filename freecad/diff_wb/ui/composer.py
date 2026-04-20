@@ -38,6 +38,7 @@ def compose_and_register_ui(container: ApplicationContainer) -> DiffPanelView:
     """
     # Create UI state (frontend state, like Pinia/Redux)
     ui_state = UIState(git_repository=None)
+    ui_registry.register_ui_state(ui_state)
 
     # Create view
     view = DiffPanelView()
@@ -70,13 +71,13 @@ def compose_and_register_ui(container: ApplicationContainer) -> DiffPanelView:
     view.set_add_button_callback(diff_presenter.on_add_button_clicked)
 
     # Lifecycle presenter - creates git detection + refresh behavior
-    # Does NOT need to be registered - it sets up ui_state
     git_repo_presenter = GitRepositoryPresenter(
         view=view,
         find_git_repo_action=container.find_active_git_repository_action,
         get_commits_action=container.get_commits_action,
         ui_state=ui_state,
     )
+    ui_registry.register_git_repository_presenter(git_repo_presenter)
     # Trigger git repository detection on workbench activation
     git_repo_presenter.on_workbench_activated()
 

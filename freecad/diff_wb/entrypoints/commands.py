@@ -141,6 +141,96 @@ class _SwapColumnsCommand:
         pass
 
 
+class _CommitCommand:
+    """Command to commit staged changes."""
+
+    def GetResources(self) -> dict[str, str]:
+        """Return FreeCAD command metadata for UI integration."""
+        return {
+            "MenuText": "Commit",
+            "ToolTip": "Commit staged changes to git",
+            "Pixmap": os.path.join(ICONPATH, "Commit.svg"),
+        }
+
+    def IsActive(self) -> bool:
+        """Return whether the command should be enabled."""
+        return True  # Always enabled; validation happens in Activated()
+
+    def Activated(self) -> None:
+        """FreeCAD calls this when user clicks toolbar button."""
+        from PySide6.QtWidgets import QInputDialog, QMessageBox
+
+        from .._container import get_container
+        from ..ui.registry import ui_registry
+        from ..ui.translation_strings import (
+            COMMIT_DIALOG_PROMPT,
+            COMMIT_DIALOG_TITLE,
+            COMMIT_EMPTY_MESSAGE,
+            COMMIT_EMPTY_MESSAGE_TITLE,
+            COMMIT_FAILED_TITLE,
+            COMMIT_NO_REPOSITORY_MESSAGE,
+            COMMIT_NO_REPOSITORY_TITLE,
+            COMMIT_NO_STAGED_FILES_MESSAGE,
+            COMMIT_NO_STAGED_FILES_TITLE,
+        )
+
+        container = get_container()
+
+        # Check if we have a git repository via UIState in registry
+        repo = ui_registry.ui_state.git_repository
+
+        if repo is None:
+            QMessageBox.warning(
+                None,  # type: ignore[arg-type]
+                container.translate("Commit", COMMIT_NO_REPOSITORY_TITLE),
+                container.translate("Commit", COMMIT_NO_REPOSITORY_MESSAGE),
+            )
+            return
+
+        # Check for staged files
+        staged_result = container.get_staged_file_paths_action.execute(repo)
+        if not staged_result.is_success or not staged_result.data:
+            QMessageBox.information(
+                None,  # type: ignore[arg-type]
+                container.translate("Commit", COMMIT_NO_STAGED_FILES_TITLE),
+                container.translate("Commit", COMMIT_NO_STAGED_FILES_MESSAGE),
+            )
+            return
+
+        # Show commit dialog
+        message, ok = QInputDialog.getText(
+            None,  # type: ignore[arg-type]
+            container.translate("Commit", COMMIT_DIALOG_TITLE),
+            container.translate("Commit", COMMIT_DIALOG_PROMPT),
+            text="",
+        )
+
+        if not ok:
+            return
+
+        if not message or not message.strip():
+            QMessageBox.warning(
+                None,  # type: ignore[arg-type]
+                container.translate("Commit", COMMIT_EMPTY_MESSAGE_TITLE),
+                container.translate("Commit", COMMIT_EMPTY_MESSAGE),
+            )
+            return
+
+        # Execute commit action
+        result = container.commit_staging_action.execute(repo, message.strip())
+
+        if result.is_success:
+            container.log("Commit successful")
+            # Reload commits by triggering refresh
+            ui_registry.git_repository_presenter.on_refresh_clicked()
+        else:
+            QMessageBox.critical(
+                None,  # type: ignore[arg-type]
+                container.translate("Commit", COMMIT_FAILED_TITLE),
+                result.message or "Git commit failed",
+            )
+
+
 def register_commands() -> None:
     """Register the Diff Workbench commands with FreeCAD."""
     import FreeCADGui as Gui  # pylint: disable=import-error
@@ -148,3 +238,4 @@ def register_commands() -> None:
     Gui.addCommand("DiffTakeSnapshot", _TakeSnapshotCommand())
     Gui.addCommand("DiffCompare", _CompareCommand())
     Gui.addCommand("DiffSwapColumns", _SwapColumnsCommand())
+    Gui.addCommand("DiffCommit", _CommitCommand())

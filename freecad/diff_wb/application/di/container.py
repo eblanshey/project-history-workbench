@@ -18,6 +18,7 @@ from ...domain.snapshots.repository import InMemorySnapshotRepository
 from ...infrastructure.freecad.ports import get_app_port, get_port
 from ...infrastructure.freecad.settings_repo import FreeCADSettingsRepository
 from ...infrastructure.git.git_port_adapter import GitPortAdapter
+from ..actions.commands.commit_staging import CommitStagingAction
 from ..actions.commands.compare_snapshots import CompareSnapshotsAction
 from ..actions.commands.take_snapshot import TakeSnapshotAction
 from ..actions.create_diff import CreateDiffAction
@@ -66,6 +67,7 @@ class ApplicationContainer:
     stage_documents_action: StageDocumentsAction
     get_dirty_documents_action: GetDirtyDocumentsAction
     get_staged_file_paths_action: GetStagedFilePathsAction
+    commit_staging_action: CommitStagingAction
 
     # Git components (domain layer)
     git_port: GitPort
@@ -165,6 +167,7 @@ def create_application_container(ctx: FreeCadContext) -> ApplicationContainer:
     stage_documents_action = StageDocumentsAction(git_service=git_service)
     get_dirty_documents_action = GetDirtyDocumentsAction(git_service=git_service)
     get_staged_file_paths_action = GetStagedFilePathsAction(git_service=git_service)
+    commit_staging_action = CommitStagingAction(git_service=git_service)
 
     return ApplicationContainer(
         _freecad_port=freecad_port,
@@ -179,6 +182,7 @@ def create_application_container(ctx: FreeCadContext) -> ApplicationContainer:
         stage_documents_action=stage_documents_action,
         get_dirty_documents_action=get_dirty_documents_action,
         get_staged_file_paths_action=get_staged_file_paths_action,
+        commit_staging_action=commit_staging_action,
         git_port=git_port,
         git_service=git_service,
         find_active_git_repository_action=find_active_git_repository_action,

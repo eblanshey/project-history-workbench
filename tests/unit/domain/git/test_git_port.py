@@ -566,7 +566,7 @@ class TestGitPortIsPathInRepositoryWithRealPaths:
         assert result is True
 
     def test_is_path_in_repository_preserves_absolute_paths(self) -> None:
-        """Test that the method preserves and compares absolute paths correctly."""
+        """Test that the method correctly normalizes paths using os.path.normpath."""
         fake_port = FakeGitPort()
         test_path = "/absolute/path/to/repository"
         fake_port.add_git_repo(test_path)
@@ -574,3 +574,85 @@ class TestGitPortIsPathInRepositoryWithRealPaths:
         result = fake_port.is_path_in_repository(test_path, test_path + "/subdir/file.py")
 
         assert result is True
+
+
+class TestGitPortCommit:
+    """Tests for the commit method of GitPort protocol."""
+
+    def test_fake_port_implements_commit_method(self) -> None:
+        """Test that FakeGitPort implements the commit method."""
+        fake_port = FakeGitPort()
+
+        assert hasattr(fake_port, "commit")
+        assert callable(fake_port.commit)
+
+    def test_commit_returns_true_by_default(self) -> None:
+        """Test that commit returns True by default (success case)."""
+        fake_port = FakeGitPort()
+
+        result = fake_port.commit("/home/user/my_project", "Initial commit")
+
+        assert result is True
+
+    def test_commit_returns_false_when_fail_commit_flag_is_set(self) -> None:
+        """Test that commit returns False when _fail_commit flag is True."""
+        fake_port = FakeGitPort(fail_commit=True)
+
+        result = fake_port.commit("/home/user/my_project", "Initial commit")
+
+        assert result is False
+
+    def test_commit_accepts_any_message(self) -> None:
+        """Test that commit accepts any message string."""
+        fake_port = FakeGitPort()
+
+        result = fake_port.commit(
+            "/home/user/my_project",
+            "This is a long commit message with special chars: !@#$%^&*()",
+        )
+
+        assert result is True
+
+    def test_commit_with_empty_message(self) -> None:
+        """Test that commit accepts an empty message string."""
+        fake_port = FakeGitPort()
+
+        result = fake_port.commit("/home/user/my_project", "")
+
+        assert result is True
+
+    def test_commit_does_not_require_git_repo_to_be_configured(self) -> None:
+        """Test that commit does not require the git root to be configured in the fake.
+
+        The commit method is a simple boolean operation in the fake, so it doesn't
+        depend on repository configuration.
+        """
+        fake_port = FakeGitPort()
+
+        result = fake_port.commit("/nonexistent/path", "Some commit")
+
+        assert result is True
+
+    def test_commit_with_fail_commit_flag_and_empty_message(self) -> None:
+        """Test that commit returns False when fail_commit is set, even with empty message."""
+        fake_port = FakeGitPort(fail_commit=True)
+
+        result = fake_port.commit("/home/user/my_project", "")
+
+        assert result is False
+
+    def test_commit_success_with_fail_stage_flag_also_set(self) -> None:
+        """Test that commit success is independent of stage failure flag."""
+        fake_port = FakeGitPort(fail_stage=True)
+
+        result = fake_port.commit("/home/user/my_project", "Some commit")
+
+        assert result is True
+
+    def test_commit_both_flags_fail(self) -> None:
+        """Test that commit fails when both fail_stage and fail_commit are True."""
+        fake_port = FakeGitPort(fail_stage=True, fail_commit=True)
+
+        result = fake_port.commit("/home/user/my_project", "Some commit")
+
+        assert result is False

@@ -129,6 +129,66 @@ No placeholders. This is a static label.
 """
 
 # ============================================================================
+# COMMIT STRINGS
+# ============================================================================
+# Context: "Commit"
+# These strings are used for commit-related UI messages in entry points.
+
+COMMIT_NO_REPOSITORY_TITLE = "No Repository"
+"""Title for the warning when no git repository is detected.
+
+No placeholders. This is a static message.
+"""
+
+COMMIT_NO_REPOSITORY_MESSAGE = "No git repository detected. Please open a document from a git repository."
+"""Message shown when no git repository is detected for the active document.
+
+No placeholders. This is a static message.
+"""
+
+COMMIT_NO_STAGED_FILES_TITLE = "No Staged Files"
+"""Title for the info message when there are no staged files to commit.
+
+No placeholders. This is a static message.
+"""
+
+COMMIT_NO_STAGED_FILES_MESSAGE = "There are no staged files to commit."
+"""Message shown when there are no staged files to commit.
+
+No placeholders. This is a static message.
+"""
+
+COMMIT_DIALOG_TITLE = "Git Commit"
+"""Title for the commit message input dialog.
+
+No placeholders. This is a static message.
+"""
+
+COMMIT_DIALOG_PROMPT = "Enter commit message:"
+"""Prompt text for the commit message input dialog.
+
+No placeholders. This is a static message.
+"""
+
+COMMIT_EMPTY_MESSAGE_TITLE = "Empty Message"
+"""Title for the warning when commit message is empty.
+
+No placeholders. This is a static message.
+"""
+
+COMMIT_EMPTY_MESSAGE = "Commit message cannot be empty"
+"""Message shown when the user provides an empty commit message.
+
+No placeholders. This is a static message.
+"""
+
+COMMIT_FAILED_TITLE = "Commit Failed"
+"""Title for the error dialog when commit fails.
+
+No placeholders. This is a static message.
+"""
+
+# ============================================================================
 # EXPORTS
 # ============================================================================
 
@@ -148,4 +208,14 @@ __all__ = [
     "REPOSITORY_INFO_TEMPLATE",
     "REPOSITORY_NO_REPO_MESSAGE",
     "HISTORY_LABEL",
+    # Commit
+    "COMMIT_NO_REPOSITORY_TITLE",
+    "COMMIT_NO_REPOSITORY_MESSAGE",
+    "COMMIT_NO_STAGED_FILES_TITLE",
+    "COMMIT_NO_STAGED_FILES_MESSAGE",
+    "COMMIT_DIALOG_TITLE",
+    "COMMIT_DIALOG_PROMPT",
+    "COMMIT_EMPTY_MESSAGE_TITLE",
+    "COMMIT_EMPTY_MESSAGE",
+    "COMMIT_FAILED_TITLE",
 ]

@@ -1,6 +1,6 @@
-"""Module responsibility: Dependency injection container for application and UI layers.
+"""Module responsibility: Dependency injection container for application layer.
 
-This module wires actions, presenters, and views together.
+This module wires actions and domain services together.
 It's the composition root for the application layer.
 """
 

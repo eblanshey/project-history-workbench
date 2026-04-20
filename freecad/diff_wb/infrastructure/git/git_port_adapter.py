@@ -390,3 +390,38 @@ class GitPortAdapter(GitPort):
         except FileNotFoundError:
             Log.warning("Git command not found")
             return None
+
+    def commit(self, git_root: str, message: str) -> bool:
+        """Commit staged changes using git CLI.
+
+        Uses 'git commit -m <message>' command.
+
+        Args:
+            git_root: Absolute path to git repository root.
+            message: Commit message text.
+
+        Returns:
+            True if git commit succeeded, False otherwise.
+        """
+        try:
+            result = subprocess.run(
+                ["git", "commit", "-m", message],
+                cwd=git_root,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if result.returncode == 0:
+                Log.debug(f"Commit successful: {result.stdout.strip()}")
+                return True
+            Log.warning(f"Git commit failed: {result.stderr.strip()}")
+            return False
+        except subprocess.TimeoutExpired:
+            Log.warning("Git commit command timed out")
+            return False
+        except FileNotFoundError:
+            Log.warning("Git command not found")
+            return False
+        except (NotADirectoryError, OSError) as e:
+            Log.warning(f"Git error: {e}")
+            return False

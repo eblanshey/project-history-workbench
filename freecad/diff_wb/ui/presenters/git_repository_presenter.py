@@ -80,6 +80,9 @@ class GitRepositoryPresenter:
         else:
             self._ui_state.git_repository = None
             self._view.show_repository(None)
+            self._view.show_commits([])
+            self._view.show_diff_trees([])
+            self._view.show_properties([])
             Log.warning(f"Git detection failed: {result.message}")
 
     def _load_commits(self, repo: GitRepository) -> None:

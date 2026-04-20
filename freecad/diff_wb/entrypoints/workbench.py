@@ -38,6 +38,7 @@ if Gui is not None:
             "DiffTakeSnapshot",
             "DiffCompare",
             "DiffSwapColumns",
+            "DiffCommit",
         ]
 
         def __init__(self):

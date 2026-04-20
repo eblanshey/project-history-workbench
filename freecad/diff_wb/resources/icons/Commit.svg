@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- Horizontal branch line -->
+  <line x1="0" y1="16" x2="10" y2="16" stroke="#3DAA6E" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="22" y1="16" x2="32" y2="16" stroke="#3DAA6E" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Commit node -->
+  <circle cx="16" cy="16" r="7" fill="#3DAA6E"/>
+  <!-- Right-pointing play arrow -->
+  <polygon points="13,12 13,20 21,16" fill="white"/>
+</svg>

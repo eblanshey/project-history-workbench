@@ -166,6 +166,29 @@ Question: where do we put the logic that determines the correct snapshot directo
 - Set the view to displays those diffs.
 - For paths where CreateDocumentSnapshotForCommit for index returns None, in the tree diff widget create a one-level, flat item for that diff with a "Warning" icon, similar to how we do elsewhere, with tooltip "Snapshot missing." It will not have the tree below it.
 
-## Future phases:
-- Committing
-- Diffs for commits
+### Phase 8 - Commits
+
+- In GitPort and Adapter, add method "commit(git_root: str, message: str) which just runs the git commit command.
+- In GitService, add commit(GitRepository, message) and implement it
+- Add a new Action, CommitStaging(GitRepository, str: message), which just calls the git service. Return success: true on success.
+- Create a new Command that should be visible from the toolbar, called Commit.
+  - When pressed, a new popup should open with a text box to enter the commit message. 
+  - When "Commit" is pressed, it runs the CommitStaging action. The GitRepository should be taken from the UIState.
+    - If UIState doesn't have a GitRepository, then the warning should open and say "No git repository detected." instead of the message popup.
+  - If "Cancel" is pressed, the popup closes.
+  - When the action succeeds, the presentation layer should be updated to reload the commits (there's a method for it already.)
+
+### Phase 9 - Diffs for Commits
+
+- In GitPort/Adapter, implement get_committed_files(git_root: str, commit: str) which returns all changed FCStd files for the given commit (hash or HEAD, or HEAD^, etc)
+- Add get_committed_files(GitRepository, commit: str) to GitService
+- Create new Action GetCommittedFilePaths which calls the git service
+- Update our presentation listener so that when a Commit item is selected, it triggers this logic:
+  - GetCommittedFilePaths is called for the given commit to get a full list of changes paths
+  - GetCommittedFilePaths is called for the parent of the given commit
+  - For each path:
+    - CreateDocumentSnapshotForCommit (for COMMIT)
+    - CreateDocumentSnapshotForCommit (for COMMIT^)
+    - CreateDiff
+  - Return list of DiffResults
+- Set the view to displays those diffs.

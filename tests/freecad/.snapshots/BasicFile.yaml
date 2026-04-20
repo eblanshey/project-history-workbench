@@ -1,0 +1,1160 @@
+v: 1
+timestamp: '2026-04-18T19:59:32.173394'
+uid: 21d1c51e-e33d-4a45-9717-ff9aba5ad21e
+objects:
+- id: 4743
+  type_id: App::Part
+  name: Part
+  after: null
+  path: Part
+  properties:
+    Color:
+      type_: LIST
+      value:
+      - '1.0'
+      - '1.0'
+      - '1.0'
+      - '0.0'
+      expression: null
+      group: Base
+    Id:
+      type_: STRING
+      value: ''
+      expression: null
+      group: Base
+    Label:
+      type_: STRING
+      value: Part_MyPart
+      expression: null
+      group: Base
+    License:
+      type_: STRING
+      value: ''
+      expression: null
+      group: Base
+    LicenseURL:
+      type_: STRING
+      value: ''
+      expression: null
+      group: Base
+    Material:
+      type_: STRING
+      value: None
+      expression: null
+      group: Base
+    Placement:
+      type_: PLACEMENT
+      value:
+        position:
+          x: 0.0
+          y: 0.0
+          z: 0.0
+        rotation:
+          axis_x: 0.0
+          axis_y: 0.0
+          axis_z: 1.0
+          angle_degrees: 0.0
+      expression: null
+      group: Base
+    Type:
+      type_: STRING
+      value: ''
+      expression: null
+      group: Base
+    Uid:
+      type_: STRING
+      value: 8dcf024f-6a58-418c-84c7-d84b524ce80b
+      expression: null
+      group: Base
+- id: 4744
+  type_id: App::Origin
+  name: Origin
+  after: null
+  path: Part/Origin
+  properties:
+    Label:
+      type_: STRING
+      value: Origin
+      expression: null
+      group: Base
+- id: 4745
+  type_id: App::Line
+  name: X_Axis
+  after: null
+  path: Part/Origin/X_Axis
+  properties:
+    Label:
+      type_: STRING
+      value: X-axis
+      expression: null
+      group: Base
+- id: 4746
+  type_id: App::Line
+  name: Y_Axis
+  after: X_Axis
+  path: Part/Origin/Y_Axis
+  properties:
+    Label:
+      type_: STRING
+      value: Y-axis
+      expression: null
+      group: Base
+- id: 4747
+  type_id: App::Line
+  name: Z_Axis
+  after: Y_Axis
+  path: Part/Origin/Z_Axis
+  properties:
+    Label:
+      type_: STRING
+      value: Z-axis
+      expression: null
+      group: Base
+- id: 4748
+  type_id: App::Plane
+  name: XY_Plane
+  after: Z_Axis
+  path: Part/Origin/XY_Plane
+  properties:
+    Label:
+      type_: STRING
+      value: XY-plane
+      expression: null
+      group: Base
+- id: 4749
+  type_id: App::Plane
+  name: XZ_Plane
+  after: XY_Plane
+  path: Part/Origin/XZ_Plane
+  properties:
+    Label:
+      type_: STRING
+      value: XZ-plane
+      expression: null
+      group: Base
+- id: 4750
+  type_id: App::Plane
+  name: YZ_Plane
+  after: XZ_Plane
+  path: Part/Origin/YZ_Plane
+  properties:
+    Label:
+      type_: STRING
+      value: YZ-plane
+      expression: null
+      group: Base
+- id: 4751
+  type_id: App::Point
+  name: Origin001
+  after: YZ_Plane
+  path: Part/Origin/Origin001
+  properties:
+    Label:
+      type_: STRING
+      value: Origin001
+      expression: null
+      group: Base
+- id: 4752
+  type_id: PartDesign::Body
+  name: Body
+  after: Origin
+  path: Part/Body
+  properties:
+    AllowCompound:
+      type_: BOOL
+      value: true
+      expression: null
+      group: Base
+    BaseFeature:
+      type_: STRING
+      value: None
+      expression: null
+      group: Base
+    Label:
+      type_: STRING
+      value: Body_MyBody
+      expression: null
+      group: Base
+    Placement:
+      type_: PLACEMENT
+      value:
+        position:
+          x: 0.0
+          y: 0.0
+          z: 0.0
+        rotation:
+          axis_x: 0.0
+          axis_y: 0.0
+          axis_z: 1.0
+          angle_degrees: 0.0
+      expression: null
+      group: Base
+    Tip:
+      type_: UNKNOWN
+      value: <PartDesign::Pocket>
+      expression: null
+      group: Base
+- id: 4753
+  type_id: App::Origin
+  name: Origin002
+  after: null
+  path: Part/Body/Origin002
+  properties:
+    Label:
+      type_: STRING
+      value: Origin004
+      expression: null
+      group: Base
+- id: 4754
+  type_id: App::Line
+  name: X_Axis001
+  after: null
+  path: Part/Body/Origin002/X_Axis001
+  properties:
+    Label:
+      type_: STRING
+      value: X-axis001
+      expression: null
+      group: Base
+- id: 4755
+  type_id: App::Line
+  name: Y_Axis001
+  after: X_Axis001
+  path: Part/Body/Origin002/Y_Axis001
+  properties:
+    Label:
+      type_: STRING
+      value: Y-axis001
+      expression: null
+      group: Base
+- id: 4756
+  type_id: App::Line
+  name: Z_Axis001
+  after: Y_Axis001
+  path: Part/Body/Origin002/Z_Axis001
+  properties:
+    Label:
+      type_: STRING
+      value: Z-axis001
+      expression: null
+      group: Base
+- id: 4757
+  type_id: App::Plane
+  name: XY_Plane001
+  after: Z_Axis001
+  path: Part/Body/Origin002/XY_Plane001
+  properties:
+    Label:
+      type_: STRING
+      value: XY-plane001
+      expression: null
+      group: Base
+- id: 4758
+  type_id: App::Plane
+  name: XZ_Plane001
+  after: XY_Plane001
+  path: Part/Body/Origin002/XZ_Plane001
+  properties:
+    Label:
+      type_: STRING
+      value: XZ-plane001
+      expression: null
+      group: Base
+- id: 4759
+  type_id: App::Plane
+  name: YZ_Plane001
+  after: XZ_Plane001
+  path: Part/Body/Origin002/YZ_Plane001
+  properties:
+    Label:
+      type_: STRING
+      value: YZ-plane001
+      expression: null
+      group: Base
+- id: 4760
+  type_id: App::Point
+  name: Origin003
+  after: YZ_Plane001
+  path: Part/Body/Origin002/Origin003
+  properties:
+    Label:
+      type_: STRING
+      value: Origin003
+      expression: null
+      group: Base
+- id: 4761
+  type_id: Sketcher::SketchObject
+  name: Sketch
+  after: null
+  path: Part/Body/Pad/Sketch
+  properties:
+    ArcFitTolerance:
+      type_: FLOAT
+      value: 1.0e-06
+      expression: null
+      group: Sketch
+    AttacherEngine:
+      type_: STRING
+      value: Engine Plane
+      expression: null
+      group: Attachment
+    AttachmentOffset:
+      type_: UNKNOWN
+      value: Placement [Pos=(0,0,0), Yaw-Pitch-Roll=(0,0,0)]
+      expression: null
+      group: Attachment
+    Constraints:
+      type_: LIST
+      value:
+      - <Constraint 'Coincident'>
+      - <Constraint 'Coincident'>
+      - <Constraint 'Coincident'>
+      - <Constraint 'Coincident'>
+      - <Constraint 'Horizontal' (0)>
+      - <Constraint 'Horizontal' (2)>
+      - <Constraint 'Vertical' (1)>
+      - <Constraint 'Vertical' (3)>
+      - <Constraint 'Symmetric'>
+      - <Constraint 'Coincident'>
+      - <Constraint 'DistanceY'>
+      - <Constraint 'DistanceX'>
+      expression: null
+      group: Sketch
+    Label:
+      type_: STRING
+      value: Sketch_Pad
+      expression: null
+      group: Base
+    MakeInternals:
+      type_: BOOL
+      value: true
+      expression: null
+      group: Internal Geometry
+    MapMode:
+      type_: STRING
+      value: FlatFace
+      expression: null
+      group: Attachment
+    MapReversed:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Attachment
+    Placement:
+      type_: PLACEMENT
+      value:
+        position:
+          x: 0.0
+          y: 0.0
+          z: 0.0
+        rotation:
+          axis_x: 0.0
+          axis_y: 0.0
+          axis_z: 1.0
+          angle_degrees: 0.0
+      expression: null
+      group: Base
+- id: 4762
+  type_id: PartDesign::Pad
+  name: Pad
+  after: Origin002
+  path: Part/Body/Pad
+  properties:
+    AllowMultiFace:
+      type_: BOOL
+      value: true
+      expression: null
+      group: SketchBased
+    AlongSketchNormal:
+      type_: BOOL
+      value: true
+      expression: null
+      group: Pad
+    Label:
+      type_: STRING
+      value: Pad_Main
+      expression: null
+      group: Base
+    Length:
+      type_: UNKNOWN
+      value: 10.0 mm
+      expression: null
+      group: Side1
+    Length2:
+      type_: UNKNOWN
+      value: 10.0 mm
+      expression: null
+      group: Side2
+    Midplane:
+      type_: BOOL
+      value: false
+      expression: null
+      group: SketchBased
+    Offset:
+      type_: UNKNOWN
+      value: 0.0 mm
+      expression: null
+      group: Side1
+    Offset2:
+      type_: UNKNOWN
+      value: 0.0 mm
+      expression: null
+      group: Side2
+    Profile:
+      type_: LIST
+      value:
+      - <Sketcher::SketchObject>
+      - '['''']'
+      expression: null
+      group: SketchBased
+    ReferenceAxis:
+      type_: LIST
+      value:
+      - <Sketcher::SketchObject>
+      - '[''N_Axis'']'
+      expression: null
+      group: Pad
+    Refine:
+      type_: BOOL
+      value: true
+      expression: null
+      group: Part Design
+    Reversed:
+      type_: BOOL
+      value: false
+      expression: null
+      group: SketchBased
+    SideType:
+      type_: STRING
+      value: One side
+      expression: null
+      group: Pad
+    Suppressed:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Base
+    TaperAngle:
+      type_: UNKNOWN
+      value: 5.0 deg
+      expression: null
+      group: Side1
+    TaperAngle2:
+      type_: UNKNOWN
+      value: 0.0 deg
+      expression: null
+      group: Side2
+    Type:
+      type_: STRING
+      value: Length
+      expression: null
+      group: Side1
+    Type2:
+      type_: STRING
+      value: Length
+      expression: null
+      group: Side2
+    UpToFace:
+      type_: STRING
+      value: None
+      expression: null
+      group: Side1
+    UpToFace2:
+      type_: STRING
+      value: None
+      expression: null
+      group: Side2
+    UseCustomVector:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Pad
+- id: 4774
+  type_id: Sketcher::SketchObject
+  name: Sketch001
+  after: null
+  path: Part/Body/Pocket/Sketch001
+  properties:
+    ArcFitTolerance:
+      type_: FLOAT
+      value: 1.0e-06
+      expression: null
+      group: Sketch
+    AttacherEngine:
+      type_: STRING
+      value: Engine Plane
+      expression: null
+      group: Attachment
+    AttachmentOffset:
+      type_: UNKNOWN
+      value: Placement [Pos=(0,0,0), Yaw-Pitch-Roll=(0,0,0)]
+      expression: null
+      group: Attachment
+    Constraints:
+      type_: LIST
+      value:
+      - <Constraint 'Coincident'>
+      - <Constraint 'Diameter'>
+      expression: null
+      group: Sketch
+    Label:
+      type_: STRING
+      value: Sketch_Pocket
+      expression: null
+      group: Base
+    MakeInternals:
+      type_: BOOL
+      value: true
+      expression: null
+      group: Internal Geometry
+    MapMode:
+      type_: STRING
+      value: FlatFace
+      expression: null
+      group: Attachment
+    MapReversed:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Attachment
+    Placement:
+      type_: PLACEMENT
+      value:
+        position:
+          x: 0.0
+          y: 0.0
+          z: 10.0
+        rotation:
+          axis_x: 0.0
+          axis_y: 0.0
+          axis_z: 1.0
+          angle_degrees: 0.0
+      expression: null
+      group: Base
+- id: 4775
+  type_id: PartDesign::Pocket
+  name: Pocket
+  after: Pad
+  path: Part/Body/Pocket
+  properties:
+    AllowMultiFace:
+      type_: BOOL
+      value: true
+      expression: null
+      group: SketchBased
+    AlongSketchNormal:
+      type_: BOOL
+      value: true
+      expression: null
+      group: Pocket
+    Label:
+      type_: STRING
+      value: Pocket_Main
+      expression: null
+      group: Base
+    Length:
+      type_: UNKNOWN
+      value: 4.0 mm
+      expression: <<MyVarSet>>.PocketLength
+      group: Side1
+    Length2:
+      type_: UNKNOWN
+      value: 5.0 mm
+      expression: null
+      group: Side2
+    Midplane:
+      type_: BOOL
+      value: false
+      expression: null
+      group: SketchBased
+    Offset:
+      type_: UNKNOWN
+      value: 0.0 mm
+      expression: null
+      group: Side1
+    Offset2:
+      type_: UNKNOWN
+      value: 0.0 mm
+      expression: null
+      group: Side2
+    Profile:
+      type_: LIST
+      value:
+      - <Sketcher::SketchObject>
+      - '['''']'
+      expression: null
+      group: SketchBased
+    ReferenceAxis:
+      type_: LIST
+      value:
+      - <Sketcher::SketchObject>
+      - '[''N_Axis'']'
+      expression: null
+      group: Pocket
+    Refine:
+      type_: BOOL
+      value: true
+      expression: null
+      group: Part Design
+    Reversed:
+      type_: BOOL
+      value: false
+      expression: null
+      group: SketchBased
+    SideType:
+      type_: STRING
+      value: One side
+      expression: null
+      group: Pocket
+    Suppressed:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Base
+    TaperAngle:
+      type_: UNKNOWN
+      value: 0.0 deg
+      expression: null
+      group: Side1
+    TaperAngle2:
+      type_: UNKNOWN
+      value: 0.0 deg
+      expression: null
+      group: Side2
+    Type:
+      type_: STRING
+      value: Length
+      expression: null
+      group: Side1
+    Type2:
+      type_: STRING
+      value: Length
+      expression: null
+      group: Side2
+    UpToFace:
+      type_: STRING
+      value: None
+      expression: null
+      group: Side1
+    UpToFace2:
+      type_: STRING
+      value: None
+      expression: null
+      group: Side2
+    UseCustomVector:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Pocket
+- id: 4776
+  type_id: App::VarSet
+  name: VarSet
+  after: Body
+  path: Part/VarSet
+  properties:
+    Label:
+      type_: STRING
+      value: MyVarSet
+      expression: null
+      group: Base
+    PocketLength:
+      type_: UNKNOWN
+      value: 4.0 mm
+      expression: null
+      group: Base
+- id: 4777
+  type_id: TechDraw::DrawPage
+  name: Page
+  after: Part
+  path: Page
+  properties:
+    KeepUpdated:
+      type_: BOOL
+      value: true
+      expression: null
+      group: Page
+    Label:
+      type_: STRING
+      value: Page
+      expression: null
+      group: Base
+    NextBalloonIndex:
+      type_: INT
+      value: 2
+      expression: null
+      group: Page
+    ProjectionType:
+      type_: STRING
+      value: First angle
+      expression: null
+      group: Base
+    Scale:
+      type_: FLOAT
+      value: 1.0
+      expression: null
+      group: Page
+    Template:
+      type_: UNKNOWN
+      value: <DrawSVGTemplate object>
+      expression: null
+      group: Page
+- id: 4778
+  type_id: TechDraw::DrawSVGTemplate
+  name: Template
+  after: null
+  path: Page/Template
+  properties:
+    Height:
+      type_: UNKNOWN
+      value: 420.0 mm
+      expression: null
+      group: Page Properties
+    Label:
+      type_: STRING
+      value: Template
+      expression: null
+      group: Base
+    Orientation:
+      type_: STRING
+      value: Landscape
+      expression: null
+      group: Base
+    PageResult:
+      type_: STRING
+      value: /home/flyer/.cache/FreeCAD/Cache/FreeCAD_Doc_3a706c4d-c7f5-4d34-8cfd-233fdb1bef77_d64f41_397135/A2_Landscape_blank.svg
+      expression: null
+      group: Template
+    Width:
+      type_: UNKNOWN
+      value: 594.0 mm
+      expression: null
+      group: Page Properties
+- id: 4779
+  type_id: TechDraw::DrawProjGroupItem
+  name: View
+  after: Template
+  path: Page/View
+  properties:
+    Caption:
+      type_: STRING
+      value: ''
+      expression: null
+      group: Base
+    CoarseView:
+      type_: BOOL
+      value: false
+      expression: null
+      group: HLR Parameters
+    Focus:
+      type_: UNKNOWN
+      value: 100.0 mm
+      expression: null
+      group: Projection
+    HardHidden:
+      type_: BOOL
+      value: false
+      expression: null
+      group: HLR Parameters
+    IsoCount:
+      type_: INT
+      value: 0
+      expression: null
+      group: HLR Parameters
+    IsoHidden:
+      type_: BOOL
+      value: false
+      expression: null
+      group: HLR Parameters
+    IsoVisible:
+      type_: BOOL
+      value: false
+      expression: null
+      group: HLR Parameters
+    Label:
+      type_: STRING
+      value: View
+      expression: null
+      group: Base
+    LockPosition:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Base
+    Perspective:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Projection
+    Rotation:
+      type_: UNKNOWN
+      value: 0.0 deg
+      expression: null
+      group: Base
+    Scale:
+      type_: FLOAT
+      value: 1.0
+      expression: null
+      group: Base
+    ScaleType:
+      type_: STRING
+      value: Page
+      expression: null
+      group: Base
+    ScrubCount:
+      type_: INT
+      value: 1
+      expression: null
+      group: HLR Parameters
+    SeamHidden:
+      type_: BOOL
+      value: false
+      expression: null
+      group: HLR Parameters
+    SeamVisible:
+      type_: BOOL
+      value: false
+      expression: null
+      group: HLR Parameters
+    SmoothHidden:
+      type_: BOOL
+      value: false
+      expression: null
+      group: HLR Parameters
+    SmoothVisible:
+      type_: BOOL
+      value: true
+      expression: null
+      group: HLR Parameters
+    Type:
+      type_: STRING
+      value: Front
+      expression: null
+      group: Base
+    X:
+      type_: UNKNOWN
+      value: 296.752026 mm
+      expression: null
+      group: Base
+    Y:
+      type_: UNKNOWN
+      value: 210.0 mm
+      expression: null
+      group: Base
+- id: 4781
+  type_id: TechDraw::DrawViewDimension
+  name: Dimension
+  after: null
+  path: Page/View/Dimension
+  properties:
+    AngleOverride:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Override
+    Arbitrary:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Format
+    ArbitraryTolerances:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Format
+    EqualTolerance:
+      type_: BOOL
+      value: true
+      expression: null
+      group: Base
+    ExtensionAngle:
+      type_: UNKNOWN
+      value: 0.0 deg
+      expression: null
+      group: Override
+    FormatSpec:
+      type_: STRING
+      value: '%.2w'
+      expression: null
+      group: Format
+    FormatSpecOverTolerance:
+      type_: STRING
+      value: '%+.2w'
+      expression: null
+      group: Format
+    FormatSpecUnderTolerance:
+      type_: STRING
+      value: '%+.2w'
+      expression: null
+      group: Format
+    Inverted:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Base
+    Label:
+      type_: STRING
+      value: Dimension
+      expression: null
+      group: Base
+    LineAngle:
+      type_: UNKNOWN
+      value: 0.0 deg
+      expression: null
+      group: Override
+    MeasureType:
+      type_: STRING
+      value: Projected
+      expression: null
+      group: Base
+    OverTolerance:
+      type_: UNKNOWN
+      value: 0.0 mm
+      expression: null
+      group: Base
+    ShowUnits:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Format
+    TheoreticalExact:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Base
+    Type:
+      type_: STRING
+      value: DistanceX
+      expression: null
+      group: Base
+    UnderTolerance:
+      type_: UNKNOWN
+      value: 0.0 mm
+      expression: null
+      group: Base
+    UseActualArea:
+      type_: BOOL
+      value: true
+      expression: null
+      group: Area
+    X:
+      type_: UNKNOWN
+      value: 0.0 mm
+      expression: null
+      group: Base
+    Y:
+      type_: UNKNOWN
+      value: 50.411436 mm
+      expression: null
+      group: Base
+- id: 4783
+  type_id: TechDraw::DrawViewDimension
+  name: Dimension001
+  after: Dimension
+  path: Page/View/Dimension001
+  properties:
+    AngleOverride:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Override
+    Arbitrary:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Format
+    ArbitraryTolerances:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Format
+    EqualTolerance:
+      type_: BOOL
+      value: true
+      expression: null
+      group: Base
+    ExtensionAngle:
+      type_: UNKNOWN
+      value: 0.0 deg
+      expression: null
+      group: Override
+    FormatSpec:
+      type_: STRING
+      value: '%.2w'
+      expression: null
+      group: Format
+    FormatSpecOverTolerance:
+      type_: STRING
+      value: '%+.2w'
+      expression: null
+      group: Format
+    FormatSpecUnderTolerance:
+      type_: STRING
+      value: '%+.2w'
+      expression: null
+      group: Format
+    Inverted:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Base
+    Label:
+      type_: STRING
+      value: Dimension001
+      expression: null
+      group: Base
+    LineAngle:
+      type_: UNKNOWN
+      value: 0.0 deg
+      expression: null
+      group: Override
+    MeasureType:
+      type_: STRING
+      value: Projected
+      expression: null
+      group: Base
+    OverTolerance:
+      type_: UNKNOWN
+      value: 0.0 mm
+      expression: null
+      group: Base
+    ShowUnits:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Format
+    TheoreticalExact:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Base
+    Type:
+      type_: STRING
+      value: DistanceY
+      expression: null
+      group: Base
+    UnderTolerance:
+      type_: UNKNOWN
+      value: 0.0 mm
+      expression: null
+      group: Base
+    UseActualArea:
+      type_: BOOL
+      value: true
+      expression: null
+      group: Area
+    X:
+      type_: UNKNOWN
+      value: 47.640658 mm
+      expression: null
+      group: Base
+    Y:
+      type_: UNKNOWN
+      value: -0.0 mm
+      expression: null
+      group: Base
+- id: 4784
+  type_id: TechDraw::DrawViewDimension
+  name: Dimension002
+  after: Dimension001
+  path: Page/View/Dimension002
+  properties:
+    AngleOverride:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Override
+    Arbitrary:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Format
+    ArbitraryTolerances:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Format
+    EqualTolerance:
+      type_: BOOL
+      value: true
+      expression: null
+      group: Base
+    ExtensionAngle:
+      type_: UNKNOWN
+      value: 0.0 deg
+      expression: null
+      group: Override
+    FormatSpec:
+      type_: STRING
+      value: ⌀%.2w
+      expression: null
+      group: Format
+    FormatSpecOverTolerance:
+      type_: STRING
+      value: '%+.2w'
+      expression: null
+      group: Format
+    FormatSpecUnderTolerance:
+      type_: STRING
+      value: '%+.2w'
+      expression: null
+      group: Format
+    Inverted:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Base
+    Label:
+      type_: STRING
+      value: Dimension002
+      expression: null
+      group: Base
+    LineAngle:
+      type_: UNKNOWN
+      value: 0.0 deg
+      expression: null
+      group: Override
+    MeasureType:
+      type_: STRING
+      value: Projected
+      expression: null
+      group: Base
+    OverTolerance:
+      type_: UNKNOWN
+      value: 0.0 mm
+      expression: null
+      group: Base
+    ShowUnits:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Format
+    TheoreticalExact:
+      type_: BOOL
+      value: false
+      expression: null
+      group: Base
+    Type:
+      type_: STRING
+      value: Diameter
+      expression: null
+      group: Base
+    UnderTolerance:
+      type_: UNKNOWN
+      value: 0.0 mm
+      expression: null
+      group: Base
+    UseActualArea:
+      type_: BOOL
+      value: true
+      expression: null
+      group: Area
+    X:
+      type_: UNKNOWN
+      value: -33.014982 mm
+      expression: null
+      group: Base
+    Y:
+      type_: UNKNOWN
+      value: 2.580635 mm
+      expression: null
+      group: Base

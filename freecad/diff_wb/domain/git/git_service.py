@@ -148,3 +148,15 @@ class GitService:
             File contents as string, or None if not found.
         """
         return self._git_port.get_file_contents(repo.absolute_path, commit, git_path)
+
+    def commit(self, repo: GitRepository, message: str) -> bool:
+        """Commit staged changes in the repository.
+
+        Args:
+            repo: GitRepository to commit in.
+            message: Commit message text.
+
+        Returns:
+            True if commit succeeded, False otherwise.
+        """
+        return self._git_port.commit(repo.absolute_path, message)
