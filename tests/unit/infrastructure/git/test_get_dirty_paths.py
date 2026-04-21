@@ -121,6 +121,22 @@ def test_get_dirty_paths_handles_filenames_with_spaces():
         assert set(result) == {"path/with spaces/file.txt", "new file.txt"}
 
 
+def test_get_dirty_paths_handles_git_quoted_paths_with_spaces():
+    """Given git-quoted paths, returns unquoted relative paths."""
+    mock_result = subprocess.CompletedProcess(
+        args=["git", "status", "--porcelain"],
+        returncode=0,
+        stdout=' M "path/with spaces/file.txt"\n?? "new file.txt"\n',
+        stderr="",
+    )
+
+    with patch.object(subprocess, "run", return_value=mock_result):
+        adapter = GitPortAdapter()
+        result = adapter.get_dirty_paths("/path/to/repo")
+
+        assert set(result) == {"path/with spaces/file.txt", "new file.txt"}
+
+
 def test_get_dirty_paths_handles_mixed_status_codes():
     """Given mixed index/working tree status codes (e.g., MM), includes only dirty ones."""
     mock_result = subprocess.CompletedProcess(

@@ -7,6 +7,7 @@
 
 import os
 import subprocess
+from codecs import decode as codecs_decode
 from datetime import datetime
 
 from freecad.diff_wb.domain.git.models import GitCommit
@@ -242,7 +243,7 @@ class GitPortAdapter(GitPort):
 
         # Extract working tree status (position 1) and path (position 3+)
         wt_status = line[1]
-        rel_path = line[3:]
+        rel_path = self._normalize_porcelain_path(line[3:])
 
         # Only process lines with valid status characters
         valid_statuses = ("M", "?", "A", "D", "R", "U", "T", "C", " ")
@@ -250,6 +251,31 @@ class GitPortAdapter(GitPort):
             return None
 
         return {"status": wt_status, "rel_path": rel_path}
+
+    def _normalize_porcelain_path(self, path: str) -> str:
+        """Normalize porcelain path by decoding git-quoted paths.
+
+        Git porcelain output may quote paths that contain whitespace or special
+        characters, e.g. ``"path/with spaces/file.FCStd"``. This helper strips
+        surrounding quotes and decodes C-style escapes so callers always receive
+        the real relative path.
+
+        Args:
+            path: Raw path fragment from porcelain output.
+
+        Returns:
+            Normalized relative path.
+        """
+        normalized = path.strip()
+
+        if len(normalized) >= 2 and normalized[0] == '"' and normalized[-1] == '"':
+            quoted_content = normalized[1:-1]
+            try:
+                return codecs_decode(quoted_content, "unicode_escape")
+            except UnicodeDecodeError:
+                return quoted_content
+
+        return normalized
 
     def _is_dirty_status(self, status: str, rel_path: str) -> bool:
         """Check if a git status code represents a dirty (staggable) file.
@@ -344,7 +370,7 @@ class GitPortAdapter(GitPort):
                     continue
 
                 index_status = line[0]
-                rel_path = line[3:].strip()
+                rel_path = self._normalize_porcelain_path(line[3:])
 
                 # Check if staged (index_status is not space and not untracked "?") and is FCStd file
                 if index_status not in (" ", "?") and rel_path.endswith(".FCStd"):

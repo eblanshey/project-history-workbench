@@ -668,6 +668,20 @@ class TestGitPortAdapterGetStagedPaths:
             # "M " and "A " are staged, " M" and "??" are not
             assert result == ["staged.FCStd", "added.FCStd"]
 
+    def test_get_staged_paths_decodes_git_quoted_paths(self) -> None:
+        """Test that git-quoted staged paths are decoded before filtering."""
+        mock_result = subprocess.CompletedProcess(
+            args=["git", "status", "--porcelain"],
+            returncode=0,
+            stdout='A  "path/with spaces/document.FCStd"\nA  "notes file.txt"\n',
+            stderr="",
+        )
+
+        with patch.object(subprocess, "run", return_value=mock_result):
+            result = self.adapter.get_staged_paths("/path/to/repo")
+
+            assert result == ["path/with spaces/document.FCStd"]
+
     def test_get_staged_paths_timeout(self) -> None:
         """Test handling of subprocess timeout."""
         with patch.object(subprocess, "run", side_effect=subprocess.TimeoutExpired(cmd="git", timeout=30)):
