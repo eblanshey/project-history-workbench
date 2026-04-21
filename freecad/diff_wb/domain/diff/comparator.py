@@ -15,6 +15,38 @@ from ..tree.property import Property
 from .models import DiffHierarchy, DiffResult, DiffState, NodeDiff, PropertyDiff
 
 
+def _effective_exclusions(
+    global_excluded: list[str],
+    by_type: dict[str, list[str]],
+    old_type: str | None,
+    new_type: str | None,
+) -> set[str]:
+    """Compute the effective set of excluded property names for a node comparison.
+
+    The effective set is the union of:
+    - Global exclusions (always applied)
+    - Per-type exclusions for the old node's type (if present)
+    - Per-type exclusions for the new node's type (if present)
+
+    This ensures correct behavior when a node's type changes across snapshots.
+
+    Args:
+        global_excluded: List of globally excluded property names
+        by_type: Dict mapping type IDs to lists of excluded property names
+        old_type: Type ID of the old node (None if node only exists in new)
+        new_type: Type ID of the new node (None if node only exists in old)
+
+    Returns:
+        Set of property names to exclude from comparison
+    """
+    effective: set[str] = set(global_excluded)
+    if old_type is not None:
+        effective.update(by_type.get(old_type, []))
+    if new_type is not None:
+        effective.update(by_type.get(new_type, []))
+    return effective
+
+
 class TreeComparator:
     """Compares two tree structures using ID-based indexing.
 
@@ -124,6 +156,7 @@ class TreeComparator:
         old_index: dict[int, TreeNode],
         new_index: dict[int, TreeNode],
         excluded_properties: list[str],
+        excluded_properties_by_type: dict[str, list[str]] | None = None,
     ) -> NodeDiff:
         """Compare two nodes at the same ID and produce a NodeDiff.
 
@@ -139,6 +172,7 @@ class TreeComparator:
             old_index: ID index for the old snapshot
             new_index: ID index for the new snapshot
             excluded_properties: List of property names to exclude from comparison
+            excluded_properties_by_type: Dict mapping type IDs to excluded properties
 
         Returns:
             NodeDiff with MODIFIED state if properties differ, UNCHANGED otherwise
@@ -150,9 +184,19 @@ class TreeComparator:
         if old_node is None or new_node is None:
             raise ValueError(f"Cannot compare nodes by ID: one or both not found for ID {node_id}")
 
+        # Compute effective exclusions using union of old and new type rules
+        if excluded_properties_by_type is None:
+            excluded_properties_by_type = {}
+        effective = _effective_exclusions(
+            excluded_properties,
+            excluded_properties_by_type,
+            old_node.type_id,
+            new_node.type_id,
+        )
+
         # Use property comparator to compare properties with exclusion filtering
         property_diffs = self._property_comparator.compare_properties(
-            old_node.properties, new_node.properties, excluded_properties
+            old_node.properties, new_node.properties, list(effective)
         )
 
         # Return NodeDiff - state will be auto-calculated in __post_init__
@@ -168,7 +212,13 @@ class TreeComparator:
             new_after=new_node.after,
         )
 
-    def _create_added_node_diff(self, node_id: int, node: TreeNode, excluded_properties: list[str]) -> NodeDiff:
+    def _create_added_node_diff(
+        self,
+        node_id: int,
+        node: TreeNode,
+        excluded_properties: list[str],
+        excluded_properties_by_type: dict[str, list[str]] | None = None,
+    ) -> NodeDiff:
         """Create a NodeDiff for an added node (ID-based).
 
         This is called for nodes that exist only in the new snapshot (not in old).
@@ -181,12 +231,18 @@ class TreeComparator:
             node_id: The node ID (for ID-based indexing)
             node: The TreeNode from the new snapshot
             excluded_properties: List of property names to exclude from comparison
+            excluded_properties_by_type: Dict mapping type IDs to excluded properties
 
         Returns:
             NodeDiff with ADDED state
         """
+        # For added nodes, use global + new type exclusions
+        if excluded_properties_by_type is None:
+            excluded_properties_by_type = {}
+        effective = _effective_exclusions(excluded_properties, excluded_properties_by_type, None, node.type_id)
+
         # For added nodes, all properties are "added" (old_value=None)
-        property_diffs = self._property_comparator.compare_properties({}, node.properties, excluded_properties)
+        property_diffs = self._property_comparator.compare_properties({}, node.properties, list(effective))
 
         # For added nodes: old_path=None, new_path=node.path, old_after=None, new_after=node.after
         return NodeDiff(
@@ -201,7 +257,13 @@ class TreeComparator:
             _force_state=DiffState.ADDED,
         )
 
-    def _create_deleted_node_diff(self, node_id: int, node: TreeNode, excluded_properties: list[str]) -> NodeDiff:
+    def _create_deleted_node_diff(
+        self,
+        node_id: int,
+        node: TreeNode,
+        excluded_properties: list[str],
+        excluded_properties_by_type: dict[str, list[str]] | None = None,
+    ) -> NodeDiff:
         """Create a NodeDiff for a deleted node (ID-based).
 
         This is called for nodes that exist only in the old snapshot (not in new).
@@ -214,12 +276,18 @@ class TreeComparator:
             node_id: The node ID (for ID-based indexing)
             node: The TreeNode from the old snapshot
             excluded_properties: List of property names to exclude from comparison
+            excluded_properties_by_type: Dict mapping type IDs to excluded properties
 
         Returns:
             NodeDiff with DELETED state
         """
+        # For deleted nodes, use global + old type exclusions
+        if excluded_properties_by_type is None:
+            excluded_properties_by_type = {}
+        effective = _effective_exclusions(excluded_properties, excluded_properties_by_type, node.type_id, None)
+
         # For deleted nodes, all properties are "deleted" (new_value=None)
-        property_diffs = self._property_comparator.compare_properties(node.properties, {}, excluded_properties)
+        property_diffs = self._property_comparator.compare_properties(node.properties, {}, list(effective))
 
         # For deleted nodes: old_path=node.path, new_path=None, old_after=node.after, new_after=None
         return NodeDiff(
@@ -240,6 +308,7 @@ class TreeComparator:
         id_index_new: dict[int, TreeNode],
         excluded_types_set: set[str],
         excluded_properties: list[str],
+        excluded_properties_by_type: dict[str, list[str]],
     ) -> tuple[list[NodeDiff], set[int], set[str], int, int]:
         """Process old nodes to create diffs for deleted and modified nodes.
 
@@ -248,6 +317,7 @@ class TreeComparator:
             id_index_new: ID index for new snapshot
             excluded_types_set: Set of type IDs to exclude
             excluded_properties: List of property names to exclude
+            excluded_properties_by_type: Dict mapping type IDs to excluded properties
 
         Returns:
             Tuple of (node_diffs, old_node_ids, paths_excluded, deleted_count, modified_count)
@@ -273,11 +343,17 @@ class TreeComparator:
             # Create node diff
             node_diff: NodeDiff
             if new_node is None:
-                node_diff = self._create_deleted_node_diff(old_node.id, old_node, excluded_properties)
+                node_diff = self._create_deleted_node_diff(
+                    old_node.id, old_node, excluded_properties, excluded_properties_by_type
+                )
                 deleted_count += 1
             else:
                 node_diff = self._compare_nodes_by_id(
-                    old_node.id, {old_node.id: old_node}, id_index_new, excluded_properties
+                    old_node.id,
+                    {old_node.id: old_node},
+                    id_index_new,
+                    excluded_properties,
+                    excluded_properties_by_type,
                 )
                 if node_diff.state == DiffState.MODIFIED:
                     modified_count += 1
@@ -292,6 +368,7 @@ class TreeComparator:
         old_node_ids: set[int],
         excluded_types_set: set[str],
         excluded_properties: list[str],
+        excluded_properties_by_type: dict[str, list[str]],
     ) -> tuple[list[NodeDiff], int]:
         """Process new nodes to create diffs for added nodes.
 
@@ -300,6 +377,7 @@ class TreeComparator:
             old_node_ids: Set of IDs from old snapshot
             excluded_types_set: Set of type IDs to exclude
             excluded_properties: List of property names to exclude
+            excluded_properties_by_type: Dict mapping type IDs to excluded properties
 
         Returns:
             Tuple of (added_node_diffs, added_count)
@@ -319,7 +397,9 @@ class TreeComparator:
                 paths_excluded.add(path_to_exclude)
                 continue
 
-            node_diff = self._create_added_node_diff(new_node.id, new_node, excluded_properties)
+            node_diff = self._create_added_node_diff(
+                new_node.id, new_node, excluded_properties, excluded_properties_by_type
+            )
             added_count += 1
             added_node_diffs.append(node_diff)
 
@@ -331,6 +411,7 @@ class TreeComparator:
         new_snapshot: Snapshot,
         excluded_properties: list[str],
         excluded_types: list[str],
+        excluded_properties_by_type: dict[str, list[str]] | None = None,
     ) -> DiffResult:
         """Compare two snapshots using ID-based comparison and produce a DiffResult.
 
@@ -351,10 +432,16 @@ class TreeComparator:
             new_snapshot: The new snapshot to compare
             excluded_properties: List of property names to exclude from comparison
             excluded_types: List of type IDs to exclude from comparison
+            excluded_properties_by_type: Dict mapping type IDs to property names
+                to exclude for that type only. If None, no type-specific exclusions
+                are applied.
 
         Returns:
             DiffResult containing hierarchy and counts
         """
+        if excluded_properties_by_type is None:
+            excluded_properties_by_type = {}
+
         # Extract nodes from snapshots
         old_nodes = old_snapshot.nodes
         new_nodes = new_snapshot.nodes
@@ -367,12 +454,20 @@ class TreeComparator:
 
         # Process old nodes for deleted and modified diffs
         old_node_diffs, old_node_ids, _, deleted_count, modified_count = self._process_old_nodes(
-            sorted_old_nodes, id_index_new, excluded_types_set, excluded_properties
+            sorted_old_nodes,
+            id_index_new,
+            excluded_types_set,
+            excluded_properties,
+            excluded_properties_by_type,
         )
 
         # Process new nodes for added diffs
         added_node_diffs, added_count = self._process_new_nodes(
-            sorted_new_nodes, old_node_ids, excluded_types_set, excluded_properties
+            sorted_new_nodes,
+            old_node_ids,
+            excluded_types_set,
+            excluded_properties,
+            excluded_properties_by_type,
         )
 
         # Combine all node diffs and sort by path length

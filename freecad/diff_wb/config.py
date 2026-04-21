@@ -34,3 +34,10 @@ AUTO_EXCLUDED_PROPERTIES = [
 EXCLUDED_PROPERTIES = [
     *AUTO_EXCLUDED_PROPERTIES,
 ]
+
+# Type-specific property exclusions
+# Maps FreeCAD type IDs to lists of property names to exclude for that type only.
+# This allows excluding a property for one type while keeping it visible for others.
+EXCLUDED_PROPERTIES_BY_TYPE: dict[str, list[str]] = {
+    "TechDraw::DrawSVGTemplate": ["PageResult"],
+}

@@ -32,15 +32,23 @@ class FakeSettingsRepository(SettingsRepository):
     Provides fixed excluded types and properties for predictable test behavior.
     """
 
-    def __init__(self, excluded_types: list[str] | None = None, excluded_properties: list[str] | None = None):
+    def __init__(
+        self,
+        excluded_types: list[str] | None = None,
+        excluded_properties: list[str] | None = None,
+        excluded_properties_by_type: dict[str, list[str]] | None = None,
+    ):
         """Initialize with optional custom excluded lists.
 
         Args:
             excluded_types: List of type IDs to exclude (default: ["App::Origin"])
             excluded_properties: List of property names to exclude (default: ["TimeStamp", "Label2"])
+            excluded_properties_by_type: Dict mapping type IDs to property names to exclude
+                for that type only (default: empty dict)
         """
         self._excluded_types = excluded_types or ["App::Origin"]
         self._excluded_properties = excluded_properties or ["TimeStamp", "Label2"]
+        self._excluded_properties_by_type = excluded_properties_by_type or {}
 
     def get_excluded_types(self) -> list[str]:
         """Get the configured excluded type IDs."""
@@ -50,11 +58,16 @@ class FakeSettingsRepository(SettingsRepository):
         """Get the configured excluded property names."""
         return self._excluded_properties.copy()
 
+    def get_excluded_properties_by_type(self) -> dict[str, list[str]]:
+        """Get the configured type-specific property exclusions."""
+        return dict(self._excluded_properties_by_type)
+
     def get_settings(self) -> Settings:
         """Get all settings as a Settings object."""
         return Settings(
             excluded_types=self._excluded_types.copy(),
             excluded_properties=self._excluded_properties.copy(),
+            excluded_properties_by_type=self.get_excluded_properties_by_type(),
         )
 
 

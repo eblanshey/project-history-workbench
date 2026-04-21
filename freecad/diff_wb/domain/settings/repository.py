@@ -30,10 +30,23 @@ class SettingsRepository(Protocol):
         """
         ...
 
+    def get_excluded_properties_by_type(self) -> dict[str, list[str]]:
+        """Get type-specific property exclusions.
+
+        Returns a mapping of FreeCAD type IDs to lists of property names
+        that should be excluded only for objects of that type.
+
+        Returns:
+            Dict mapping type IDs to lists of property names to exclude
+            for that type (e.g., {"TechDraw::DrawSVGTemplate": ["Template"]})
+        """
+        ...
+
     def get_settings(self) -> Settings:
         """Get all settings as a Settings object.
 
         Returns:
-            Settings object containing excluded types and properties
+            Settings object containing excluded types, properties, and
+            type-specific property exclusions
         """
         ...

@@ -1385,3 +1385,254 @@ def _flatten_diffs(node_diffs: list[NodeDiff]) -> list[NodeDiff]:
         if diff.children:
             result.extend(_flatten_diffs(diff.children))
     return result
+
+
+class TestTypeSpecificPropertyExclusions:
+    """Tests for type-specific property exclusion in the comparator."""
+
+    def test_excludes_property_for_matching_type(self) -> None:
+        """Test that Template property is excluded for TechDraw::DrawSVGTemplate."""
+        old_node = TreeNode(
+            id=1,
+            name="Template",
+            type_id="TechDraw::DrawSVGTemplate",
+            label="Template",
+            path="Template",
+            after=None,
+            properties={
+                "Template": Property.from_freecad("some_template_data", {}, "Base"),
+                "Label": Property.from_freecad("MyTemplate", {}, "Base"),
+            },
+        )
+        new_node = TreeNode(
+            id=1,
+            name="Template",
+            type_id="TechDraw::DrawSVGTemplate",
+            label="MyTemplate",
+            path="Template",
+            after=None,
+            properties={
+                "Template": Property.from_freecad("different_template_data", {}, "Base"),
+                "Label": Property.from_freecad("MyTemplate", {}, "Base"),
+            },
+        )
+        old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=[old_node])
+        new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=[new_node])
+
+        by_type: dict[str, list[str]] = {"TechDraw::DrawSVGTemplate": ["Template"]}
+
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [], by_type)
+
+        # Template property should be excluded for this type, so no changes detected
+        assert result.has_changes is False
+        assert result.modified_count == 0
+
+    def test_includes_property_for_non_matching_type(self) -> None:
+        """Test that Template property is NOT excluded for unrelated types."""
+        old_node = TreeNode(
+            id=1,
+            name="Feature",
+            type_id="Part::Feature",
+            label="Feature",
+            path="Feature",
+            after=None,
+            properties={
+                "Template": Property.from_freecad("some_data", {}, "Base"),
+                "Label": Property.from_freecad("MyFeature", {}, "Base"),
+            },
+        )
+        new_node = TreeNode(
+            id=1,
+            name="Feature",
+            type_id="Part::Feature",
+            label="MyFeature",
+            path="Feature",
+            after=None,
+            properties={
+                "Template": Property.from_freecad("different_data", {}, "Base"),
+                "Label": Property.from_freecad("MyFeature", {}, "Base"),
+            },
+        )
+        old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=[old_node])
+        new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=[new_node])
+
+        by_type: dict[str, list[str]] = {"TechDraw::DrawSVGTemplate": ["Template"]}
+
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [], by_type)
+
+        # Template property should NOT be excluded for Part::Feature
+        assert result.has_changes is True
+        assert result.modified_count == 1
+
+    def test_type_change_uses_union_of_rules(self) -> None:
+        """Test that type change uses union of per-type rules from both old and new types."""
+        # Old node is TechDraw::DrawSVGTemplate with Template property changed
+        old_node = TreeNode(
+            id=1,
+            name="Item",
+            type_id="TechDraw::DrawSVGTemplate",
+            label="Item",
+            path="Item",
+            after=None,
+            properties={
+                "Template": Property.from_freecad("old_template", {}, "Base"),
+                "Label": Property.from_freecad("Item", {}, "Base"),
+            },
+        )
+        # New node is Part::Feature with Template property changed
+        new_node = TreeNode(
+            id=1,
+            name="Item",
+            type_id="Part::Feature",
+            label="Item",
+            path="Item",
+            after=None,
+            properties={
+                "Template": Property.from_freecad("new_template", {}, "Base"),
+                "Label": Property.from_freecad("Item", {}, "Base"),
+            },
+        )
+        old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=[old_node])
+        new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=[new_node])
+
+        # TechDraw::DrawSVGTemplate excludes "Template", Part::Feature excludes "Label"
+        by_type: dict[str, list[str]] = {
+            "TechDraw::DrawSVGTemplate": ["Template"],
+            "Part::Feature": ["Label"],
+        }
+
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [], by_type)
+
+        # Template excluded by old type, Label excluded by new type
+        # So both changes should be hidden
+        assert result.has_changes is False
+        assert result.modified_count == 0
+
+    def test_global_exclusions_still_applied(self) -> None:
+        """Test that global exclusions are applied alongside type-specific ones."""
+        old_node = TreeNode(
+            id=1,
+            name="Feature",
+            type_id="Part::Feature",
+            label="Feature",
+            path="Feature",
+            after=None,
+            properties={
+                "TimeStamp": Property.from_freecad("2024-01-01", {}, "Base"),
+                "Label": Property.from_freecad("Feature", {}, "Base"),
+            },
+        )
+        new_node = TreeNode(
+            id=1,
+            name="Feature",
+            type_id="Part::Feature",
+            label="Feature",
+            path="Feature",
+            after=None,
+            properties={
+                "TimeStamp": Property.from_freecad("2024-01-02", {}, "Base"),
+                "Label": Property.from_freecad("Feature", {}, "Base"),
+            },
+        )
+        old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=[old_node])
+        new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=[new_node])
+
+        by_type: dict[str, list[str]] = {"Part::Feature": ["Label"]}
+
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, ["TimeStamp"], by_type)
+
+        # TimeStamp excluded globally, Label excluded by type
+        assert result.has_changes is False
+        assert result.modified_count == 0
+
+    def test_added_node_uses_new_type_exclusions(self) -> None:
+        """Test that added nodes use their new type for property exclusion."""
+        old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=[])
+        new_node = TreeNode(
+            id=1,
+            name="Template",
+            type_id="TechDraw::DrawSVGTemplate",
+            label="Template",
+            path="Template",
+            after=None,
+            properties={
+                "Template": Property.from_freecad("template_data", {}, "Base"),
+                "Label": Property.from_freecad("MyTemplate", {}, "Base"),
+            },
+        )
+        new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=[new_node])
+
+        by_type: dict[str, list[str]] = {"TechDraw::DrawSVGTemplate": ["Template"]}
+
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [], by_type)
+
+        # Template property should be excluded, so only Label shows as added
+        assert result.added_count == 1
+        # Find the node diff and check that Template is not in property diffs
+        node_diff = result.hierarchy.roots[0]
+        template_props = [pd for pd in node_diff.property_diffs if pd.property_name == "Template"]
+        assert len(template_props) == 0
+
+    def test_deleted_node_uses_old_type_exclusions(self) -> None:
+        """Test that deleted nodes use their old type for property exclusion."""
+        old_node = TreeNode(
+            id=1,
+            name="Template",
+            type_id="TechDraw::DrawSVGTemplate",
+            label="Template",
+            path="Template",
+            after=None,
+            properties={
+                "Template": Property.from_freecad("template_data", {}, "Base"),
+                "Label": Property.from_freecad("MyTemplate", {}, "Base"),
+            },
+        )
+        old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=[old_node])
+        new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=[])
+
+        by_type: dict[str, list[str]] = {"TechDraw::DrawSVGTemplate": ["Template"]}
+
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [], by_type)
+
+        # Template property should be excluded, so only Label shows as deleted
+        assert result.deleted_count == 1
+        node_diff = result.hierarchy.roots[0]
+        template_props = [pd for pd in node_diff.property_diffs if pd.property_name == "Template"]
+        assert len(template_props) == 0
+
+    def test_empty_by_type_ignores_type_specific_rules(self) -> None:
+        """Test that empty by_type dict means no type-specific exclusions."""
+        old_node = TreeNode(
+            id=1,
+            name="Feature",
+            type_id="Part::Feature",
+            label="Feature",
+            path="Feature",
+            after=None,
+            properties={
+                "Template": Property.from_freecad("data", {}, "Base"),
+                "Label": Property.from_freecad("Feature", {}, "Base"),
+            },
+        )
+        new_node = TreeNode(
+            id=1,
+            name="Feature",
+            type_id="Part::Feature",
+            label="Feature",
+            path="Feature",
+            after=None,
+            properties={
+                "Template": Property.from_freecad("different_data", {}, "Base"),
+                "Label": Property.from_freecad("Feature", {}, "Base"),
+            },
+        )
+        old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=[old_node])
+        new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=[new_node])
+
+        by_type: dict[str, list[str]] = {}
+
+        result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], by_type)
+
+        # With empty by_type, Template should not be excluded
+        assert result.has_changes is True
+        assert result.modified_count == 1

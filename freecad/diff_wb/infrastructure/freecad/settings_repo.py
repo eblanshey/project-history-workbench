@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from ...config import EXCLUDED_PROPERTIES, EXCLUDED_TYPES
+from ...config import EXCLUDED_PROPERTIES, EXCLUDED_PROPERTIES_BY_TYPE, EXCLUDED_TYPES
 from ...domain.settings.models import Settings
 from .ports import FreeCadContext
 
@@ -52,14 +52,28 @@ class FreeCADSettingsRepository:
             return EXCLUDED_PROPERTIES
         return [item.strip() for item in raw.split(",") if item.strip()]
 
+    def get_excluded_properties_by_type(self) -> dict[str, list[str]]:
+        """Get type-specific property exclusions.
+
+        Returns:
+            Dict mapping type IDs to lists of property names to exclude
+            for that type. Returns default from config.py if no persisted
+            value exists.
+        """
+        # For now, return the hardcoded defaults from config.py.
+        # Persisted per-type settings via FreeCAD Preferences can be added later.
+        return dict(EXCLUDED_PROPERTIES_BY_TYPE)
+
     def get_settings(self) -> Settings:
         """Get all settings as a Settings object.
 
         Returns:
-            Settings object with excluded types and properties from FreeCAD preferences,
-            or defaults from config.py if no persisted values exist.
+            Settings object with excluded types, properties, and type-specific
+            property exclusions from FreeCAD preferences, or defaults from
+            config.py if no persisted values exist.
         """
         return Settings(
             excluded_types=self.get_excluded_types(),
             excluded_properties=self.get_excluded_properties(),
+            excluded_properties_by_type=self.get_excluded_properties_by_type(),
         )

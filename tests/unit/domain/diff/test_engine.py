@@ -518,6 +518,9 @@ class TestDiffEngineComputeDiff:
             def get_excluded_properties(self):
                 return []
 
+            def get_excluded_properties_by_type(self):
+                return {}
+
         old_node = TreeNode(
             id=1,
             name="Body",
@@ -605,6 +608,9 @@ class TestDiffEngineComputeDiffWithSettings:
             def get_excluded_properties(self):
                 return []
 
+            def get_excluded_properties_by_type(self):
+                return {}
+
         engine = DiffEngine(settings_repo=MockSettingsRepo())
         result = engine.compute_diff(old_snapshot, new_snapshot)
 
@@ -661,9 +667,132 @@ class TestDiffEngineComputeDiffWithSettings:
             def get_excluded_properties(self):
                 return ["Length"]
 
+            def get_excluded_properties_by_type(self):
+                return {}
+
         engine = DiffEngine(settings_repo=MockSettingsRepo())
         result = engine.compute_diff(old_snapshot, new_snapshot)
 
         # Only Label property differs (but it's the same value)
         # Length should be excluded from comparison
         assert result.has_changes is False
+
+
+class TestDiffEngineTypeSpecificExclusions:
+    """Tests for DiffEngine with type-specific property exclusions."""
+
+    def test_engine_passes_type_specific_exclusions(self) -> None:
+        """Test that engine passes type-specific exclusions from settings repo to comparator."""
+        from freecad.diff_wb.domain import Property
+
+        old_node = TreeNode(
+            id=1,
+            name="Template",
+            type_id="TechDraw::DrawSVGTemplate",
+            label="Template",
+            path="Template",
+            after=None,
+            properties={
+                "Template": Property.from_freecad("old_data", {}, "Base"),
+                "Label": Property.from_freecad("MyTemplate", {}, "Base"),
+            },
+        )
+        new_node = TreeNode(
+            id=1,
+            name="Template",
+            type_id="TechDraw::DrawSVGTemplate",
+            label="MyTemplate",
+            path="Template",
+            after=None,
+            properties={
+                "Template": Property.from_freecad("new_data", {}, "Base"),
+                "Label": Property.from_freecad("MyTemplate", {}, "Base"),
+            },
+        )
+        old_snapshot = Snapshot(
+            snapshot_id=str(uuid.uuid4()),
+            document_name="old",
+            timestamp=datetime.datetime.now(),
+            nodes=[old_node],
+        )
+        new_snapshot = Snapshot(
+            snapshot_id=str(uuid.uuid4()),
+            document_name="new",
+            timestamp=datetime.datetime.now(),
+            nodes=[new_node],
+        )
+
+        class MockSettingsRepo:
+            def get_excluded_types(self):
+                return []
+
+            def get_excluded_properties(self):
+                return []
+
+            def get_excluded_properties_by_type(self):
+                return {"TechDraw::DrawSVGTemplate": ["Template"]}
+
+        engine = DiffEngine(settings_repo=MockSettingsRepo())
+        result = engine.compute_diff(old_snapshot, new_snapshot)
+
+        # Template property should be excluded for this type
+        assert result.has_changes is False
+        assert result.modified_count == 0
+
+    def test_engine_with_non_matching_type_includes_property(self) -> None:
+        """Test that engine does not apply type-specific exclusion for non-matching types."""
+        from freecad.diff_wb.domain import Property
+
+        old_node = TreeNode(
+            id=1,
+            name="Feature",
+            type_id="Part::Feature",
+            label="Feature",
+            path="Feature",
+            after=None,
+            properties={
+                "Template": Property.from_freecad("data", {}, "Base"),
+                "Label": Property.from_freecad("Feature", {}, "Base"),
+            },
+        )
+        new_node = TreeNode(
+            id=1,
+            name="Feature",
+            type_id="Part::Feature",
+            label="Feature",
+            path="Feature",
+            after=None,
+            properties={
+                "Template": Property.from_freecad("different_data", {}, "Base"),
+                "Label": Property.from_freecad("Feature", {}, "Base"),
+            },
+        )
+        old_snapshot = Snapshot(
+            snapshot_id=str(uuid.uuid4()),
+            document_name="old",
+            timestamp=datetime.datetime.now(),
+            nodes=[old_node],
+        )
+        new_snapshot = Snapshot(
+            snapshot_id=str(uuid.uuid4()),
+            document_name="new",
+            timestamp=datetime.datetime.now(),
+            nodes=[new_node],
+        )
+
+        class MockSettingsRepo:
+            def get_excluded_types(self):
+                return []
+
+            def get_excluded_properties(self):
+                return []
+
+            def get_excluded_properties_by_type(self):
+                return {"TechDraw::DrawSVGTemplate": ["Template"]}
+
+        engine = DiffEngine(settings_repo=MockSettingsRepo())
+        result = engine.compute_diff(old_snapshot, new_snapshot)
+
+        # Template property should NOT be excluded for Part::Feature
+        assert result.has_changes is True
+        assert result.modified_count == 1

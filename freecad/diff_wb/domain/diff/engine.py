@@ -10,7 +10,7 @@
 
 from typing import Protocol
 
-from ...config import EXCLUDED_PROPERTIES, EXCLUDED_TYPES
+from ...config import EXCLUDED_PROPERTIES, EXCLUDED_PROPERTIES_BY_TYPE, EXCLUDED_TYPES
 from ...utils import Log
 from ..settings import SettingsRepository
 from ..snapshots import Snapshot
@@ -27,6 +27,7 @@ class TreeComparatorProtocol(Protocol):
         new_snapshot: Snapshot,
         excluded_properties: list[str],
         excluded_types: list[str],
+        excluded_properties_by_type: dict[str, list[str]] | None = None,
     ) -> DiffResult: ...
 
 
@@ -81,6 +82,17 @@ class DiffEngine:
             return self._settings_repo.get_excluded_properties()
         return EXCLUDED_PROPERTIES
 
+    def _get_excluded_properties_by_type(self) -> dict[str, list[str]]:
+        """Get type-specific property exclusions.
+
+        Returns:
+            Dict mapping type IDs to lists of excluded property names,
+            using settings repo if available
+        """
+        if self._settings_repo is not None:
+            return self._settings_repo.get_excluded_properties_by_type()
+        return dict(EXCLUDED_PROPERTIES_BY_TYPE)
+
     # Excluded types filtering is handled in TreeComparator during diff building
 
     def compute_diff(self, old: Snapshot | None, new: Snapshot) -> DiffResult:
@@ -88,9 +100,9 @@ class DiffEngine:
 
         Steps:
         1. Handle None case (add WARNING_OLD_SNAPSHOT_MISSING warning)
-        2. Get settings (excluded types/properties)
+        2. Get settings (excluded types/properties/type-specific)
         3. Compare trees using TreeComparator (includes type filtering)
-        4. Apply property-level exclusions
+        4. Apply property-level exclusions (including type-specific)
         5. Return DiffResult
 
         Args:
@@ -115,9 +127,12 @@ class DiffEngine:
         # Step 1: Get settings
         excluded_node_types = self._get_excluded_node_types()
         excluded_properties = self._get_excluded_properties()
+        excluded_properties_by_type = self._get_excluded_properties_by_type()
 
         # Step 2: Compare trees using TreeComparator (filters excluded types internally)
-        result = self._tree_comparator.compare_snapshots(old, new, excluded_properties, excluded_node_types)
+        result = self._tree_comparator.compare_snapshots(
+            old, new, excluded_properties, excluded_node_types, excluded_properties_by_type
+        )
 
         # Add warning for missing old snapshot if applicable
         # Note: When old_was_none is True and old == new, we get "same snapshot" warning from __post_init__

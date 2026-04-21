@@ -19,10 +19,16 @@ from freecad.diff_wb.domain.tree.node import TreeNode
 class FakeSettingsRepository(SettingsRepository):
     """Fake settings repository for testing."""
 
-    def __init__(self, excluded_types: list[str] | None = None, excluded_properties: list[str] | None = None):
+    def __init__(
+        self,
+        excluded_types: list[str] | None = None,
+        excluded_properties: list[str] | None = None,
+        excluded_properties_by_type: dict[str, list[str]] | None = None,
+    ):
         """Initialize with custom exclusions."""
         self._excluded_types = excluded_types or []
         self._excluded_properties = excluded_properties or []
+        self._excluded_properties_by_type = excluded_properties_by_type or {}
 
     def get_excluded_types(self) -> list[str]:
         """Get excluded types."""
@@ -32,11 +38,16 @@ class FakeSettingsRepository(SettingsRepository):
         """Get excluded properties."""
         return self._excluded_properties.copy()
 
+    def get_excluded_properties_by_type(self) -> dict[str, list[str]]:
+        """Get type-specific excluded properties."""
+        return dict(self._excluded_properties_by_type)
+
     def get_settings(self) -> Settings:
         """Get settings."""
         return Settings(
             excluded_types=self._excluded_types.copy(),
             excluded_properties=self._excluded_properties.copy(),
+            excluded_properties_by_type=self.get_excluded_properties_by_type(),
         )
 
 
