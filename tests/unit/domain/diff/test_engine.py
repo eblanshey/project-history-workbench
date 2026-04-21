@@ -39,14 +39,14 @@ class TestPropertyDiff:
         new_val = Property.from_freecad(10.0, {}, "Base")
         diff = PropertyDiff(property_name="Length", old_value=None, new_value=new_val)
         assert diff.state == DiffState.ADDED
-        assert "+10.0" in str(diff)
+        assert "Length: ADDED" in str(diff)
 
     def test_deleted_property(self) -> None:
         """Test deleted property diff - state auto-calculated."""
         old_val = Property.from_freecad(5.0, {}, "Base")
         diff = PropertyDiff(property_name="Length", old_value=old_val, new_value=None)
         assert diff.state == DiffState.DELETED
-        assert "-5.0" in str(diff)
+        assert "Length: DELETED" in str(diff)
 
     def test_modified_property(self) -> None:
         """Test modified property diff - state auto-calculated."""
@@ -54,7 +54,7 @@ class TestPropertyDiff:
         new_val = Property.from_freecad(10.0, {}, "Base")
         diff = PropertyDiff(property_name="Length", old_value=old_val, new_value=new_val)
         assert diff.state == DiffState.MODIFIED
-        assert "5.0 -> 10.0" in str(diff)
+        assert "Length: MODIFIED" in str(diff)
 
     def test_unchanged_property(self) -> None:
         """Test unchanged property diff - state auto-calculated."""
@@ -67,11 +67,11 @@ class TestPropertyDiff:
     # =====================================================================
 
     def test_expression_only_change_detected(self) -> None:
-        """Test that expression-only change shows as UNCHANGED (expression tracked separately)."""
+        """Test that expression-only change shows as MODIFIED."""
         old_val = Property.from_freecad(10.0, {}, "Base")
         new_val = Property.from_freecad(10.0, {".": "Sketch001.X"}, "Base")
         diff = PropertyDiff(property_name="Length", old_value=old_val, new_value=new_val)
-        assert diff.state == DiffState.UNCHANGED  # Value unchanged, expression tracked separately
+        assert diff.state == DiffState.MODIFIED  # Expression change makes property modified
 
     def test_value_only_change_detected(self) -> None:
         """Test that value-only change is detected as modified."""
@@ -79,10 +79,7 @@ class TestPropertyDiff:
         new_val = Property.from_freecad(20, {".": "Sketch001.Count"}, "Base")
         diff = PropertyDiff(property_name="Count", old_value=old_val, new_value=new_val)
         assert diff.state == DiffState.MODIFIED
-        # String format: "Count: 10 (via Sketch001.Count) -> 20 (via Sketch001.Count)"
-        assert "Count:" in str(diff)
-        assert "10" in str(diff)
-        assert "20" in str(diff)
+        assert "Count: MODIFIED" in str(diff)
 
     def test_both_expression_and_value_change(self) -> None:
         """Test that both expression and value change is detected."""
@@ -90,30 +87,28 @@ class TestPropertyDiff:
         new_val = Property.from_freecad(15.0, {".": "Sketch002.Y"}, "Base")
         diff = PropertyDiff(property_name="Dimension", old_value=old_val, new_value=new_val)
         assert diff.state == DiffState.MODIFIED
-        assert "Dimension:" in str(diff)
-        assert "5.0" in str(diff)
-        assert "15.0" in str(diff)
+        assert "Dimension: MODIFIED" in str(diff)
 
     def test_expression_changed_to_none(self) -> None:
-        """Test that removing expression with same value shows UNCHANGED."""
+        """Test that removing expression with same value shows MODIFIED."""
         old_val = Property.from_freecad("test", {".": "Doc.Name"}, "Base")
         new_val = Property.from_freecad("test", {}, "Base")
         diff = PropertyDiff(property_name="Name", old_value=old_val, new_value=new_val)
-        assert diff.state == DiffState.UNCHANGED  # Value unchanged, expression tracked separately
+        assert diff.state == DiffState.MODIFIED  # Expression change makes property modified
 
     def test_expression_added_from_none(self) -> None:
-        """Test that adding expression with same value shows UNCHANGED."""
+        """Test that adding expression with same value shows MODIFIED."""
         old_val = Property.from_freecad(42, {}, "Base")
         new_val = Property.from_freecad(42, {".": "Some.Expr"}, "Base")
         diff = PropertyDiff(property_name="Value", old_value=old_val, new_value=new_val)
-        assert diff.state == DiffState.UNCHANGED  # Value unchanged, expression tracked separately
+        assert diff.state == DiffState.MODIFIED  # Expression change makes property modified
 
     def test_different_expressions_same_value(self) -> None:
-        """Test different expressions with same value shows UNCHANGED."""
+        """Test different expressions with same value shows MODIFIED."""
         old_val = Property.from_freecad((1.0, 2.0, 3.0), {".": "Sketch001.X"}, "Base")
         new_val = Property.from_freecad((1.0, 2.0, 3.0), {".": "Sketch002.X"}, "Base")
         diff = PropertyDiff(property_name="Position", old_value=old_val, new_value=new_val)
-        assert diff.state == DiffState.UNCHANGED  # Value unchanged, expression tracked separately
+        assert diff.state == DiffState.MODIFIED  # Expression change makes property modified
 
 
 class TestNodeDiff:

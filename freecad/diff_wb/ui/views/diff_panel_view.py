@@ -789,6 +789,9 @@ class DiffPanelView(QWidget):
             # Expand groups by default so properties are visible
             group_item.setExpanded(True)
 
+        # Apply expansion state to all items now that the tree is fully built
+        self._apply_expansion_state(self.properties_tree)
+
     def show_repository(self, repo: GitRepository | None) -> None:
         """Display git repository info above snapshot list.
 
@@ -840,13 +843,29 @@ class DiffPanelView(QWidget):
         item.setFont(2, font)
         return item
 
-    def _create_property_tree_item(self, prop: PropertyPresentation) -> QTreeWidgetItem:
-        """Create a property tree item with diff coloring and expandability.
+    def _presentation_has_changes(self, prop: PropertyPresentation) -> bool:
+        """Check if a property or any descendant has non-UNCHANGED state.
 
-        For expandable properties, children are compared between old_value and new_value
-        to determine their individual state (MODIFIED/ADDED/DELETED/UNCHANGED).
-        Only changed children receive background coloring; unchanged children use default.
-        If any child has changes, the parent row is colored blue (MODIFIED).
+        Used to determine whether a tree item should be auto-expanded.
+        The presenter already computes derived state for parent nodes,
+        so this simply recurses through the tree.
+
+        Args:
+            prop: The PropertyPresentation to check.
+
+        Returns:
+            True if this node or any descendant has a non-UNCHANGED state.
+        """
+        if prop.state != DiffState.UNCHANGED:
+            return True
+        return any(self._presentation_has_changes(c) for c in prop.children)
+
+    def _create_property_tree_item(self, prop: PropertyPresentation) -> QTreeWidgetItem:
+        """Create a property tree item with diff coloring and conditional expansion.
+
+        Children are pre-computed by the presenter. Expansion intent is stored
+        on the item and applied after the tree is fully built. Row coloring
+        comes from PropertyPresentation.state.
 
         Args:
             prop: The PropertyPresentation to display.
@@ -865,18 +884,14 @@ class DiffPanelView(QWidget):
         # Enable editing on double-click to allow text selection for copying
         item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
 
+        # Store expansion intent (will be applied after tree is built)
+        item.setData(0, Qt.ItemDataRole.UserRole + 1, self._presentation_has_changes(prop))
+
         # Use pre-computed children from domain instead of computing diffs
-        has_changed_children = self._add_child_items(item, prop.children)
+        self._add_child_items(item, prop.children)
 
-        # Always expand property items so their content is visible
-        item.setExpanded(True)
-
-        # If any child has MODIFIED/ADDED/DELETED state, color the parent row blue
-        if has_changed_children:
-            self._apply_background_to_all_columns(item, self.MODIFIED_COLOR)
-        else:
-            # Apply original diff coloring to all 3 columns
-            self._apply_background_to_all_columns(item, bg_color)
+        # Apply the state-derived background color to all 3 columns
+        self._apply_background_to_all_columns(item, bg_color)
 
         return item
 
@@ -886,6 +901,10 @@ class DiffPanelView(QWidget):
         prop: PropertyPresentation,
     ) -> tuple[QColor, str, str]:
         """Get background color and display values based on property state.
+
+        For UNCHANGED state, the same value is shown in both columns for
+        quick comparison consistency. For ADDED/DELETED/MODIFIED, values
+        are shown in the appropriate column.
 
         Args:
             state: The property state (DiffState enum).
@@ -902,7 +921,7 @@ class DiffPanelView(QWidget):
             old_str = str(prop.old_value) if prop.old_value is not None else ""
             new_str = str(prop.new_value) if prop.new_value is not None else ""
             return self.MODIFIED_COLOR, old_str, new_str
-        # UNCHANGED
+        # UNCHANGED - show same value in both columns
         new_str = str(prop.new_value) if prop.new_value is not None else ""
         return self.UNCHANGED_COLOR, new_str, new_str
 
@@ -910,23 +929,17 @@ class DiffPanelView(QWidget):
         self,
         parent_item: QTreeWidgetItem,
         children: list[PropertyPresentation],
-    ) -> bool:
+    ) -> None:
         """Add pre-computed child items to the tree.
+
+        Expansion intent is stored on each child item and applied after
+        the tree is fully built in show_properties.
 
         Args:
             parent_item: The parent QTreeWidgetItem to add children to.
             children: Pre-computed PropertyPresentation children from domain.
-
-        Returns:
-            True if any child has MODIFIED/ADDED/DELETED state, False otherwise.
         """
-        has_changed_children = False
-
         for child in children:
-            # Determine if this child has changes
-            if child.state in (DiffState.MODIFIED, DiffState.ADDED, DiffState.DELETED):
-                has_changed_children = True
-
             # Get display values based on state
             left_value, right_value = self._get_child_display_values(child)
 
@@ -936,21 +949,23 @@ class DiffPanelView(QWidget):
             # Enable editing on double-click to allow text selection for copying
             child_item.setFlags(child_item.flags() | Qt.ItemFlag.ItemIsEditable)
 
+            # Store expansion intent (will be applied after tree is built)
+            child_item.setData(0, Qt.ItemDataRole.UserRole + 1, self._presentation_has_changes(child))
+
             # Apply background color based on state
             self._apply_child_background_by_state(child_item, child.state)
 
             # Recursively add grandchildren (pre-computed, no diffing needed)
-            if child.children:
-                grandchild_has_changes = self._add_child_items(child_item, child.children)
-                if grandchild_has_changes:
-                    has_changed_children = True
+            self._add_child_items(child_item, child.children)
 
             parent_item.addChild(child_item)
 
-        return has_changed_children
-
     def _get_child_display_values(self, child: PropertyPresentation) -> tuple[str, str]:
         """Get display values for a child based on its state.
+
+        Intentionally show the same value in both columns for UNCHANGED rows.
+        This matches existing 3-column diff behavior where unchanged values are mirrored
+        left/right for quick comparison consistency.
 
         Args:
             child: The PropertyPresentation child.
@@ -958,21 +973,15 @@ class DiffPanelView(QWidget):
         Returns:
             Tuple of (left_value, right_value) for display.
         """
-        old_val = child.old_value
-        new_val = child.new_value
-
-        # Format display values based on state
+        old_val = str(child.old_value) if child.old_value is not None else ""
+        new_val = str(child.new_value) if child.new_value is not None else ""
         if child.state == DiffState.ADDED:
-            return ("", str(new_val) if new_val is not None else child.name)
+            return "", new_val
         if child.state == DiffState.DELETED:
-            return (str(old_val) if old_val is not None else child.name, "")
+            return old_val, ""
         if child.state == DiffState.MODIFIED:
-            left = str(old_val) if old_val is not None else ""
-            right = str(new_val) if new_val is not None else ""
-            return (left, right)
-        # UNCHANGED
-        value = str(new_val) if new_val is not None else ""
-        return (value, value)
+            return old_val, new_val
+        return new_val, new_val
 
     def _apply_child_background_by_state(self, child_item: QTreeWidgetItem, state: DiffState) -> None:
         """Apply background color to a child item based on its state.
@@ -999,3 +1008,27 @@ class DiffPanelView(QWidget):
         item.setBackground(0, QBrush(color))
         item.setBackground(1, QBrush(color))
         item.setBackground(2, QBrush(color))
+
+    def _apply_expansion_state(self, tree: QTreeWidget) -> None:
+        """Apply stored expansion state to all items in the tree.
+
+        This is called after the tree is fully built because QTreeWidgetItem.setExpanded()
+        only works on items that are already part of a visible tree widget.
+
+        Args:
+            tree: The QTreeWidget whose items should have expansion applied.
+        """
+        for i in range(tree.topLevelItemCount()):
+            self._apply_expansion_recursive(tree.topLevelItem(i))
+
+    def _apply_expansion_recursive(self, item: QTreeWidgetItem) -> None:
+        """Recursively apply expansion state to an item and its children.
+
+        Args:
+            item: The QTreeWidgetItem to apply expansion to.
+        """
+        expand = item.data(0, Qt.ItemDataRole.UserRole + 1)
+        if expand:
+            item.setExpanded(True)
+        for i in range(item.childCount()):
+            self._apply_expansion_recursive(item.child(i))

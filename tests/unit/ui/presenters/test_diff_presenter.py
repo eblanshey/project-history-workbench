@@ -482,8 +482,8 @@ class TestTransformPropertyDiffsWithChildren:
         # Children should be populated from domain PropertyDiff (indexed list items)
         assert len(prop_presentation.children) > 0
 
-    def test_transform_children_recursive(self) -> None:
-        """Test that children are transformed recursively."""
+    def test_list_items_appear_as_nested_children(self) -> None:
+        """Test that list items appear as nested children with indexed names."""
         # Arrange
         fake_view, presenter = _create_test_presenter()
 
@@ -531,7 +531,7 @@ class TestTransformPropertyDiffsWithChildren:
         # Should have children (indexed list items)
         assert len(position_pres.children) > 0
         child_names = {child.name for child in position_pres.children}
-        assert "0" in child_names or "1" in child_names or "2" in child_names
+        assert "[0]" in child_names or "[1]" in child_names or "[2]" in child_names
 
     def test_transform_children_preserves_parent_values(self) -> None:
         """Test that parent old_value and new_value are preserved alongside children."""

@@ -77,18 +77,18 @@ The current diff/presenter/view stack still depends heavily on those removed API
 
 #### Tests first
 
-- [ ] Add `tests/unit/domain/diff/test_property_path_diffs.py`:
-  - [ ] path flattening for `PrimitiveData`, `QuantityData`, `VectorData`, `RotationData`, `PlacementData`, `ListData`, `UnknownData`
-  - [ ] flattening preserves root path `"."` (no empty-root fallback)
-  - [ ] list flattening emits keys like `.`, `[0]`, `[0].Value`, `[1].Type`
-  - [ ] all paths included (unchanged included)
-  - [ ] float tolerance for path value equality
-  - [ ] expression state computed independently of value state
+- [x] Add `tests/unit/domain/diff/test_property_path_diffs.py`:
+  - [x] path flattening for `PrimitiveData`, `QuantityData`, `VectorData`, `RotationData`, `PlacementData`, `ListData`, `UnknownData`
+  - [x] flattening preserves root path `"."` (no empty-root fallback)
+  - [x] list flattening emits keys like `.`, `[0]`, `[0].Value`, `[1].Type`
+  - [x] all paths included (unchanged included)
+  - [x] float tolerance for path value equality
+  - [x] expression state computed independently of value state
 
 #### Implement
 
-- [ ] Add/extend path-flatten helpers in `domain/diff/models.py` (or private helper module under `domain/diff/` if preferred for SRP).
-- [ ] Introduce `PropertyPathDiff` and use it inside `PropertyDiff`.
+- [x] Add/extend path-flatten helpers in `domain/diff/models.py` (or private helper module under `domain/diff/` if preferred for SRP).
+- [x] Introduce `PropertyPathDiff` and use it inside `PropertyDiff`.
 
 Code snippet:
 
@@ -197,19 +197,19 @@ def _join_path(prefix: str, rel: str) -> str:
 
 #### Tests first
 
-- [ ] Update/add tests in `tests/unit/domain/diff/test_models.py`:
-  - [ ] `PropertyDiff.path_diffs` contains all paths (unchanged included)
-  - [ ] parent `PropertyDiff.state` becomes MODIFIED when any descendant path value changes
-  - [ ] parent `PropertyDiff.state` becomes MODIFIED when only expression changes
-  - [ ] ADDED property => all path diffs ADDED
-  - [ ] DELETED property => all path diffs DELETED
-  - [ ] remove legacy expectations tied to `get_children()`
+- [x] Update/add tests in `tests/unit/domain/diff/test_models.py`:
+  - [x] `PropertyDiff.path_diffs` contains all paths (unchanged included)
+  - [x] parent `PropertyDiff.state` becomes MODIFIED when any descendant path value changes
+  - [x] parent `PropertyDiff.state` becomes MODIFIED when only expression changes
+  - [x] ADDED property => all path diffs ADDED
+  - [x] DELETED property => all path diffs DELETED
+  - [x] remove legacy expectations tied to `get_children()`
 
 #### Implement
 
-- [ ] Refactor `PropertyDiff` to compute `path_diffs` from flattened path maps.
-- [ ] Remove legacy child-generation and unknown-object reflection logic.
-- [ ] Keep `NodeDiff` state calculation based on property state and child node state.
+- [x] Refactor `PropertyDiff` to compute `path_diffs` from flattened path maps.
+- [x] Remove legacy child-generation and unknown-object reflection logic.
+- [x] Keep `NodeDiff` state calculation based on property state and child node state.
 
 Code snippet:
 
@@ -285,16 +285,16 @@ def _split_path_for_sort(path: str) -> list[tuple[int, str | int]]:
 
 #### Tests first
 
-- [ ] Update `tests/unit/domain/diff/test_comparator.py`:
-  - [ ] migrate fixtures from `Property.create(...)` to DataPath-backed `Property(...)`
-  - [ ] verify unchanged paths are still emitted in `path_diffs`
-  - [ ] verify property exclusion still works
-  - [ ] verify ordering stability for path keys with indices (`[2]` before `[10]`)
+- [x] Update `tests/unit/domain/diff/test_comparator.py`:
+  - [x] migrate fixtures from `Property.create(...)` to DataPath-backed `Property(...)`
+  - [x] verify unchanged paths are still emitted in `path_diffs`
+  - [x] verify property exclusion still works
+  - [x] verify ordering stability for path keys with indices (`[2]` before `[10]`)
 
 #### Implement
 
-- [ ] Keep `PropertyComparator.compare_properties()` contract stable, but now relies on `PropertyDiff.path_diffs` for semantics.
-- [ ] Remove dead comparator branches that depended on `PropertyType`.
+- [x] Keep `PropertyComparator.compare_properties()` contract stable, but now relies on `PropertyDiff.path_diffs` for semantics.
+- [x] Remove dead comparator branches that depended on `PropertyType`.
 
 Code snippet:
 
@@ -329,28 +329,28 @@ class PropertyComparator:
 
 #### Tests first
 
-- [ ] Update/add tests in `tests/unit/ui/presenters/test_diff_presenter_properties.py`:
-  - [ ] all path rows present, including unchanged
-  - [ ] expression row nested under path row (`Expression`)
-  - [ ] nested structure for dotted paths (`Base.x` -> `Base`/`x`)
-  - [ ] nested structure for indexed paths (`[0].Value` -> `[0]`/`Value`)
-  - [ ] nested structure for mixed named/indexed paths (`Constraints[0].Value` -> `Constraints`/`[0]`/`Value`)
-  - [ ] if any descendant changes, parent segment state becomes MODIFIED
-  - [ ] added property marks all descendants ADDED
-  - [ ] root `"."` row values are shown on the property top row when present
-  - [ ] when root `"."` value is missing and descendants exist, top row value is derived from descendant values in bracketed form
-  - [ ] presenter output ordering is deterministic (same path sort for all levels)
+- [x] Update/add tests in `tests/unit/ui/presenters/test_diff_presenter_properties.py`:
+  - [x] all path rows present, including unchanged
+  - [x] expression row nested under path row (`Expression`)
+  - [x] nested structure for dotted paths (`Base.x` -> `Base`/`x`)
+  - [x] nested structure for indexed paths (`[0].Value` -> `[0]`/`Value`)
+  - [x] nested structure for mixed named/indexed paths (`Constraints[0].Value` -> `Constraints`/`[0]`/`Value`)
+  - [x] if any descendant changes, parent segment state becomes MODIFIED
+  - [x] added property marks all descendants ADDED
+  - [x] root `"."` row values are shown on the property top row when present
+  - [x] when root `"."` value is missing and descendants exist, top row value is derived from descendant values in bracketed form
+  - [x] presenter output ordering is deterministic (same path sort for all levels)
 
 #### Implement
 
-- [ ] Refactor `_transform_property_diffs()` to consume `prop_diff.path_diffs`.
-- [ ] Create private presenter helpers to build path tree and aggregate synthetic node state.
-- [ ] Expression rows use `name="Expression"` and are nested under the path row they belong to.
-- [ ] Update presenter flow so `build_tree_from_path_diffs(...)` is called from `_transform_property_diffs()` and then converted via existing `PropertyPresentation` constructors.
-- [ ] Ensure top-level property row maps to path `"."` value when present; otherwise derive old/new summary values from children using FreeCAD-style bracketed string.
-- [ ] Ensure mixed-segment paths are tokenized into separate name/index segments (e.g. `Constraints[12].Value` -> `Constraints`, `[12]`, `Value`).
-- [ ] Convert path tree to `PropertyPresentation` with canonical ordering at every level via a single sort key helper.
-- [ ] Remove/replace legacy presenter branches that depended on `get_children()`-derived property child nodes; presenter input is now `prop_diff.path_diffs`.
+- [x] Refactor `_transform_property_diffs()` to consume `prop_diff.path_diffs`.
+- [x] Create private presenter helpers to build path tree and aggregate synthetic node state.
+- [x] Expression rows use `name="Expression"` and are nested under the path row they belong to.
+- [x] Update presenter flow so `build_tree_from_path_diffs(...)` is called from `_transform_property_diffs()` and then converted via existing `PropertyPresentation` constructors.
+- [x] Ensure top-level property row maps to path `"."` value when present; otherwise derive old/new summary values from children using FreeCAD-style bracketed string.
+- [x] Ensure mixed-segment paths are tokenized into separate name/index segments (e.g. `Constraints[12].Value` -> `Constraints`, `[12]`, `Value`).
+- [x] Convert path tree to `PropertyPresentation` with canonical ordering at every level via a single sort key helper.
+- [x] Remove/replace legacy presenter branches that depended on `get_children()`-derived property child nodes; presenter input is now `prop_diff.path_diffs`.
 
 Code snippet:
 
@@ -540,28 +540,28 @@ PropertyPresentation(
 
 #### Tests first
 
-- [ ] Update/add `tests/unit/ui/views/test_show_properties.py`:
-  - [ ] nested rendering for `Placement -> Base -> x -> Expression`
-  - [ ] changed branches auto-expanded
-  - [ ] unchanged branches collapsed
-  - [ ] added property: all nested rows green
-  - [ ] parent rows reflect derived changed state from presenter
-  - [ ] container rows render bracketed summary values when presenter provides derived summary
-  - [ ] value columns never fall back to property name for container rows without scalar values
-  - [ ] branch/item ordering is stable for indexed segments (`[2]` before `[10]`)
+- [x] Update/add `tests/unit/ui/views/test_show_properties.py`:
+  - [x] nested rendering for `Placement -> Base -> x -> Expression`
+  - [x] changed branches auto-expanded
+  - [x] unchanged branches collapsed
+  - [x] added property: all nested rows green
+  - [x] parent rows reflect derived changed state from presenter
+  - [x] container rows render bracketed summary values when presenter provides derived summary
+  - [x] value columns never fall back to property name for container rows without scalar values
+  - [x] branch/item ordering is stable for indexed segments (`[2]` before `[10]`)
 
 #### Implement
 
-- [ ] Keep recursive rendering path in `_add_child_items()`.
-- [ ] Stop forcing every row expanded.
-- [ ] Update `_show_properties(...)` / property-tree population call sites to rely on presenter-provided nested `PropertyPresentation.children` (no ad-hoc child synthesis in view).
-- [ ] Expansion logic:
+- [x] Keep recursive rendering path in `_add_child_items()`.
+- [x] Stop forcing every row expanded.
+- [x] Update `_show_properties(...)` / property-tree population call sites to rely on presenter-provided nested `PropertyPresentation.children` (no ad-hoc child synthesis in view).
+- [x] Expansion logic:
   - expanded if node or any descendant has non-UNCHANGED state
   - collapsed otherwise
-- [ ] Keep row color derived from `PropertyPresentation.state` (do not override to blue only due child existence).
-- [ ] Confirm `_create_property_tree_item()` and `_add_child_items()` both use the same expansion predicate to avoid inconsistent branch state.
-- [ ] Remove child-value fallback that injects `child.name` into value columns for ADDED/DELETED rows without scalar values.
-- [ ] Render presenter-provided container summary values exactly (including bracketed format), with expansion revealing per-child values.
+- [x] Keep row color derived from `PropertyPresentation.state` (do not override to blue only due child existence).
+- [x] Confirm `_create_property_tree_item()` and `_add_child_items()` both use the same expansion predicate to avoid inconsistent branch state.
+- [x] Remove child-value fallback that injects `child.name` into value columns for ADDED/DELETED rows without scalar values.
+- [x] Render presenter-provided container summary values exactly (including bracketed format), with expansion revealing per-child values.
 
 Code snippet:
 
@@ -622,23 +622,23 @@ def _get_child_display_values(self, child: PropertyPresentation) -> tuple[str, s
 
 #### Tests first
 
-- [ ] Update focused tests only (avoid duplicating equivalent coverage):
+- [x] Update focused tests only (avoid duplicating equivalent coverage):
   - `tests/unit/domain/diff/test_models.py`
   - `tests/unit/domain/diff/test_comparator.py`
   - `tests/unit/ui/presenters/test_diff_presenter_properties.py`
   - `tests/unit/ui/presenters/test_diff_presenter.py` (legacy child/ordering/expression expectations)
   - `tests/unit/ui/views/test_show_properties.py`
-- [ ] Convert repetitive state variants to `pytest.mark.parametrize` where possible.
+- [x] Convert repetitive state variants to `pytest.mark.parametrize` where possible.
 
 #### Implement
 
-- [ ] Remove tests and helpers that validate deleted legacy behavior:
+- [x] Remove tests and helpers that validate deleted legacy behavior:
   - direct `PropertyType` branching
   - `get_children()`-driven property child diffs
   - flat `-> Expression` rows
   - path tokenization assumptions that keep `Constraints[0]` as a single non-hierarchical segment
   - value-column fallback to child/property name when no scalar value exists
-- [ ] Keep only long-term behavioral tests for:
+- [x] Keep only long-term behavioral tests for:
   - nested paths,
   - deterministic path/segment ordering,
   - expression nesting,

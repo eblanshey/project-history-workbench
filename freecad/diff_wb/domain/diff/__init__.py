@@ -12,6 +12,7 @@ from .models import (
     DiffState,
     NodeDiff,
     PropertyDiff,
+    PropertyPathDiff,
 )
 
 
@@ -20,6 +21,7 @@ __all__ = [
     "DiffHierarchy",
     "NodeDiff",
     "PropertyDiff",
+    "PropertyPathDiff",
     "DiffState",
     "DiffEngine",
     "TreeComparator",

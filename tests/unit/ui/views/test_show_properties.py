@@ -8,6 +8,7 @@ tree widget with PropertyPresentation data, including:
 """
 
 import pytest
+from PySide6.QtGui import QColor
 
 from freecad.diff_wb.domain.diff.models import DiffState
 
@@ -176,63 +177,48 @@ class TestDiffPanelViewShowPropertiesTree:
         assert prop_item.background(1).color() == QColor(200, 200, 255)
         assert prop_item.background(2).color() == QColor(200, 200, 255)
 
-    def test_multiple_properties_with_different_states(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() correctly handles multiple properties with different states in 3-column layout."""
-        from PySide6.QtGui import QColor
-
+    @pytest.mark.parametrize(
+        ("state,old_val,new_val,col1,col2,expected_bg"),
+        [
+            (DiffState.ADDED, None, "25.0", "", "25.0", QColor(200, 255, 200)),
+            (DiffState.DELETED, "15.0", None, "15.0", "", QColor(255, 200, 200)),
+            (DiffState.MODIFIED, "10.0", "20.0", "10.0", "20.0", QColor(200, 200, 255)),
+        ],
+    )
+    def test_state_variant_colors_and_columns(
+        self,
+        panel,
+        state,
+        old_val,
+        new_val,
+        col1,
+        col2,
+        expected_bg,  # type: ignore[no-untyped-def]
+    ) -> None:
+        """Parametrized test for ADDED/DELETED/MODIFIED state coloring and column values."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
-        # Given: Properties with ADDED, DELETED, and MODIFIED states
         properties = [
             PropertyPresentation(
-                name="AddedProp",
-                old_value=None,
-                new_value="100.0",
-                state=DiffState.ADDED,
-            ),
-            PropertyPresentation(
-                name="DeletedProp",
-                old_value="50.0",
-                new_value=None,
-                state=DiffState.DELETED,
-            ),
-            PropertyPresentation(
-                name="ModifiedProp",
-                old_value="10.0",
-                new_value="20.0",
-                state=DiffState.MODIFIED,
+                name="TestProp",
+                old_value=old_val,
+                new_value=new_val,
+                state=state,
             ),
         ]
 
         # When: Call show_properties
         panel.show_properties(properties)
 
-        # Then: Should have 1 group with 3 property children
-        assert panel.properties_tree.topLevelItemCount() == 1
+        # Then: Verify column values and background color
         group_item = panel.properties_tree.topLevelItem(0)
-        assert group_item.childCount() == 3
-
-        # Verify each property (names are CamelCase converted to spaced names)
-        # Check first property (Added Prop) - green, empty left column, value in right
-        prop0 = group_item.child(0)
-        assert prop0.text(0) == "Added Prop"
-        assert prop0.text(1) == ""  # Empty for ADDED
-        assert prop0.text(2) == "100.0"  # New value in right
-        assert prop0.background(0).color() == QColor(200, 255, 200)
-
-        # Check second property (Deleted Prop) - red, value in left column, empty right
-        prop1 = group_item.child(1)
-        assert prop1.text(0) == "Deleted Prop"
-        assert prop1.text(1) == "50.0"  # Old value in left
-        assert prop1.text(2) == ""  # Empty for DELETED
-        assert prop1.background(0).color() == QColor(255, 200, 200)
-
-        # Check third property (Modified Prop) - blue, both columns populated
-        prop2 = group_item.child(2)
-        assert prop2.text(0) == "Modified Prop"
-        assert prop2.text(1) == "10.0"  # Old value in left
-        assert prop2.text(2) == "20.0"  # New value in right
-        assert prop2.background(0).color() == QColor(200, 200, 255)
+        prop_item = group_item.child(0)
+        assert prop_item is not None
+        assert prop_item.text(1) == col1
+        assert prop_item.text(2) == col2
+        assert prop_item.background(0).color() == expected_bg
+        assert prop_item.background(1).color() == expected_bg
+        assert prop_item.background(2).color() == expected_bg
 
     def test_property_with_unchanged_state_gray_background(self, panel) -> None:  # type: ignore[no-untyped-def]
         """show_properties() includes all properties with UNCHANGED state shown with gray background in 3-column layout."""
@@ -285,6 +271,42 @@ class TestDiffPanelViewShowPropertiesTree:
         assert bg_color.red() == 240
         assert bg_color.green() == 240
         assert bg_color.blue() == 240
+
+    @pytest.mark.parametrize(
+        ("state,expected_bg"),
+        [
+            (DiffState.ADDED, QColor(200, 255, 200)),
+            (DiffState.DELETED, QColor(255, 200, 200)),
+            (DiffState.MODIFIED, QColor(200, 200, 255)),
+            (DiffState.UNCHANGED, QColor(240, 240, 240)),
+        ],
+    )
+    def test_all_state_variant_background_colors(
+        self,
+        panel,
+        state,
+        expected_bg,  # type: ignore[no-untyped-def]
+    ) -> None:
+        """Parametrized test verifying background color for each DiffState variant."""
+        from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
+
+        properties = [
+            PropertyPresentation(
+                name="ColorTest",
+                old_value="10.0",
+                new_value="20.0" if state != DiffState.UNCHANGED else "10.0",
+                state=state,
+            ),
+        ]
+
+        panel.show_properties(properties)
+
+        group_item = panel.properties_tree.topLevelItem(0)
+        prop_item = group_item.child(0)
+        assert prop_item is not None
+        assert prop_item.background(0).color() == expected_bg
+        assert prop_item.background(1).color() == expected_bg
+        assert prop_item.background(2).color() == expected_bg
 
     def test_empty_list_initially_shows_no_items(self, panel) -> None:  # type: ignore[no-untyped-def]
         """show_properties() with empty list shows no items initially."""
@@ -1054,13 +1076,14 @@ class TestDiffPanelViewExpandablePropertyChildDiffs:
         assert z_child.background(1).color() == QColor(255, 200, 200)
         assert z_child.background(2).color() == QColor(255, 200, 200)
 
-    def test_parent_row_colored_blue_when_any_child_changed(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """Parent row is colored blue (MODIFIED) when any child has MODIFIED/ADDED/DELETED state."""
+    def test_parent_row_reflects_presenter_state(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Parent row color comes from PropertyPresentation.state, not overridden by children."""
         from PySide6.QtGui import QColor
 
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         # Given: Pre-computed children where z is MODIFIED (from domain)
+        # The presenter derives parent state as MODIFIED when any descendant changes
         children = [
             PropertyPresentation(name="x", state=DiffState.UNCHANGED, old_value=10.0, new_value=10.0),
             PropertyPresentation(name="y", state=DiffState.UNCHANGED, old_value=20.0, new_value=20.0),
@@ -1070,7 +1093,7 @@ class TestDiffPanelViewExpandablePropertyChildDiffs:
         properties = [
             PropertyPresentation(
                 name="Position",
-                state=DiffState.UNCHANGED,  # Parent state is UNCHANGED but has changed children
+                state=DiffState.MODIFIED,  # Presenter derives MODIFIED from changed descendant
                 old_value="Vector(10.0, 20.0, 30.0)",
                 new_value="Vector(10.0, 20.0, 35.0)",
                 children=children,
@@ -1080,12 +1103,12 @@ class TestDiffPanelViewExpandablePropertyChildDiffs:
         # When: Call show_properties
         panel.show_properties(properties)
 
-        # Then: Parent row should be blue because it has a changed child
+        # Then: Parent row should be blue (MODIFIED) matching its state
         group_item = panel.properties_tree.topLevelItem(0)
         prop_item = group_item.child(0)
         assert prop_item is not None
 
-        # Parent should be blue regardless of its own state because it has changed children
+        # Parent color matches its own state (MODIFIED -> blue)
         assert prop_item.background(0).color() == QColor(200, 200, 255)
         assert prop_item.background(1).color() == QColor(200, 200, 255)
         assert prop_item.background(2).color() == QColor(200, 200, 255)
@@ -1192,258 +1215,342 @@ class TestDiffPanelViewExpandablePropertyChildDiffs:
         assert child_2.text(2) == "3"
 
 
-class TestDiffPanelViewExpressionRows:
-    """Tests for expression row display in 3-column layout (Phase 5)."""
+class TestDiffPanelViewNestedSubPathRendering:
+    """Tests for nested sub-path rendering and expansion rules (Phase 5)."""
 
-    def test_expression_row_appears_as_separate_property_row(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """Expression rows appear as separate property rows below their parent in 3-column layout."""
+    def test_nested_placement_base_x_expression_tree(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Nested rendering for Placement -> Base -> x -> Expression chain."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
-        # Given: A property with an expression change
+        # Given: Deeply nested Placement property with expression change
+        expression_child = PropertyPresentation(
+            name="Expression",
+            state=DiffState.ADDED,
+            old_value=None,
+            new_value="Sketch.Constraints[0]",
+        )
+        x_child = PropertyPresentation(
+            name="x",
+            state=DiffState.MODIFIED,
+            old_value=0.0,
+            new_value=5.0,
+            children=[expression_child],
+        )
+        base_children = [
+            x_child,
+            PropertyPresentation(name="y", state=DiffState.UNCHANGED, old_value=0.0, new_value=0.0),
+            PropertyPresentation(name="z", state=DiffState.UNCHANGED, old_value=0.0, new_value=0.0),
+        ]
+        base_parent = PropertyPresentation(
+            name="Base",
+            state=DiffState.MODIFIED,
+            children=base_children,
+        )
+        placement = PropertyPresentation(
+            name="Placement",
+            state=DiffState.MODIFIED,
+            children=[base_parent],
+        )
+
+        properties = [placement]
+
+        # When: Call show_properties
+        panel.show_properties(properties)
+
+        # Then: Full nested tree exists
+        group_item = panel.properties_tree.topLevelItem(0)
+        prop_item = group_item.child(0)
+        assert prop_item.text(0) == "Placement"
+        assert prop_item.childCount() == 1
+
+        # Base is a child of Placement
+        base_item = prop_item.child(0)
+        assert base_item.text(0) == "Base"
+        assert base_item.childCount() == 3
+
+        # x is a child of Base
+        x_item = base_item.child(0)
+        assert x_item.text(0) == "x"
+        assert x_item.childCount() == 1
+
+        # Expression is a child of x
+        expr_item = x_item.child(0)
+        assert expr_item.text(0) == "Expression"
+        assert expr_item.text(1) == ""  # ADDED: empty old value
+        assert expr_item.text(2) == "Sketch.Constraints[0]"
+
+    def test_changed_branches_auto_expand(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Changed branches auto-expand when any descendant has non-UNCHANGED state."""
+        from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
+
+        # Given: Nested structure where inner node is MODIFIED
+        x_child = PropertyPresentation(name="x", state=DiffState.MODIFIED, old_value=1.0, new_value=2.0)
+        base_parent = PropertyPresentation(
+            name="Base",
+            state=DiffState.MODIFIED,
+            children=[x_child],
+        )
+        placement = PropertyPresentation(
+            name="Placement",
+            state=DiffState.MODIFIED,
+            children=[base_parent],
+        )
+
+        properties = [placement]
+
+        # When: Call show_properties
+        panel.show_properties(properties)
+
+        # Then: All nodes in the changed branch are expanded
+        group_item = panel.properties_tree.topLevelItem(0)
+        prop_item = group_item.child(0)
+        assert prop_item.isExpanded()  # Placement has changed descendants
+        assert prop_item.child(0).isExpanded()  # Base has changed descendants
+        assert prop_item.child(0).child(0).isExpanded()  # x has MODIFIED state
+
+    def test_unchanged_branches_collapsed(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Unchanged branches stay collapsed when no descendant has changes."""
+        from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
+
+        # Given: All nodes UNCHANGED
+        x_child = PropertyPresentation(name="x", state=DiffState.UNCHANGED, old_value=1.0, new_value=1.0)
+        base_parent = PropertyPresentation(
+            name="Base",
+            state=DiffState.UNCHANGED,
+            children=[x_child],
+        )
+        placement = PropertyPresentation(
+            name="Placement",
+            state=DiffState.UNCHANGED,
+            children=[base_parent],
+        )
+
+        properties = [placement]
+
+        # When: Call show_properties
+        panel.show_properties(properties)
+
+        # Then: All nodes in the unchanged branch are collapsed
+        group_item = panel.properties_tree.topLevelItem(0)
+        prop_item = group_item.child(0)
+        assert not prop_item.isExpanded()  # Placement is UNCHANGED
+        assert not prop_item.child(0).isExpanded()  # Base is UNCHANGED
+        assert not prop_item.child(0).child(0).isExpanded()  # x is UNCHANGED
+
+    def test_mixed_changed_unchanged_branches(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Changed branches expand, unchanged siblings stay collapsed."""
+        from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
+
+        # Given: Base has x (MODIFIED) and y (UNCHANGED)
+        x_child = PropertyPresentation(name="x", state=DiffState.MODIFIED, old_value=1.0, new_value=2.0)
+        y_child = PropertyPresentation(name="y", state=DiffState.UNCHANGED, old_value=3.0, new_value=3.0)
+        base_parent = PropertyPresentation(
+            name="Base",
+            state=DiffState.MODIFIED,
+            children=[x_child, y_child],
+        )
+        placement = PropertyPresentation(
+            name="Placement",
+            state=DiffState.MODIFIED,
+            children=[base_parent],
+        )
+
+        properties = [placement]
+
+        # When: Call show_properties
+        panel.show_properties(properties)
+
+        # Then: Base is expanded (has changed descendants)
+        group_item = panel.properties_tree.topLevelItem(0)
+        prop_item = group_item.child(0)
+        base_item = prop_item.child(0)
+        assert base_item.isExpanded()
+
+        # x is expanded (MODIFIED)
+        assert base_item.child(0).isExpanded()
+        # y is collapsed (UNCHANGED)
+        assert not base_item.child(1).isExpanded()
+
+    def test_added_property_all_nested_rows_green(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Added property: all nested rows are green (ADDED state)."""
+        from PySide6.QtGui import QColor
+
+        from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
+
+        # Given: Entire Placement tree is ADDED (old property missing)
+        x_child = PropertyPresentation(name="x", state=DiffState.ADDED, old_value=None, new_value=5.0)
+        base_parent = PropertyPresentation(
+            name="Base",
+            state=DiffState.ADDED,
+            children=[x_child],
+        )
+        placement = PropertyPresentation(
+            name="Placement",
+            state=DiffState.ADDED,
+            children=[base_parent],
+        )
+
+        properties = [placement]
+
+        # When: Call show_properties
+        panel.show_properties(properties)
+
+        # Then: All rows have green background
+        group_item = panel.properties_tree.topLevelItem(0)
+        prop_item = group_item.child(0)
+        assert prop_item.background(0).color() == QColor(200, 255, 200)
+
+        base_item = prop_item.child(0)
+        assert base_item.background(0).color() == QColor(200, 255, 200)
+
+        x_item = base_item.child(0)
+        assert x_item.background(0).color() == QColor(200, 255, 200)
+
+    def test_parent_reflects_derived_changed_state(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Parent rows reflect derived changed state from presenter, not overridden by view."""
+        from PySide6.QtGui import QColor
+
+        from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
+
+        # Given: Presenter-derived states - parent is MODIFIED because descendant changed
+        x_child = PropertyPresentation(name="x", state=DiffState.MODIFIED, old_value=1.0, new_value=2.0)
+        base_parent = PropertyPresentation(
+            name="Base",
+            state=DiffState.MODIFIED,  # Derived from x child
+            children=[x_child],
+        )
+
         properties = [
             PropertyPresentation(
-                name="Length",
-                state=DiffState.MODIFIED,
-            ),
-            PropertyPresentation(
-                name="-> Expression",
-                state=DiffState.MODIFIED,
-                old_value="Sketch.X",
-                new_value="Sketch.Y",
+                name="Placement",
+                state=DiffState.MODIFIED,  # Derived from Base child
+                children=[base_parent],
             ),
         ]
 
         # When: Call show_properties
         panel.show_properties(properties)
 
-        # Then: Should have 2 property rows under the group
+        # Then: Colors match presenter state, not overridden
         group_item = panel.properties_tree.topLevelItem(0)
-        assert group_item is not None
-        assert group_item.childCount() == 2
+        prop_item = group_item.child(0)
+        assert prop_item.background(0).color() == QColor(200, 200, 255)  # MODIFIED -> blue
 
-        # First row is Length property
-        length_item = group_item.child(0)
-        assert length_item.text(0) == "Length"
+        base_item = prop_item.child(0)
+        assert base_item.background(0).color() == QColor(200, 200, 255)  # MODIFIED -> blue
 
-        # Second row is Expression
-        expr_item = group_item.child(1)
-        assert expr_item.text(0) == "-> Expression"
+        x_item = base_item.child(0)
+        assert x_item.background(0).color() == QColor(200, 200, 255)  # MODIFIED -> blue
 
-    def test_expression_row_modified_state_blue_background(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """Expression row with MODIFIED state displays blue background in 3-column layout."""
-        from PySide6.QtGui import QColor
-
+    def test_container_rows_render_bracketed_summary(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Container rows render bracketed summary values from presenter."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
-        # Given: An expression row with MODIFIED state
+        # Given: Container row with derived bracketed summary from presenter
         properties = [
             PropertyPresentation(
-                name="-> Expression",
+                name="Placement",
                 state=DiffState.MODIFIED,
-                old_value="Sketch.X",
-                new_value="Sketch.Y",
+                old_value=None,  # No direct value, derived from children
+                new_value=None,  # No direct value, derived from children
+                children=[
+                    PropertyPresentation(
+                        name="Base",
+                        state=DiffState.MODIFIED,
+                        old_value="[0.00 mm 0.00 mm 0.00 mm]",
+                        new_value="[5.00 mm 0.00 mm 0.00 mm]",
+                    ),
+                ],
             ),
         ]
 
         # When: Call show_properties
         panel.show_properties(properties)
 
-        # Then: Expression row should have blue background and correct column values
+        # Then: Container row shows bracketed summary from presenter
         group_item = panel.properties_tree.topLevelItem(0)
-        expr_item = group_item.child(0)
+        prop_item = group_item.child(0)
+        assert prop_item.text(1) == ""  # No direct old value on container
+        assert prop_item.text(2) == ""  # No direct new value on container
 
-        # Check display name
-        assert expr_item.text(0) == "-> Expression"
+        # Child Base row shows bracketed summary
+        base_item = prop_item.child(0)
+        assert base_item.text(1) == "[0.00 mm 0.00 mm 0.00 mm]"
+        assert base_item.text(2) == "[5.00 mm 0.00 mm 0.00 mm]"
 
-        # Check Value Left column has old expression
-        assert expr_item.text(1) == "Sketch.X"
-
-        # Check Value Right column has new expression
-        assert expr_item.text(2) == "Sketch.Y"
-
-        # Check blue background on all 3 columns
-        assert expr_item.background(0).color() == QColor(200, 200, 255)
-        assert expr_item.background(1).color() == QColor(200, 200, 255)
-        assert expr_item.background(2).color() == QColor(200, 200, 255)
-
-    def test_expression_row_added_state_green_background(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """Expression row with ADDED state displays green background in 3-column layout."""
-        from PySide6.QtGui import QColor
-
+    def test_value_columns_no_fallback_to_name_for_containers(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Value columns never fall back to property name for container rows without scalar values."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
-        # Given: An expression row with ADDED state (expression added to property)
+        # Given: Container row with ADDED state but no scalar value
         properties = [
             PropertyPresentation(
-                name="-> Expression",
+                name="Placement",
                 state=DiffState.ADDED,
                 old_value=None,
-                new_value="Sketch.Length * 2",
-            ),
-        ]
-
-        # When: Call show_properties
-        panel.show_properties(properties)
-
-        # Then: Expression row should have green background
-        group_item = panel.properties_tree.topLevelItem(0)
-        expr_item = group_item.child(0)
-
-        # Check display name
-        assert expr_item.text(0) == "-> Expression"
-
-        # Check Value Left column is empty for ADDED
-        assert expr_item.text(1) == ""
-
-        # Check Value Right column has new expression
-        assert expr_item.text(2) == "Sketch.Length * 2"
-
-        # Check green background on all 3 columns
-        assert expr_item.background(0).color() == QColor(200, 255, 200)
-        assert expr_item.background(1).color() == QColor(200, 255, 200)
-        assert expr_item.background(2).color() == QColor(200, 255, 200)
-
-    def test_expression_row_deleted_state_red_background(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """Expression row with DELETED state displays red background in 3-column layout."""
-        from PySide6.QtGui import QColor
-
-        from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
-
-        # Given: An expression row with DELETED state (expression removed from property)
-        properties = [
-            PropertyPresentation(
-                name="-> Expression",
-                state=DiffState.DELETED,
-                old_value="Sketch.X",
                 new_value=None,
+                children=[
+                    PropertyPresentation(
+                        name="Base",
+                        state=DiffState.ADDED,
+                        old_value=None,
+                        new_value=None,
+                        children=[
+                            PropertyPresentation(name="x", state=DiffState.ADDED, old_value=None, new_value=5.0),
+                        ],
+                    ),
+                ],
             ),
         ]
 
         # When: Call show_properties
         panel.show_properties(properties)
 
-        # Then: Expression row should have red background
+        # Then: Container rows show empty values (no fallback to name)
         group_item = panel.properties_tree.topLevelItem(0)
-        expr_item = group_item.child(0)
+        prop_item = group_item.child(0)
+        assert prop_item.text(1) == ""  # No old value, no fallback to "Placement"
+        assert prop_item.text(2) == ""  # No new value, no fallback to "Placement"
 
-        # Check display name
-        assert expr_item.text(0) == "-> Expression"
+        base_item = prop_item.child(0)
+        assert base_item.text(1) == ""  # No old value, no fallback to "Base"
+        assert base_item.text(2) == ""  # No new value, no fallback to "Base"
 
-        # Check Value Left column has old expression for DELETED
-        assert expr_item.text(1) == "Sketch.X"
+        # Leaf node x has actual value
+        x_item = base_item.child(0)
+        assert x_item.text(1) == ""  # ADDED: empty old value
+        assert x_item.text(2) == "5.0"  # ADDED: new value
 
-        # Check Value Right column is empty for DELETED
-        assert expr_item.text(2) == ""
+    def test_branch_ordering_stable_for_indexed_segments(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Branch/item ordering is stable for indexed segments ([2] before [10]).
 
-        # Check red background on all 3 columns
-        assert expr_item.background(0).color() == QColor(255, 200, 200)
-        assert expr_item.background(1).color() == QColor(255, 200, 200)
-        assert expr_item.background(2).color() == QColor(255, 200, 200)
-
-    def test_expression_row_unchanged_state_gray_background(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """Expression row with UNCHANGED state displays gray background in 3-column layout."""
+        The presenter sorts children by segment key; the view renders them in that order.
+        This test verifies the view preserves the presenter-provided ordering.
+        """
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
-        # Given: An expression row with UNCHANGED state
+        # Given: Children already sorted by the presenter: [1], [2], [10]
+        children = [
+            PropertyPresentation(name="[1]", state=DiffState.UNCHANGED, old_value=5.0, new_value=5.0),
+            PropertyPresentation(name="[2]", state=DiffState.MODIFIED, old_value=3.0, new_value=4.0),
+            PropertyPresentation(name="[10]", state=DiffState.MODIFIED, old_value=1.0, new_value=2.0),
+        ]
+
         properties = [
             PropertyPresentation(
-                name="-> Expression",
-                state=DiffState.UNCHANGED,
-                old_value="Sketch.X",
-                new_value="Sketch.X",
+                name="Constraints",
+                state=DiffState.MODIFIED,
+                children=children,
             ),
         ]
 
         # When: Call show_properties
         panel.show_properties(properties)
 
-        # Then: Expression row should have gray background
+        # Then: Children appear in the presenter-provided order
         group_item = panel.properties_tree.topLevelItem(0)
-        expr_item = group_item.child(0)
+        prop_item = group_item.child(0)
+        assert prop_item.childCount() == 3
 
-        # Check display name
-        assert expr_item.text(0) == "-> Expression"
-
-        # Check both columns have the same expression value
-        assert expr_item.text(1) == "Sketch.X"
-        assert expr_item.text(2) == "Sketch.X"
-
-        # Check gray background (240, 240, 240) on all columns
-        bg_color = expr_item.background(0).color()
-        assert bg_color.red() == 240
-        assert bg_color.green() == 240
-        assert bg_color.blue() == 240
-
-    def test_expression_row_follows_parent_property(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """Expression row appears immediately after its parent property."""
-        from PySide6.QtGui import QColor
-
-        from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
-
-        # Given: Multiple properties with expressions
-        properties = [
-            PropertyPresentation(
-                name="Length",
-                state=DiffState.MODIFIED,
-                group="Base",
-            ),
-            PropertyPresentation(
-                name="-> Expression",
-                state=DiffState.MODIFIED,
-                old_value="Sketch.Length",
-                new_value="Sketch.Width",
-                group="Base",  # Expressions inherit group from parent property
-            ),
-            PropertyPresentation(
-                name="Width",
-                state=DiffState.MODIFIED,
-                group="Base",
-            ),
-            PropertyPresentation(
-                name="-> Expression",
-                state=DiffState.ADDED,
-                old_value=None,
-                new_value="Sketch.Height",
-                group="Base",  # Expressions inherit group from parent property
-            ),
-            PropertyPresentation(
-                name="Height",
-                state=DiffState.UNCHANGED,
-                group="Base",
-            ),
-        ]
-
-        # When: Call show_properties
-        panel.show_properties(properties)
-
-        # Then: Each expression should follow its parent property
-        group_item = panel.properties_tree.topLevelItem(0)
-        assert group_item.childCount() == 5
-
-        # Row 0: Length (MODIFIED)
-        length_item = group_item.child(0)
-        assert length_item.text(0) == "Length"
-        assert length_item.background(0).color() == QColor(200, 200, 255)
-
-        # Row 1: Expression for Length (MODIFIED)
-        expr1_item = group_item.child(1)
-        assert expr1_item.text(0) == "-> Expression"
-        assert expr1_item.text(1) == "Sketch.Length"
-        assert expr1_item.text(2) == "Sketch.Width"
-        assert expr1_item.background(0).color() == QColor(200, 200, 255)
-
-        # Row 2: Width (MODIFIED)
-        width_item = group_item.child(2)
-        assert width_item.text(0) == "Width"
-        assert width_item.background(0).color() == QColor(200, 200, 255)
-
-        # Row 3: Expression for Width (ADDED)
-        expr2_item = group_item.child(3)
-        assert expr2_item.text(0) == "-> Expression"
-        assert expr2_item.text(1) == ""  # Empty for ADDED
-        assert expr2_item.text(2) == "Sketch.Height"
-        assert expr2_item.background(0).color() == QColor(200, 255, 200)
-
-        # Row 4: Height (UNCHANGED) - no expression
-        height_item = group_item.child(4)
-        assert height_item.text(0) == "Height"
+        names = [prop_item.child(i).text(0) for i in range(3)]
+        assert names == ["[1]", "[2]", "[10]"]

@@ -1,6 +1,11 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 # File responsibility: This module provides models for representing the differences between two
-# document snapshots, including property-level and node-level comparisons.
+# document snapshots, including property-level, node-level, and path-level comparisons.
+#
+# Path-level diff primitives: PropertyPathDiff, _flatten_data_path, _join_path.
+# Property-level diff: PropertyDiff (path-diff based, no legacy children).
+# Node-level diff: NodeDiff, DiffHierarchy, DiffResult.
+# Path sorting helpers: _path_sort_key, _split_path_for_sort.
 #
 # This module contains pure data models with embedded state calculation logic.
 # It depends on domain/tree/property.py but has no circular dependencies.
@@ -8,21 +13,18 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Any, cast
+from typing import Any
 
 from ..snapshots import Snapshot
 from ..tree import Property
 from ..tree.data_path import (
     DataPath,
     ListData,
-    PlacementData,
-    PrimitiveData,
     PropertyPathType,
     PropertyPathValue,
-    RotationData,
-    VectorData,
 )
 
 
@@ -46,455 +48,266 @@ class DiffState(Enum):
 WARNING_OLD_SNAPSHOT_MISSING = "Old snapshot missing"
 
 
-def _data_path_values_equal_ignoring_expression(old_pv: PropertyPathValue, new_pv: PropertyPathValue) -> bool:
-    """Compare two PropertyPathValue instances ignoring expression differences.
+@dataclass(frozen=True)
+class PropertyPathDiff:
+    """The difference between two property path values.
 
-    Args:
-        old_pv: Value in the old snapshot
-        new_pv: Value in the new snapshot
+    Represents a diff at the individual path level (e.g. ``"Base.x"``, ``"[0]"``, ``"."``)
+    within a property's structured value.  Value and expression states are computed
+    automatically in ``__post_init__`` so they are always consistent with the
+    provided ``old_value`` / ``new_value``.
 
-    Returns:
-        True if values are equal ignoring expression differences
+    Attributes:
+        path: The flattened path key (e.g. ``"."``, ``"Base.x"``, ``"[0].Value"``).
+        old_value: Path value in the old snapshot (``None`` if added).
+        new_value: Path value in the new snapshot (``None`` if deleted).
+        value_state: Auto-calculated diff state for the raw value.
+        expression_state: Auto-calculated diff state for the expression.
     """
-    if old_pv.type_ != new_pv.type_:
-        return False
-    # PropertyPathValue.__eq__ already handles float tolerance and expression
-    # comparison. For expression-ignoring comparison, compare values only.
-    if old_pv.type_ == PropertyPathType.FLOAT:
-        tolerance = 1e-9
-        return bool(abs(float(old_pv.value) - float(new_pv.value)) < tolerance)
-    return old_pv.value == new_pv.value
+
+    path: str
+    old_value: PropertyPathValue | None
+    new_value: PropertyPathValue | None
+    value_state: DiffState = field(init=False)
+    expression_state: DiffState = field(init=False)
+
+    def __post_init__(self) -> None:
+        """Calculate value_state and expression_state from old/new values."""
+        object.__setattr__(self, "value_state", _calc_value_state(self.old_value, self.new_value))
+        old_expr = _path_expression(self.old_value)
+        new_expr = _path_expression(self.new_value)
+        object.__setattr__(self, "expression_state", _calc_expression_state(old_expr, new_expr))
 
 
-def _data_paths_equal_ignoring_expression(old_dp: Any, new_dp: Any) -> bool:
-    """Compare two DataPath objects ignoring expression differences.
+def _path_expression(value: PropertyPathValue | None) -> str | None:
+    """Return the expression string of a ``PropertyPathValue``, or ``None``."""
+    return value.expression if value is not None else None
 
-    Uses float-tolerant comparison for PropertyPathValue instances
-    via _data_path_values_equal_ignoring_expression.
 
-    Args:
-        old_dp: Old DataPath
-        new_dp: New DataPath
+def _calc_value_state(old: PropertyPathValue | None, new: PropertyPathValue | None) -> DiffState:
+    """Calculate the diff state for a single path value.
 
-    Returns:
-        True if DataPaths are equal ignoring expressions
+    - ``None -> None``  → UNCHANGED
+    - ``None -> Some``  → ADDED
+    - ``Some -> None``  → DELETED
+    - ``Some -> Some``  → UNCHANGED if equal (float-tolerant), MODIFIED otherwise
     """
-    if type(old_dp) is not type(new_dp):
-        return False
-
-    # For types with paths, compare paths ignoring expressions
-    if isinstance(old_dp, PrimitiveData):
-        return all(
-            _data_path_values_equal_ignoring_expression(
-                old_dp.paths.get(k, PropertyPathValue(PropertyPathType.NULL, None)),
-                new_dp.paths.get(k, PropertyPathValue(PropertyPathType.NULL, None)),
-            )
-            for k in set(old_dp.paths) | set(new_dp.paths)
-        )
-
-    if isinstance(old_dp, ListData):
-        if len(old_dp.items) != len(new_dp.items):
-            return False
-        # Compare paths ignoring expressions
-        if not all(
-            _data_path_values_equal_ignoring_expression(
-                old_dp.paths.get(k, PropertyPathValue(PropertyPathType.NULL, None)),
-                new_dp.paths.get(k, PropertyPathValue(PropertyPathType.NULL, None)),
-            )
-            for k in set(old_dp.paths) | set(new_dp.paths)
-        ):
-            return False
-        # Compare items recursively
-        return all(
-            _data_paths_equal_ignoring_expression(old_item, new_item)
-            for old_item, new_item in zip(old_dp.items, new_dp.items, strict=True)
-        )
-
-    # For VectorData, RotationData, PlacementData, QuantityData, ConstraintData, UnknownData
-    # Compare paths ignoring expressions
-    if hasattr(old_dp, "paths") and hasattr(new_dp, "paths"):
-        return all(
-            _data_path_values_equal_ignoring_expression(
-                old_dp.paths.get(k, PropertyPathValue(PropertyPathType.NULL, None)),
-                new_dp.paths.get(k, PropertyPathValue(PropertyPathType.NULL, None)),
-            )
-            for k in set(old_dp.paths) | set(new_dp.paths)
-        )
-
-    return False
-
-
-def _get_data_path_value(dp: Any) -> PropertyPathValue | None:
-    """Extract the root PropertyPathValue from a DataPath.
-
-    Args:
-        dp: A DataPath instance (PrimitiveData, ListData, etc.)
-
-    Returns:
-        The root PropertyPathValue, or None if not a PrimitiveData
-    """
-    if isinstance(dp, PrimitiveData):
-        return dp.paths.get(".")
-    return None
-
-
-def _values_are_equal_ignoring_expression(old_value: Property, new_value: Property, prop_name: str = "") -> bool:
-    """Compare two property values ignoring expressions.
-
-    Args:
-        old_value: Value in the old snapshot
-        new_value: Value in the new snapshot
-        prop_name: The property name for logging purposes
-
-    Returns:
-        True if values are equal ignoring expression differences
-    """
-    old_dp = old_value.value
-    new_dp = new_value.value
-
-    # Compare internal types first
-    if type(old_dp).INTERNAL_TYPE != type(new_dp).INTERNAL_TYPE:
-        return False
-
-    # For PrimitiveData, compare the root path value
-    old_pv = _get_data_path_value(old_dp)
-    new_pv = _get_data_path_value(new_dp)
-
-    if old_pv is not None and new_pv is not None:
-        return _data_path_values_equal_ignoring_expression(old_pv, new_pv)
-
-    # For other DataPath types, compare by stripping expressions
-    return _data_paths_equal_ignoring_expression(old_dp, new_dp)
-
-
-def _calculate_property_diff_state(
-    old_value: Property | None, new_value: Property | None, prop_name: str = ""
-) -> DiffState:
-    """Calculate the diff state for a property based on old and new values.
-
-    Note: Expression changes are tracked separately. This function compares
-    only the actual values (ignoring expressions) to determine if the value changed.
-
-    Args:
-        old_value: Value in the old snapshot (None if added)
-        new_value: Value in the new snapshot (None if deleted)
-        prop_name: The property name for logging purposes
-
-    Returns:
-        The appropriate DiffState based on the values
-    """
-    # If old_value is None, property was added
-    if old_value is None:
-        return DiffState.ADDED
-    # If new_value is None, property was deleted
-    if new_value is None:
+    if old is None:
+        return DiffState.ADDED if new is not None else DiffState.UNCHANGED
+    if new is None:
         return DiffState.DELETED
-    # If values are equal (ignoring expressions), unchanged
-    values_equal = _values_are_equal_ignoring_expression(old_value, new_value, prop_name)
-    if values_equal:
-        return DiffState.UNCHANGED
-    # Otherwise, modified
-    return DiffState.MODIFIED
+    return DiffState.UNCHANGED if _path_values_equal(old, new) else DiffState.MODIFIED
 
 
-def _is_vector_like(value: Any) -> bool:
-    """Check if value is Vector-like (has x, y, z attributes)."""
-    return hasattr(value, "x") and hasattr(value, "y") and hasattr(value, "z") and not isinstance(value, (int, float))
+def _calc_expression_state(old_expr: str | None, new_expr: str | None) -> DiffState:
+    """Calculate the diff state for an expression string.
+
+    Expression state is computed independently of value state:
+    - ``None -> None``  → UNCHANGED
+    - ``None -> Some``  → ADDED
+    - ``Some -> None``  → DELETED
+    - ``Some -> Some``  → UNCHANGED if equal, MODIFIED otherwise
+    """
+    if old_expr is None:
+        return DiffState.ADDED if new_expr is not None else DiffState.UNCHANGED
+    if new_expr is None:
+        return DiffState.DELETED
+    return DiffState.UNCHANGED if old_expr == new_expr else DiffState.MODIFIED
 
 
-def _is_rotation_like(value: Any) -> bool:
-    """Check if value is Rotation-like (has angle and axis)."""
-    has_angle = hasattr(value, "angle") or hasattr(value, "Angle")
-    has_axis = hasattr(value, "axis") or hasattr(value, "Axis")
-    return has_angle and has_axis
+def _path_values_equal(old: PropertyPathValue, new: PropertyPathValue) -> bool:
+    """Compare two ``PropertyPathValue`` instances for equality.
+
+    Float values are compared with ``math.isclose`` using 1e-9 relative
+    and absolute tolerance.  All other types use exact equality.
+    Expression is NOT compared here (expression has its own state).
+    """
+    if old.type_ != new.type_:
+        return False
+    if old.type_ == PropertyPathType.FLOAT:
+        return math.isclose(float(old.value), float(new.value), rel_tol=1e-9, abs_tol=1e-9)
+    return old.value == new.value
 
 
-def _is_placement_like(value: Any) -> bool:
-    """Check if value is Placement-like (has position and rotation)."""
-    return hasattr(value, "position") and hasattr(value, "rotation")
+def _flatten_data_path(value: DataPath, prefix: str = "") -> dict[str, PropertyPathValue]:
+    """Flatten a ``DataPath`` into a ``{path_key: PropertyPathValue}`` dict.
 
-
-def _create_property_from_child_value(value: Any, group: str = "Base") -> Property | None:
-    """Create a Property from a raw child value or DataPath.
-
-    This wraps raw values from DataPath children into Property objects.
-    If the value is already a DataPath, it wraps it directly.
+    Every ``DataPath`` subclass has a ``paths`` dict that maps relative
+    path keys (``"."``, ``"x"``, ``"Base.x"``, etc.) to ``PropertyPathValue``
+    instances.  This function joins those keys with an optional prefix
+    and, for ``ListData``, recursively flattens each item.
 
     Args:
-        value: The raw value (DataPath, Vector, float, dict, etc.)
-        group: The property group
+        value: The ``DataPath`` to flatten.
+        prefix: An optional path prefix (e.g. ``"[0]"`` for list items).
 
     Returns:
-        A Property object, or None if value is None
+        A dict mapping fully-qualified path strings to ``PropertyPathValue``.
     """
-    if value is None:
-        return None
+    if isinstance(value, ListData):
+        out: dict[str, PropertyPathValue] = {}
+        for rel, pv in value.paths.items():
+            out[_join_path(prefix, rel)] = pv
+        for i, item in enumerate(value.items):
+            item_prefix = _join_path(prefix, f"[{i}]")
+            out.update(_flatten_data_path(item, item_prefix))
+        return out
 
-    # If it's already a DataPath, wrap it directly
-    if isinstance(value, DataPath):
-        return Property(value=value, group=group)
-
-    # Check if it's a Vector object
-    if _is_vector_like(value):
-        return Property(value=PrimitiveData(paths={".": PropertyPathValue.from_python(value)}), group=group)
-
-    # Check if it's a Rotation-like object (has angle and axis)
-    if _is_rotation_like(value):
-        return Property(value=PrimitiveData(paths={".": PropertyPathValue.from_python(value)}), group=group)
-
-    # Check if it's a Placement object
-    if _is_placement_like(value):
-        return Property(value=PrimitiveData(paths={".": PropertyPathValue.from_python(value)}), group=group)
-
-    # Check if it's a list or tuple
-    if isinstance(value, (list, tuple)):
-        items = [PrimitiveData(paths={".": PropertyPathValue.from_python(v)}) for v in value]
-        return Property(value=ListData(paths={}, items=cast(list, items)), group=group)
-
-    # Check if it's a dict
-    if isinstance(value, dict):
-        return Property(value=PrimitiveData(paths={".": PropertyPathValue.from_python(value)}), group=group)
-
-    # For primitives, wrap in PrimitiveData
-    return Property(value=PrimitiveData(paths={".": PropertyPathValue.from_python(value)}), group=group)
-
-
-def _compute_property_children(
-    old_value: Property | None, new_value: Property | None, parent_prop_name: str = ""
-) -> list[PropertyDiff]:
-    """Compute child property diffs for expandable properties.
-
-    Handles:
-    - ListData: each item becomes a child (indexed by position)
-    - VectorData: x, y, z become children
-    - RotationData: Angle, Axis.x, Axis.y, Axis.z become children
-    - PlacementData: Base.x/y/z and Rotation.* become children, grouped as Position/Rotation
-
-    Args:
-        old_value: Value in the old snapshot (None if added)
-        new_value: Value in the new snapshot (None if deleted)
-        parent_prop_name: The parent property name for logging purposes
-
-    Returns:
-        List of PropertyDiff for child properties
-    """
-    children: list[PropertyDiff] = []
-
-    old_children: dict[str, Any] = _extract_data_path_children(old_value)
-    new_children: dict[str, Any] = _extract_data_path_children(new_value)
-
-    all_child_names = set(old_children.keys()) | set(new_children.keys())
-
-    for child_name in sorted(all_child_names):
-        raw_old_child = old_children.get(child_name)
-        raw_new_child = new_children.get(child_name)
-
-        # Wrap raw values in Property objects
-        old_child_prop = _create_property_from_child_value(raw_old_child) if raw_old_child is not None else None
-        new_child_prop = _create_property_from_child_value(raw_new_child) if raw_new_child is not None else None
-
-        # For child properties, prepend parent name to create a full path for logging
-        full_prop_name = f"{parent_prop_name}[{child_name}]" if parent_prop_name else child_name
-
-        child_diff = PropertyDiff(
-            property_name=child_name,
-            old_value=old_child_prop,
-            new_value=new_child_prop,
-            _parent_prop_name=full_prop_name,
-        )
-
-        children.append(child_diff)
-
-    return children
-
-
-def _extract_data_path_children(prop: Property | None) -> dict[str, Any]:
-    """Extract child values from a DataPath for child diff computation.
-
-    Args:
-        prop: A Property object or None
-
-    Returns:
-        Dict mapping child name to child value
-    """
-    if prop is None:
-        return {}
-
-    dp = prop.value
-
-    # Dispatch to type-specific handler
-    if isinstance(dp, ListData):
-        return _children_list(dp)
-    if isinstance(dp, VectorData):
-        return _children_vector(dp)
-    if isinstance(dp, RotationData):
-        return _children_rotation(dp)
-    if isinstance(dp, PlacementData):
-        return _children_placement(dp)
+    if hasattr(value, "paths"):
+        result: dict[str, PropertyPathValue] = {}
+        for rel, pv in value.paths.items():
+            full = _join_path(prefix, rel)
+            result[full] = pv
+        return result
 
     return {}
 
 
-def _children_list(dp: ListData) -> dict[str, Any]:
-    """Extract children from ListData as indexed items."""
-    return {str(i): item for i, item in enumerate(dp.items)}
+def _join_path(prefix: str, rel: str) -> str:
+    """Join a relative DataPath key into a full flattened path.
 
+    Examples::
 
-def _children_vector(dp: VectorData) -> dict[str, Any]:
-    """Extract children from VectorData (x, y, z)."""
-    return {k: v.value for k, v in dp.paths.items() if k != "."}
-
-
-def _children_rotation(dp: RotationData) -> dict[str, Any]:
-    """Extract children from RotationData (Angle, Axis.x/y/z)."""
-    result: dict[str, Any] = {}
-    for k, v in dp.paths.items():
-        if k == "." or k == "Axis":
-            continue
-        result[k] = v.value
-    return result
-
-
-def _children_placement(dp: PlacementData) -> dict[str, Any]:
-    """Extract children from PlacementData grouped as Position/Rotation."""
-    position: dict[str, Any] = {}
-    rotation: dict[str, Any] = {}
-    for k, v in dp.paths.items():
-        if k in (".", "Rotation", "Rotation.Axis"):
-            continue
-        if k.startswith("Base."):
-            position[k.replace("Base.", "")] = v.value
-        elif k.startswith("Rotation."):
-            rotation[k.replace("Rotation.", "")] = v.value
-        else:
-            position[k] = v.value
-
-    result: dict[str, Any] = {}
-    if position:
-        result["Position"] = position
-    if rotation:
-        result["Rotation"] = rotation
-    return result
-
-
-def _property_value_str(prop: Property | None) -> str:
-    """Extract a string representation of a property's value.
+        _join_path("", ".")          -> "."
+        _join_path("[0]", ".")       -> "[0]"
+        _join_path("", "Base.x")     -> "Base.x"
+        _join_path("[0]", "Value")   -> "[0].Value"
+        _join_path("Constraints", "[2]") -> "Constraints[2]"
 
     Args:
-        prop: A Property object or None
+        prefix: The accumulated path prefix (may be empty).
+        rel: A relative key from a ``DataPath.paths`` dict.
 
     Returns:
-        A string representation of the property value
+        The fully-qualified path string.
     """
-    if prop is None:
-        return "None"
-    dp = prop.value
-    if isinstance(dp, PrimitiveData):
-        pv = dp.paths.get(".")
-        if pv is not None:
-            return str(pv.value) if pv.value is not None else "None"
-    # For complex types, use the internal type as identifier
-    return dp.INTERNAL_TYPE.value
+    if rel == ".":
+        return prefix or "."
+    if not prefix:
+        return rel
+    if rel.startswith("["):
+        return f"{prefix}{rel}"
+    return f"{prefix}.{rel}"
 
 
-def _has_expression_change(old_value: Property | None, new_value: Property | None) -> bool:
-    """Check if there's an expression change between two property values.
+def _path_sort_key(path: str) -> tuple:
+    """Return a sort key for a flattened path string.
 
-    With the DataPath-based model, expression tracking is embedded in the
-    PropertyPathValue objects within the DataPath structure.
+    Keeps root ``"."`` first, then orders by natural segment order
+    (named segments before indexed segments, numeric indices numerically).
+
+    Args:
+        path: A flattened path string (e.g. ``"."``, ``"Base.x"``, ``"[0]"``).
+
+    Returns:
+        A tuple suitable for sorting (always a tuple of tuples for consistency).
     """
-    if old_value is None or new_value is None:
-        return True
+    if path == ".":
+        return ((-1,),)
+    segments = _split_path_for_sort(path)
+    return tuple(segments)
 
-    old_pv = _get_data_path_value(old_value.value)
-    new_pv = _get_data_path_value(new_value.value)
 
-    if old_pv is None or new_pv is None:
-        return False
+def _split_path_for_sort(path: str) -> list[tuple[int, str | int]]:
+    """Split a flattened path into sortable typed segments.
 
-    return old_pv.expression != new_pv.expression
+    Splits paths like ``"Base.x"``, ``"[10].Value"``, ``"[2]"`` into
+    segments that sort correctly: named segments first, then indexed
+    segments in numeric order.
+
+    Args:
+        path: A flattened path string.
+
+    Returns:
+        A list of ``(type_key, value)`` tuples where type_key is
+        ``0`` for named segments and ``1`` for indexed segments.
+    """
+    out: list[tuple[int, str | int]] = []
+    token: list[str] = []
+    i = 0
+    while i < len(path):
+        ch = path[i]
+        if ch == ".":
+            if token:
+                out.append((0, "".join(token)))
+                token = []
+            i += 1
+            continue
+        if ch == "[":
+            if token:
+                out.append((0, "".join(token)))
+                token = []
+            j = path.find("]", i)
+            idx = int(path[i + 1 : j])
+            out.append((1, idx))
+            i = j + 1
+            continue
+        token.append(ch)
+        i += 1
+    if token:
+        out.append((0, "".join(token)))
+    return out
 
 
 def _are_properties_modified(property_diffs: list[PropertyDiff], children: list[NodeDiff]) -> bool:
-    """Check if any properties or children have modifications.
-
-    A node's properties are considered modified if:
-    - Any child node has state != DiffState.UNCHANGED
-    - Any property has state != DiffState.UNCHANGED (includes ADDED, DELETED, MODIFIED)
-    - Any property has children with state != DiffState.UNCHANGED (e.g., constraint items)
-    - Any property has an expression change (even if value is unchanged)
-
-    Args:
-        property_diffs: List of property diffs for this node
-        children: List of child node diffs
-
-    Returns:
-        True if any properties or children are modified, False otherwise
-    """
-    # Check child node states - if any child node has changes, properties are modified
+    """Check if any properties or children have modifications."""
     if any(child.state != DiffState.UNCHANGED for child in children):
         return True
-
-    # Check if any property has changed (ADDED, DELETED, or MODIFIED)
-    if any(prop_diff.state != DiffState.UNCHANGED for prop_diff in property_diffs):
-        return True
-
-    # Check if any property has children with changes (e.g., individual constraint items)
-    for prop_diff in property_diffs:
-        if prop_diff.children and any(child.state != DiffState.UNCHANGED for child in prop_diff.children):
-            return True
-
-    # Check if any property has expression changes (value may be unchanged but expression changed)
-    return any(_has_expression_change(prop_diff.old_value, prop_diff.new_value) for prop_diff in property_diffs)
+    return any(prop_diff.state != DiffState.UNCHANGED for prop_diff in property_diffs)
 
 
 @dataclass(frozen=True)
 class PropertyDiff:
     """The difference between two property values.
 
-    The state is automatically calculated based on the old and new values
-    (including their expressions). This ensures consistency and prevents
-    invalid states where the state doesn't match the actual values.
+    The state is automatically calculated based on the flattened path diffs.
+    This ensures consistency and prevents invalid states where the state
+    doesn't match the actual values.
 
     Attributes:
         property_name: Name of the property
         old_value: Value in the old snapshot (None if added)
         new_value: Value in the new snapshot (None if deleted)
         state: The diff state (ADDED, DELETED, MODIFIED, UNCHANGED) - auto-calculated
-        children: List of child property diffs for expandable properties
-        _parent_prop_name: Internal field for full property path (e.g., "Constraints[0]")
+        path_diffs: List of path-level diffs for all sub-paths (auto-calculated)
     """
 
     property_name: str
     old_value: Property | None
     new_value: Property | None
     state: DiffState = field(init=False)
-    children: list[PropertyDiff] = field(default_factory=list)
-    _parent_prop_name: str = field(default="", repr=False, compare=False)
+    path_diffs: list[PropertyPathDiff] = field(init=False)
 
     def __post_init__(self) -> None:
-        """Calculate state and children based on old and new values."""
-        # Use object.__setattr__ since the dataclass is frozen
-        # Use _parent_prop_name if set (for child properties), otherwise use property_name
-        full_prop_name = self._parent_prop_name or self.property_name
+        """Calculate state and path_diffs from flattened path maps."""
+        old_paths = _flatten_data_path(self.old_value.value) if self.old_value else {}
+        new_paths = _flatten_data_path(self.new_value.value) if self.new_value else {}
+
+        all_paths = sorted(set(old_paths) | set(new_paths), key=_path_sort_key)
+        diffs = [PropertyPathDiff(path=p, old_value=old_paths.get(p), new_value=new_paths.get(p)) for p in all_paths]
+        object.__setattr__(self, "path_diffs", diffs)
+
+        if self.old_value is None:
+            object.__setattr__(self, "state", DiffState.ADDED if self.new_value is not None else DiffState.UNCHANGED)
+            return
+        if self.new_value is None:
+            object.__setattr__(self, "state", DiffState.DELETED)
+            return
+
+        has_value_change = any(d.value_state != DiffState.UNCHANGED for d in diffs)
+        has_expr_change = any(d.expression_state != DiffState.UNCHANGED for d in diffs)
         object.__setattr__(
-            self, "state", _calculate_property_diff_state(self.old_value, self.new_value, full_prop_name)
-        )
-        # Compute children for expandable properties (pass property_name as parent)
-        object.__setattr__(
-            self, "children", _compute_property_children(self.old_value, self.new_value, self.property_name)
+            self, "state", DiffState.MODIFIED if (has_value_change or has_expr_change) else DiffState.UNCHANGED
         )
 
     def __str__(self) -> str:
-        old_str = _property_value_str(self.old_value)
-        new_str = _property_value_str(self.new_value)
         if self.state == DiffState.ADDED:
-            return f"{self.property_name}: +{new_str}"
+            return f"{self.property_name}: ADDED"
         elif self.state == DiffState.DELETED:
-            return f"{self.property_name}: -{old_str}"
+            return f"{self.property_name}: DELETED"
         elif self.state == DiffState.MODIFIED:
-            return f"{self.property_name}: {old_str} -> {new_str}"
-        return f"{self.property_name}: {old_str}"
+            return f"{self.property_name}: MODIFIED"
+        return f"{self.property_name}: UNCHANGED"
 
 
 @dataclass(frozen=True)
@@ -792,6 +605,7 @@ __all__ = [
     "DiffHierarchy",
     "NodeDiff",
     "PropertyDiff",
+    "PropertyPathDiff",
     "DiffState",
     "WARNING_OLD_SNAPSHOT_MISSING",
 ]

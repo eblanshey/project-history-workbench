@@ -1,22 +1,29 @@
 # File responsibility: Diff result presenter for UI.
+#
+# Transforms domain-level diff results into UI-friendly presentation models.
+# Builds nested sub-path trees from PropertyPathDiff and maps them to
+# PropertyPresentation objects for view rendering.
 """Diff result presenter for UI.
 
 This module provides the DiffPresenter class that transforms domain-level
 diff results into UI-friendly presentation models.
 """
 
+from dataclasses import dataclass, field
 from typing import Any
 
 from ...application.actions.create_diff import CreateDiffAction
 from ...application.actions.create_document_snapshot_commit import CreateDocumentSnapshotForCommitAction
-from ...application.actions.create_document_snapshot_working import CreateDocumentSnapshotForWorkingTreeAction
+from ...application.actions.create_document_snapshot_working import (
+    CreateDocumentSnapshotForWorkingTreeAction,
+)
 from ...application.actions.get_committed_file_paths import GetCommittedFilePathsAction
 from ...application.actions.get_dirty_documents import GetDirtyDocumentsAction
 from ...application.actions.get_open_eligible_documents import GetOpenEligibleDocumentsAction
 from ...application.actions.get_staged_file_paths import GetStagedFilePathsAction
 from ...application.actions.stage_documents import StageDocumentsAction
 from ...domain.diff.engine import DiffResult
-from ...domain.diff.models import DiffState, NodeDiff, PropertyDiff
+from ...domain.diff.models import DiffState, NodeDiff, PropertyPathDiff
 from ...domain.git.models import GitRepository
 from ...domain.tree import Property
 from ...utils import Log
@@ -24,6 +31,268 @@ from ..protocols.diff_view import DiffView
 from ..state import UIState
 from ..views.models import HistorySelection
 from .presentation_models import DiffTreePresentation, NodePresentation, PropertyPresentation
+
+
+@dataclass
+class _PathTreeNode:
+    """Internal tree node for building hierarchical path diffs.
+
+    Attributes:
+        name: The path segment name (e.g. "Base", "[0]", "Value", "Expression").
+        state: Aggregated diff state for this node and its descendants.
+        old_value: Old value at this path, or None if not present.
+        new_value: New value at this path, or None if not present.
+        children: Child nodes keyed by segment name.
+    """
+
+    name: str
+    state: DiffState = DiffState.UNCHANGED
+    old_value: Any = None
+    new_value: Any = None
+    children: dict[str, "_PathTreeNode"] = field(default_factory=dict)
+
+
+def _split_rel_path(path: str) -> list[str]:
+    """Convert flattened path strings into hierarchical segments.
+
+    Rules:
+    - "." means property-root (no extra segments).
+    - Dot separators split named segments ("Base.x" -> ["Base", "x"]).
+    - Bracket indices are standalone segments and preserve numeric identity
+      ("Constraints[10].Value" -> ["Constraints", "[10]", "Value"]).
+
+    Why this parser exists:
+    - A naive split('.') loses index structure.
+    - Treating "Constraints[0]" as one segment prevents desired nesting.
+
+    Args:
+        path: A flattened path string from ``PropertyPathDiff.path``.
+
+    Returns:
+        A list of hierarchical segment names.
+    """
+    if path == ".":
+        return []
+    if not path:
+        return []
+    tokens: list[str] = []
+    segment_buf: list[str] = []
+    i = 0
+    while i < len(path):
+        ch = path[i]
+        if ch == ".":
+            if segment_buf:
+                tokens.append("".join(segment_buf))
+                segment_buf = []
+            i += 1
+            continue
+        if ch == "[":
+            if segment_buf:
+                tokens.append("".join(segment_buf))
+                segment_buf = []
+            j = path.find("]", i)
+            if j == -1:
+                # Malformed bracket - treat as regular text
+                segment_buf.append(ch)
+                i += 1
+                continue
+            tokens.append(path[i : j + 1])
+            i = j + 1
+            continue
+        segment_buf.append(ch)
+        i += 1
+    if segment_buf:
+        tokens.append("".join(segment_buf))
+    return tokens
+
+
+def _aggregate_states(states: list[DiffState]) -> DiffState:
+    """Roll up child states to a parent state.
+
+    Rules:
+    - No changed descendants -> UNCHANGED
+    - All changed descendants are ADDED -> ADDED
+    - All changed descendants are DELETED -> DELETED
+    - Mixed changes -> MODIFIED
+
+    Args:
+        states: List of DiffState values to aggregate.
+
+    Returns:
+        The aggregated DiffState.
+    """
+    changed = [s for s in states if s != DiffState.UNCHANGED]
+    if not changed:
+        return DiffState.UNCHANGED
+    if all(s == DiffState.ADDED for s in changed):
+        return DiffState.ADDED
+    if all(s == DiffState.DELETED for s in changed):
+        return DiffState.DELETED
+    return DiffState.MODIFIED
+
+
+def _insert_path_diff(root: _PathTreeNode, pd: PropertyPathDiff) -> None:
+    """Insert a single path diff into the tree at the correct position.
+
+    Walks the path segments to find/create the leaf node, then sets
+    its value and expression state. If an expression exists on either
+    side, a nested "Expression" child is created.
+
+    Args:
+        root: The root node of the tree.
+        pd: A ``PropertyPathDiff`` to insert.
+    """
+    segments = _split_rel_path(pd.path)
+    node = root
+    for seg in segments:
+        node = node.children.setdefault(seg, _PathTreeNode(name=seg))
+
+    # Leaf value row (show all rows, including unchanged)
+    node.old_value = pd.old_value.value if pd.old_value is not None else None
+    node.new_value = pd.new_value.value if pd.new_value is not None else None
+    leaf_states = [pd.value_state]
+
+    # Nested expression row under leaf, if expression exists on either side
+    if pd.old_value is not None or pd.new_value is not None:
+        old_expr = pd.old_value.expression if pd.old_value is not None else None
+        new_expr = pd.new_value.expression if pd.new_value is not None else None
+        if old_expr is not None or new_expr is not None:
+            expr_node = _PathTreeNode(
+                name="Expression",
+                state=pd.expression_state,
+                old_value=old_expr,
+                new_value=new_expr,
+            )
+            node.children["__expr__"] = expr_node
+            leaf_states.append(pd.expression_state)
+
+    node.state = _aggregate_states(leaf_states)
+
+
+def _rollup_states(node: _PathTreeNode) -> DiffState:
+    """Recursively roll up states from leaves to root.
+
+    Each node's state is updated to include the aggregated state of
+    all its descendants.
+
+    Args:
+        node: The node to start rolling up from.
+
+    Returns:
+        The aggregated state for this node.
+    """
+    child_states = [_rollup_states(c) for c in node.children.values()]
+    combined = _aggregate_states([node.state, *child_states])
+    node.state = combined
+    return combined
+
+
+def _collect_leaf_values(node: _PathTreeNode, include_expr: bool = False) -> tuple[list[Any], list[Any]]:
+    """Recursively collect leaf values from all descendants.
+
+    Excludes expression rows (names starting with '__') by default.
+    Only leaf nodes (nodes with direct old_value or new_value) contribute.
+
+    Args:
+        node: The node to collect values from.
+        include_expr: Whether to include expression row values.
+
+    Returns:
+        Tuple of (old_values, new_values) from leaf nodes.
+    """
+    old_values: list[Any] = []
+    new_values: list[Any] = []
+    for name, child in node.children.items():
+        if not include_expr and name.startswith("__"):
+            continue
+        # If this node has a direct value, it's a leaf - collect it
+        if child.old_value is not None:
+            old_values.append(child.old_value)
+        if child.new_value is not None:
+            new_values.append(child.new_value)
+        # Recurse into children regardless (intermediate nodes may have no value)
+        child_old, child_new = _collect_leaf_values(child, include_expr)
+        old_values.extend(child_old)
+        new_values.extend(child_new)
+    return old_values, new_values
+
+
+def _derive_container_summary(values: list[Any]) -> str | None:
+    """Create a bracketed summary string from child values.
+
+    Used for container rows (e.g. Placement) where no direct value
+    exists but children do. Produces output like "[0.00 0.00 0.00]".
+
+    Args:
+        values: List of old or new values from child presentations.
+
+    Returns:
+        A bracketed string like "[0.00 0.00 0.00]", or None if no values.
+    """
+    non_null = [str(v) for v in values if v is not None]
+    if not non_null:
+        return None
+    return "[" + " ".join(non_null) + "]"
+
+
+def _child_sort_key(name: str) -> tuple:
+    """Return a sort key for deterministic child ordering.
+
+    Names sort before indices, indices sort numerically.
+    This keeps [2] before [10] and prevents lexicographic jitter.
+
+    Args:
+        name: A child node name (e.g. "Base", "[0]", "Expression").
+
+    Returns:
+        A tuple suitable for sorting.
+    """
+    if name.startswith("[") and name.endswith("]"):
+        try:
+            return (1, int(name[1:-1]))
+        except ValueError:
+            return (0, name)
+    return (0, name)
+
+
+def _path_tree_to_presentations(node: _PathTreeNode) -> list[PropertyPresentation]:
+    """Convert internal tree nodes to UI presentation rows.
+
+    Value policy:
+    - If a node has direct old/new values, show them.
+    - If it has no direct value but has children, derive FreeCAD-style
+      bracket summary from child values for collapsed display.
+
+    Child rows still carry full per-path detail when expanded.
+
+    Args:
+        node: The root node to convert (typically the root of a path tree).
+
+    Returns:
+        A list of ``PropertyPresentation`` objects.
+    """
+    out: list[PropertyPresentation] = []
+    for key in sorted(node.children.keys(), key=_child_sort_key):
+        child = node.children[key]
+        grandchildren = _path_tree_to_presentations(child)
+
+        old_value = child.old_value
+        new_value = child.new_value
+        if old_value is None and new_value is None and grandchildren:
+            # FreeCAD-like container summary when there is no direct value row for this segment.
+            old_value = _derive_container_summary([gc.old_value for gc in grandchildren])
+            new_value = _derive_container_summary([gc.new_value for gc in grandchildren])
+
+        out.append(
+            PropertyPresentation(
+                name=child.name,
+                state=child.state,
+                old_value=old_value,
+                new_value=new_value,
+                children=grandchildren,
+            )
+        )
+    return out
 
 
 class DiffPresenter:
@@ -517,7 +786,10 @@ class DiffPresenter:
     def _transform_property_diffs(self, node_diff: NodeDiff) -> list[PropertyPresentation]:
         """Transform domain PropertyDiff to presentation format.
 
-        Expression changes appear as separate rows.
+        Uses ``prop_diff.path_diffs`` to build a nested sub-path tree.
+        Root "." path values are mapped to the property top row.
+        Expression rows are nested under their corresponding path row.
+        Parent nodes get their state from descendants (rollup).
 
         Args:
             node_diff: Domain NodeDiff with property_diffs
@@ -525,108 +797,46 @@ class DiffPresenter:
         Returns:
             List of PropertyPresentation for UI display
         """
-        presentations = []
+        presentations: list[PropertyPresentation] = []
 
         for prop_diff in node_diff.property_diffs:
             # Determine group from the property value
-            # Use new_value's group if available, otherwise old_value's group
             group = self._extract_property_group(
                 prop_diff.new_value if prop_diff.new_value is not None else prop_diff.old_value
             )
 
-            # Extract old_value and new_value for expandable properties
-            old_value = self._extract_property_value(prop_diff.old_value)
-            new_value = self._extract_property_value(prop_diff.new_value)
+            # Build nested path tree from path_diffs
+            root = _PathTreeNode(name=prop_diff.property_name, state=prop_diff.state)
+            for pd in prop_diff.path_diffs:
+                _insert_path_diff(root, pd)
+            _rollup_states(root)
 
-            # Transform children recursively from domain PropertyDiff
-            children = self._transform_children(prop_diff.children)
+            # Map root "." values to the property top row
+            prop_old_value = root.old_value
+            prop_new_value = root.new_value
 
-            # Create main property row
+            if prop_old_value is None and prop_new_value is None and root.children:
+                # Derive container summary from descendant leaf values
+                old_leaf_values, new_leaf_values = _collect_leaf_values(root, include_expr=False)
+                prop_old_value = _derive_container_summary(old_leaf_values)
+                prop_new_value = _derive_container_summary(new_leaf_values)
+
+            # Convert path tree to presentations (excludes root itself)
+            children = _path_tree_to_presentations(root)
+
             presentations.append(
                 PropertyPresentation(
                     name=prop_diff.property_name,
-                    state=prop_diff.state,
-                    old_value=old_value,
-                    new_value=new_value,
+                    state=root.state,
+                    old_value=prop_old_value,
+                    new_value=prop_new_value,
                     children=children,
                     group=group,
                 )
             )
 
-            # Handle expression as separate row
-            old_expr = self._extract_property_expression(prop_diff.old_value)
-            new_expr = self._extract_property_expression(prop_diff.new_value)
-
-            if old_expr or new_expr:
-                # Determine expression state using DiffState enum
-                if old_expr and not new_expr:
-                    expr_state = DiffState.DELETED
-                elif not old_expr and new_expr:
-                    expr_state = DiffState.ADDED
-                elif old_expr == new_expr:
-                    expr_state = DiffState.UNCHANGED
-                else:
-                    expr_state = DiffState.MODIFIED
-
-                presentations.append(
-                    PropertyPresentation(
-                        name="-> Expression",
-                        state=expr_state,
-                        old_value=old_expr,
-                        new_value=new_expr,
-                        group=group,  # Inherit group from parent property
-                    )
-                )
-
         return presentations
-
-    def _extract_property_expression(self, prop: Property | None) -> str | None:
-        """Extract the expression string from a Property object.
-
-        For the new DataPath-based model, the expression is stored in the
-        root PropertyPathValue (path ".") within the DataPath.
-        """
-        if prop is None:
-            return None
-        dp = prop.value
-        if hasattr(dp, "paths"):
-            pv = dp.paths.get(".")
-            return pv.expression if pv is not None else None
-        return None
-
-    def _extract_property_value(self, prop: Property | None) -> Any:
-        """Extract the underlying value from a Property object.
-
-        For the new DataPath-based model, this extracts the actual value
-        from the DataPath wrapper for UI display and expansion.
-        """
-        if prop is None:
-            return None
-
-        dp = prop.value
-        return dp.to_python()
 
     def _extract_property_group(self, prop: Property | None) -> str | None:
         """Extract the group attribute from a Property object."""
         return getattr(prop, "group", None) if prop is not None else None
-
-    def _transform_children(self, child_diffs: list[PropertyDiff]) -> list[PropertyPresentation]:
-        """Recursively transform child property diffs to presentation format.
-
-        Args:
-            child_diffs: List of PropertyDiff children from domain
-
-        Returns:
-            List of PropertyPresentation for UI display
-        """
-        return [
-            PropertyPresentation(
-                name=child_diff.property_name,
-                state=child_diff.state,
-                old_value=self._extract_property_value(child_diff.old_value),
-                new_value=self._extract_property_value(child_diff.new_value),
-                children=self._transform_children(child_diff.children),
-                # No group for children
-            )
-            for child_diff in child_diffs
-        ]

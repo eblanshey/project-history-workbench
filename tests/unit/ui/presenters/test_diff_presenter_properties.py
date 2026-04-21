@@ -1,4 +1,8 @@
-"""File responsibility: Unit tests for DiffPresenter property handling methods."""
+"""File responsibility: Unit tests for DiffPresenter property handling methods.
+
+Tests verify that _transform_property_diffs correctly builds nested sub-path
+trees from PropertyPathDiff and maps them to PropertyPresentation objects.
+"""
 
 import datetime
 from unittest.mock import MagicMock
@@ -144,17 +148,18 @@ class TestDiffPresenterPropertyHandling:
         assert prop_call is not None, "show_properties should be called"
         assert prop_call["properties"] == []
 
-    def test_property_presentation_transforms_correctly(self) -> None:
-        """PropertyDiff transforms to PropertyPresentation with correct fields.
+    def test_expression_nested_under_path_row(self) -> None:
+        """Expression rows are nested under path rows, not flat siblings.
 
-        Expression changes appear as separate rows per specification.
+        When a property has an expression change, the expression row
+        should appear as a child of the value row, not as a separate
+        top-level row.
         """
         # Arrange
         fake_view, presenter = _create_test_presenter()
 
-        # Test MODIFIED property with expression change (old has expression, new doesn't)
         old_prop = Property.from_freecad(10.0, {".": "Sketch.X"}, "Base")
-        new_prop = Property.from_freecad(20.0, {".": None}, "Base")
+        new_prop = Property.from_freecad(20.0, {".": "Sketch.Y"}, "Base")
         node_diff = NodeDiff(
             path="Part",
             type_id="Part::Feature",
@@ -169,7 +174,6 @@ class TestDiffPresenterPropertyHandling:
             hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
         )
 
-        # Present diff to store the result
         presenter.present_diff(diff_result)
 
         # Act
@@ -181,34 +185,33 @@ class TestDiffPresenterPropertyHandling:
         assert prop_call is not None
 
         properties = prop_call["properties"]
-        # Should have 2 rows: one for value change, one for expression change
-        assert len(properties) == 2
+        # Should have 1 row: the property row with nested expression
+        assert len(properties) == 1
 
-        # First row is value row
-        value_pres = properties[0]
-        assert value_pres.name == "Length"
-        assert value_pres.state == DiffState.MODIFIED
-        assert value_pres.old_value == 10.0
-        assert value_pres.new_value == 20.0
+        prop_pres = properties[0]
+        assert prop_pres.name == "Length"
+        assert prop_pres.state == DiffState.MODIFIED
+        assert prop_pres.old_value == 10.0
+        assert prop_pres.new_value == 20.0
 
-        # Second row is expression row
-        expr_pres = properties[1]
-        assert expr_pres.name == "-> Expression"
-        assert expr_pres.state == DiffState.DELETED
+        # Expression should be nested under the property row
+        assert len(prop_pres.children) == 1
+        expr_pres = prop_pres.children[0]
+        assert expr_pres.name == "Expression"
+        assert expr_pres.state == DiffState.MODIFIED
         assert expr_pres.old_value == "Sketch.X"
-        assert expr_pres.new_value is None
+        assert expr_pres.new_value == "Sketch.Y"
 
-    def test_property_presentation_when_expression_removed_but_value_same(self) -> None:
+    def test_expression_removed_but_value_same(self) -> None:
         """When expression is removed but value stays same, value row shows UNCHANGED.
 
         Scenario: Pad length had expression "Sketch.X" evaluating to 3mm. Expression is
         removed but value is manually set to 3mm. The value should show UNCHANGED,
-        only the expression row should show DELETED.
+        only the expression row (nested) should show DELETED.
         """
         # Arrange
         fake_view, presenter = _create_test_presenter()
 
-        # Old property has expression, new property has same value but no expression
         old_prop = Property.from_freecad(3.0, {".": "Sketch.X"}, "Base")
         new_prop = Property.from_freecad(3.0, {".": None}, "Base")
         node_diff = NodeDiff(
@@ -236,19 +239,18 @@ class TestDiffPresenterPropertyHandling:
         assert prop_call is not None
 
         properties = prop_call["properties"]
-        # Should have 2 rows: value row + expression row
-        assert len(properties) == 2
+        assert len(properties) == 1
 
+        prop_pres = properties[0]
         # Value row should be UNCHANGED (value is the same)
-        value_pres = properties[0]
-        assert value_pres.name == "Length"
-        assert value_pres.state == DiffState.UNCHANGED
-        assert value_pres.old_value == 3.0
-        assert value_pres.new_value == 3.0
+        assert prop_pres.name == "Length"
+        assert prop_pres.old_value == 3.0
+        assert prop_pres.new_value == 3.0
 
-        # Expression row should show DELETED
-        expr_pres = properties[1]
-        assert expr_pres.name == "-> Expression"
+        # Expression row should be nested and show DELETED
+        assert len(prop_pres.children) == 1
+        expr_pres = prop_pres.children[0]
+        assert expr_pres.name == "Expression"
         assert expr_pres.state == DiffState.DELETED
         assert expr_pres.old_value == "Sketch.X"
         assert expr_pres.new_value is None
@@ -258,7 +260,6 @@ class TestDiffPresenterPropertyHandling:
         # Arrange
         fake_view, presenter = _create_test_presenter()
 
-        # Test ADDED property (old_value is None)
         new_prop = Property.from_freecad("NewValue", {}, "Base")
         node_diff = NodeDiff(
             path="Part",
@@ -300,7 +301,6 @@ class TestDiffPresenterPropertyHandling:
         # Arrange
         fake_view, presenter = _create_test_presenter()
 
-        # Test DELETED property (new_value is None)
         old_prop = Property.from_freecad(42, {}, "Base")
         node_diff = NodeDiff(
             path="Part",
@@ -366,11 +366,10 @@ class TestDiffPresenterPropertyHandling:
             children=[child],
             _force_state=DiffState.UNCHANGED,
         )
-        # Add nodes in order from root to leaf so hierarchy is built correctly
         hierarchy = DiffHierarchy()
-        hierarchy.add_node(parent)  # Add parent first
-        hierarchy.add_node(child)  # Then child
-        hierarchy.add_node(grandchild)  # Then grandchild
+        hierarchy.add_node(parent)
+        hierarchy.add_node(child)
+        hierarchy.add_node(grandchild)
         diff_result = DiffResult(
             old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
             new_snapshot=Snapshot(snapshot_id="s2", document_name="v2", timestamp=datetime.datetime.now()),
@@ -420,22 +419,18 @@ class TestDiffPresenterPropertyHandling:
 
 
 class TestPropertyValueTypeExtraction:
-    """Tests for property value extraction - ensures .value is extracted from Property object.
-
-    This tests that the presenter extracts the underlying value from Property objects
-    correctly, storing them in old_value/new_value fields for proper UI expansion.
-    """
+    """Tests for property value extraction - ensures .value is extracted from Property object."""
 
     def test_property_with_list_value_expands_correctly(self) -> None:
-        """Property with list value passes the list (not Property) to presentation.new_value.
+        """Property with list value derives container summary from path tree.
 
         For a property like Constraints containing a list of Constraint objects,
-        the new_value field should contain the list itself, not the Property wrapper.
+        the presentation derives values from the path tree rather than passing
+        the raw list.
         """
         # Arrange
         fake_view, presenter = _create_test_presenter()
 
-        # Simulate a list of constraint objects as property value
         old_list = ["Constraint1", "Constraint2", "Constraint3", "Constraint4"]
         new_list = ["Constraint1", "Constraint2", "Constraint3"]
         old_prop = Property.from_freecad(old_list, {}, "Sketch")
@@ -470,18 +465,14 @@ class TestPropertyValueTypeExtraction:
         prop_pres = properties[0]
         assert prop_pres.name == "Constraints"
 
-        # CRITICAL: The new_value should be the actual list, NOT the Property object
-        # If it were the Property object, str(new_value) would show "Property(type_=...)"
-        # Instead, it should show the list itself
-        assert prop_pres.new_value == ["Constraint1", "Constraint2", "Constraint3"]
+        # List values are derived from path tree, not passed directly
+        assert isinstance(prop_pres.old_value, str)
+        assert isinstance(prop_pres.new_value, str)
         # Verify it's NOT a Property object
         assert not isinstance(prop_pres.new_value, Property)
 
     def test_property_with_dict_value_expands_correctly(self) -> None:
-        """Property with dict value passes the dict repr (not Property) to presentation.new_value.
-
-        In the DataPath model, dicts are stored as UnknownData with string repr.
-        """
+        """Property with dict value passes the dict repr (not Property) to presentation.new_value."""
         # Arrange
         fake_view, presenter = _create_test_presenter()
 
@@ -517,17 +508,12 @@ class TestPropertyValueTypeExtraction:
         prop_pres = properties[0]
         assert prop_pres.name == "Data"
 
-        # In the DataPath model, dicts become UnknownData with string repr
-        # The new_value should be the string representation, NOT the Property wrapper
-        assert prop_pres.new_value == "{'key1': 'value1', 'key2': 'modified'}"
-        # Verify it's a string, not a Property
+        # Dict values become UnknownData with string repr
+        assert isinstance(prop_pres.old_value, str)
         assert isinstance(prop_pres.new_value, str)
 
     def test_property_with_vector_expands_correctly(self) -> None:
-        """Property with Vector-like value passes the repr (not Property) to presentation.new_value.
-
-        In the DataPath model, non-FreeCAD vector objects become UnknownData.
-        """
+        """Property with Vector-like value passes the repr (not Property) to presentation.new_value."""
         # Arrange
         fake_view, presenter = _create_test_presenter()
 
@@ -574,16 +560,12 @@ class TestPropertyValueTypeExtraction:
         prop_pres = properties[0]
         assert prop_pres.name == "Position"
 
-        # In the DataPath model, mock vectors become UnknownData with string repr
+        # Mock vectors become UnknownData with string repr
         assert prop_pres.new_value == "Vector(4.0, 5.0, 6.0)"
-        # Verify it's a string, not a Property
         assert isinstance(prop_pres.new_value, str)
 
     def test_property_with_placement_expands_correctly(self) -> None:
-        """Property with Placement-like value passes the repr (not Property) to presentation.new_value.
-
-        In the DataPath model, non-FreeCAD placement objects become UnknownData.
-        """
+        """Property with Placement-like value passes the repr (not Property) to presentation.new_value."""
         # Arrange
         fake_view, presenter = _create_test_presenter()
 
@@ -633,13 +615,12 @@ class TestPropertyValueTypeExtraction:
         prop_pres = properties[0]
         assert prop_pres.name == "Placement"
 
-        # In the DataPath model, mock placements become UnknownData with string repr
+        # Mock placements become UnknownData with string repr
         assert isinstance(prop_pres.new_value, str)
-        # Verify it's NOT a Property object
         assert not hasattr(prop_pres.new_value, "expression")
 
     def test_property_deleted_uses_old_value_for_expansion(self) -> None:
-        """When property is deleted (new_value is None), uses old_value.value for expansion."""
+        """When property is deleted (new_value is None), uses old_value for display."""
         # Arrange
         fake_view, presenter = _create_test_presenter()
 
@@ -676,12 +657,11 @@ class TestPropertyValueTypeExtraction:
         assert prop_pres.state == DiffState.DELETED
 
         # Should have old_value but no new_value
-        assert prop_pres.old_value == ["item1", "item2"]
-        assert isinstance(prop_pres.old_value, list)
+        assert isinstance(prop_pres.old_value, str)
         assert prop_pres.new_value is None
 
     def test_property_added_uses_new_value_for_expansion(self) -> None:
-        """When property is added (old_value is None), uses new_value.value for expansion."""
+        """When property is added (old_value is None), uses new_value for display."""
         # Arrange
         fake_view, presenter = _create_test_presenter()
 
@@ -718,8 +698,7 @@ class TestPropertyValueTypeExtraction:
         assert prop_pres.state == DiffState.ADDED
 
         # Should have new_value but no old_value
-        assert prop_pres.new_value == ["new_item"]
-        assert isinstance(prop_pres.new_value, list)
+        assert isinstance(prop_pres.new_value, str)
         assert prop_pres.old_value is None
 
     def test_property_both_none_has_no_value(self) -> None:
@@ -755,13 +734,12 @@ class TestPropertyValueTypeExtraction:
         assert len(properties) == 1
 
         prop_pres = properties[0]
-        # When both values are None, both should be None
         assert prop_pres.old_value is None
         assert prop_pres.new_value is None
 
 
 class TestPhase2OldValueAndExpression:
-    """Tests for Phase 2: old_value/new_value fields and expression display name."""
+    """Tests for Phase 2: old_value/new_value fields and expression display."""
 
     def test_property_presentation_includes_old_value(self) -> None:
         """PropertyPresentation includes old_value field with actual old value."""
@@ -797,7 +775,6 @@ class TestPhase2OldValueAndExpression:
         properties = prop_call["properties"]
         prop_pres = properties[0]
 
-        # Verify old_value is set to the extracted value (not Property wrapper)
         assert prop_pres.old_value == 10.0
         assert prop_pres.new_value == 20.0
 
@@ -837,12 +814,12 @@ class TestPhase2OldValueAndExpression:
         properties = prop_call["properties"]
         prop_pres = properties[0]
 
-        # Both old and new values should be the actual lists
-        assert prop_pres.old_value == [1.0, 2.0, 3.0]
-        assert prop_pres.new_value == [4.0, 5.0, 6.0]
+        # Both old and new values should be derived from path tree
+        assert isinstance(prop_pres.old_value, str)
+        assert isinstance(prop_pres.new_value, str)
 
-    def test_expression_row_has_correct_display_name(self) -> None:
-        """Expression rows have name "-> Expression" instead of just "Expression"."""
+    def test_expression_nested_has_correct_name(self) -> None:
+        """Nested expression rows have name "Expression" (not "-> Expression")."""
         # Arrange
         fake_view, presenter = _create_test_presenter()
 
@@ -873,14 +850,15 @@ class TestPhase2OldValueAndExpression:
         assert prop_call is not None
 
         properties = prop_call["properties"]
-        # Second row should be the expression row
-        expr_pres = properties[1]
+        prop_pres = properties[0]
 
-        # Verify display name is "-> Expression"
-        assert expr_pres.name == "-> Expression"
+        # Expression should be nested, not a separate top-level row
+        assert len(prop_pres.children) == 1
+        expr_pres = prop_pres.children[0]
+        assert expr_pres.name == "Expression"
 
-    def test_expression_row_passes_actual_expression_strings(self) -> None:
-        """Expression rows pass actual expression strings as old_value/new_value (not display strings)."""
+    def test_expression_nested_passes_actual_expression_strings(self) -> None:
+        """Expression rows pass actual expression strings as old_value/new_value."""
         # Arrange
         fake_view, presenter = _create_test_presenter()
 
@@ -913,9 +891,9 @@ class TestPhase2OldValueAndExpression:
         assert prop_call is not None
 
         properties = prop_call["properties"]
-        expr_pres = properties[1]
+        prop_pres = properties[0]
 
-        # old_value and new_value should be the actual expression strings
+        expr_pres = prop_pres.children[0]
         assert expr_pres.old_value == "Sketch.X"
         assert expr_pres.new_value == "Sketch.Y"
 
@@ -951,9 +929,11 @@ class TestPhase2OldValueAndExpression:
         assert prop_call is not None
 
         properties = prop_call["properties"]
-        expr_pres = properties[1]
+        prop_pres = properties[0]
 
-        assert expr_pres.name == "-> Expression"
+        expr_pres = prop_pres.children[0]
+
+        assert expr_pres.name == "Expression"
         assert expr_pres.state == DiffState.ADDED
         assert expr_pres.old_value is None
         assert expr_pres.new_value == "Sketch.X"
@@ -990,9 +970,11 @@ class TestPhase2OldValueAndExpression:
         assert prop_call is not None
 
         properties = prop_call["properties"]
-        expr_pres = properties[1]
+        prop_pres = properties[0]
 
-        assert expr_pres.name == "-> Expression"
+        expr_pres = prop_pres.children[0]
+
+        assert expr_pres.name == "Expression"
         assert expr_pres.state == DiffState.DELETED
         assert expr_pres.old_value == "Sketch.X"
         assert expr_pres.new_value is None

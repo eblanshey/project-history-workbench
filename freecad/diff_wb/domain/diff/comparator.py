@@ -1,19 +1,12 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
-# File responsibility: This module provides efficient tree comparison algorithms
-# that use path-based indexing for O(n+m) performance. It compares two document
-# snapshots and produces a hierarchical structure of NodeDiff objects representing
-# added, deleted, and modified nodes.
+# File responsibility: Efficient tree comparison algorithms using path-based indexing
+# for O(n+m) performance. Compares two document snapshots and produces a hierarchical
+# structure of NodeDiff objects representing added, deleted, and modified nodes.
 #
 # The module contains two main classes:
 # - TreeComparator: Compares tree structures using path-based indexing
-# - PropertyComparator: Compares property values with type-aware equality
-#
-# Comparison rules for properties:
-# - BOOL, INT, STRING: Exact equality
-# - FLOAT: Approximate equality (tolerance=1e-9)
-# - VECTOR: Component-wise approximate equality
-# - PLACEMENT: Position + rotation comparison
-# - EXPRESSION: String equality (expression changes are significant)
+# - PropertyComparator: Compares property values and delegates state calculation
+#   to PropertyDiff (which uses path-based diffs internally).
 """Tree and property comparison algorithms."""
 
 from ..snapshots import Snapshot
@@ -403,58 +396,12 @@ class TreeComparator:
 
 
 class PropertyComparator:
-    """Compares property values with type-aware equality.
+    """Compares property values between two nodes.
 
-    This class provides instance methods for comparing property values between
-    two snapshots, handling all FreeCAD property types with appropriate
-    equality rules.
-
-    Comparison rules:
-    - BOOL, INT, STRING: Exact equality
-    - FLOAT: Approximate equality (tolerance=1e-9)
-    - VECTOR: Component-wise approximate equality
-    - PLACEMENT: Position + rotation comparison
-    - EXPRESSION: String equality (expression changes are significant)
+    Delegates state calculation to ``PropertyDiff``, which uses path-based
+    diffs internally. This class only handles property name iteration,
+    exclusion filtering, and deterministic alphabetical ordering.
     """
-
-    def _should_exclude_property(self, prop_name: str, excluded_properties: list[str]) -> bool:
-        """Check if a property should be excluded from comparison.
-
-        Args:
-            prop_name: The name of the property to check
-            excluded_properties: List of property names to exclude
-
-        Returns:
-            True if the property should be excluded, False otherwise
-        """
-        return prop_name in excluded_properties
-
-    def _values_are_equal(self, old_value: Property | None, new_value: Property | None) -> bool:
-        """Compare two property values with type-aware equality.
-
-        This function handles all FreeCAD property types with appropriate
-        comparison rules:
-        - BOOL, INT, STRING: Exact equality
-        - FLOAT: Approximate equality (tolerance=1e-9)
-        - VECTOR: Component-wise approximate equality
-        - PLACEMENT: Position + rotation comparison
-        - EXPRESSION: String equality
-
-        Args:
-            old_value: The old property value (or None)
-            new_value: The new property value (or None)
-
-        Returns:
-            True if values are equal according to type-specific rules
-        """
-        # Handle None cases
-        if old_value is None and new_value is None:
-            return True
-        if old_value is None or new_value is None:
-            return False
-
-        # Use Property's built-in equality which handles all types correctly
-        return old_value == new_value
 
     def compare_properties(
         self,
@@ -464,9 +411,9 @@ class PropertyComparator:
     ) -> list[PropertyDiff]:
         """Compare properties between two nodes and produce a list of PropertyDiff objects.
 
-        This function iterates through all properties in both old and new nodes,
-        creates PropertyDiff objects for each property, and filters out excluded
-        properties.
+        Properties are iterated in deterministic alphabetical order. Excluded
+        properties are skipped. ``PropertyDiff`` objects are created for every
+        non-excluded property (including unchanged ones).
 
         Args:
             old_props: Dictionary of property names to values from the old node
@@ -477,27 +424,19 @@ class PropertyComparator:
             List of PropertyDiff objects for all non-excluded properties (including unchanged)
         """
         property_diffs: list[PropertyDiff] = []
-
-        # Get all unique property names from both nodes
-        all_prop_names = set(old_props.keys()) | set(new_props.keys())
+        all_prop_names = sorted(set(old_props.keys()) | set(new_props.keys()))
 
         for prop_name in all_prop_names:
-            # Skip excluded properties
-            if self._should_exclude_property(prop_name, excluded_properties):
+            if prop_name in excluded_properties:
                 continue
 
-            old_value = old_props.get(prop_name)
-            new_value = new_props.get(prop_name)
-
-            # Create PropertyDiff for this property
-            prop_diff = PropertyDiff(
-                property_name=prop_name,
-                old_value=old_value,
-                new_value=new_value,
+            property_diffs.append(
+                PropertyDiff(
+                    property_name=prop_name,
+                    old_value=old_props.get(prop_name),
+                    new_value=new_props.get(prop_name),
+                )
             )
-
-            # Always include the property diff
-            property_diffs.append(prop_diff)
 
         return property_diffs
 
