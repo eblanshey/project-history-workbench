@@ -365,6 +365,9 @@ class DiffPanelView(QWidget):
                 on line 1, and first line of message on line 2. Full commit
                 message is shown in tooltip.
         """
+        # Preserve previous selection so refresh can restore it if still present.
+        previous_selection = self._current_selection
+
         # Clear existing items
         self.history_list.clear()
 
@@ -391,6 +394,7 @@ class DiffPanelView(QWidget):
 
         # Guard: no commits to display after adding special items
         if not commits:
+            self._restore_history_selection(previous_selection)
             return
 
         # Note: Commits are already sorted by timestamp (newest first) by GitPortAdapter.get_commits()
@@ -428,6 +432,9 @@ class DiffPanelView(QWidget):
 
             # Add to list
             self.history_list.addItem(item)
+
+        # Restore previous selection if possible; otherwise default to Working Tree.
+        self._restore_history_selection(previous_selection)
 
     def set_history_selection_callback(self, callback: Callable[[HistorySelection], None]) -> None:
         """Set the callback for history list selection.
@@ -482,14 +489,48 @@ class DiffPanelView(QWidget):
 
     def _on_item_clicked(self, item: QListWidgetItem) -> None:
         """Handle item click by tracking selection and triggering callback."""
-        if self._on_history_selection_callback is None:
-            return
-
         item_data = item.data(Qt.ItemDataRole.UserRole)
         if isinstance(item_data, HistorySelection):
             # Track selection state for button visibility
             self._current_selection = item_data
-            self._on_history_selection_callback(item_data)
+            if self._on_history_selection_callback is not None:
+                self._on_history_selection_callback(item_data)
+
+    def _select_history_item(self, selection: HistorySelection) -> bool:
+        """Select a history item by ``HistorySelection`` and trigger callback.
+
+        Args:
+            selection: Selection model to locate in the history list.
+
+        Returns:
+            True if a matching item was found and selected, False otherwise.
+        """
+        for row in range(self.history_list.count()):
+            item = self.history_list.item(row)
+            if item is None:
+                continue
+            item_data = item.data(Qt.ItemDataRole.UserRole)
+            if item_data == selection:
+                self.history_list.setCurrentItem(item)
+                self._current_selection = selection
+                if self._on_history_selection_callback is not None:
+                    self._on_history_selection_callback(selection)
+                return True
+
+        return False
+
+    def _restore_history_selection(self, previous_selection: HistorySelection | None) -> None:
+        """Restore previous history selection, or default to Working Tree.
+
+        Args:
+            previous_selection: Previously selected history item, if any.
+        """
+        default_selection = HistorySelection(item_kind="WORKING_TREE", commit_hash=None)
+        selection_to_restore = previous_selection if previous_selection is not None else default_selection
+
+        if not self._select_history_item(selection_to_restore):
+            # Previously selected commit may have disappeared after refresh.
+            self._select_history_item(default_selection)
 
     def _format_timestamp(self, iso_string: str) -> str:
         """Format ISO timestamp string for display.

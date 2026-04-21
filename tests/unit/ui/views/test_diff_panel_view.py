@@ -692,8 +692,10 @@ class TestShowCommits:
         assert "a1b2c3d" in text
         assert "e5f6789" not in text  # Full hash should not appear
 
-    def test_show_commits_no_automatic_selection(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """Test that show_commits does not automatically select any items."""
+    def test_show_commits_defaults_to_working_tree_selection(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """show_commits() auto-selects Working Tree when nothing was selected."""
+        from PySide6.QtCore import Qt
+
         from freecad.diff_wb.domain.git.models import GitCommit
 
         commits = [
@@ -713,8 +715,95 @@ class TestShowCommits:
 
         panel.show_commits(commits)
 
-        # No items should be selected
-        assert len(panel.history_list.selectedItems()) == 0
+        selected_items = panel.history_list.selectedItems()
+        assert len(selected_items) == 1
+        selected_selection = selected_items[0].data(Qt.ItemDataRole.UserRole)
+        assert selected_selection == HistorySelection(item_kind="WORKING_TREE", commit_hash=None)
+
+    def test_show_commits_refresh_restores_previous_selection_if_it_still_exists(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Refreshing commits re-selects the same commit when still present."""
+        from PySide6.QtCore import Qt
+
+        from freecad.diff_wb.domain.git.models import GitCommit
+
+        selected_commit_hash = "a1b2c3d4e5f67890"
+        initial_commits = [
+            GitCommit(
+                id=selected_commit_hash,
+                message="Selected commit",
+                author="Test",
+                timestamp=datetime.fromisoformat("2024-01-15T10:30:00+00:00"),
+            ),
+            GitCommit(
+                id="b2c3d4e5f6789012",
+                message="Another commit",
+                author="Test",
+                timestamp=datetime.fromisoformat("2024-01-16T10:30:00+00:00"),
+            ),
+        ]
+
+        panel.set_history_selection_callback(lambda selection: None)
+        panel.show_commits(initial_commits)
+
+        selected_item = panel.history_list.item(2)
+        assert selected_item is not None
+        panel.history_list.itemClicked.emit(selected_item)
+
+        refreshed_commits = [
+            GitCommit(
+                id=selected_commit_hash,
+                message="Selected commit (updated message)",
+                author="Test",
+                timestamp=datetime.fromisoformat("2024-01-15T10:30:00+00:00"),
+            ),
+        ]
+        panel.show_commits(refreshed_commits)
+
+        selected_items = panel.history_list.selectedItems()
+        assert len(selected_items) == 1
+        selected_selection = selected_items[0].data(Qt.ItemDataRole.UserRole)
+        assert selected_selection == HistorySelection(item_kind="COMMIT", commit_hash=selected_commit_hash)
+
+    def test_show_commits_refresh_falls_back_to_working_tree_when_previous_selection_missing(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Refreshing commits selects Working Tree when prior commit selection disappears."""
+        from PySide6.QtCore import Qt
+
+        from freecad.diff_wb.domain.git.models import GitCommit
+
+        removed_commit_hash = "a1b2c3d4e5f67890"
+        panel.set_history_selection_callback(lambda selection: None)
+        panel.show_commits(
+            [
+                GitCommit(
+                    id=removed_commit_hash,
+                    message="Will be removed",
+                    author="Test",
+                    timestamp=datetime.fromisoformat("2024-01-15T10:30:00+00:00"),
+                ),
+            ]
+        )
+
+        # Select the commit item first.
+        selected_item = panel.history_list.item(2)
+        assert selected_item is not None
+        panel.history_list.itemClicked.emit(selected_item)
+
+        # Refresh with commit list that no longer contains the selected commit.
+        panel.show_commits(
+            [
+                GitCommit(
+                    id="b2c3d4e5f6789012",
+                    message="Different commit",
+                    author="Test",
+                    timestamp=datetime.fromisoformat("2024-01-16T10:30:00+00:00"),
+                ),
+            ]
+        )
+
+        selected_items = panel.history_list.selectedItems()
+        assert len(selected_items) == 1
+        selected_selection = selected_items[0].data(Qt.ItemDataRole.UserRole)
+        assert selected_selection == HistorySelection(item_kind="WORKING_TREE", commit_hash=None)
 
     def test_show_commits_long_message_wraps(self, panel) -> None:  # type: ignore[no-untyped-def]
         """Test that long commit messages wrap within the list item."""
