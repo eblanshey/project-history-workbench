@@ -327,6 +327,8 @@ class NodeDiff:
     Attributes:
         path: The path to this node (for backward compatibility, same as new_path)
         type_id: The TypeID of the node
+        label: The user-friendly label of the node (from new snapshot for added/modified,
+            from old snapshot for deleted)
         state: The overall state of this node - auto-calculated or forced
         property_diffs: List of property-level differences
         children: List of child node diffs
@@ -345,6 +347,7 @@ class NodeDiff:
 
     path: str
     type_id: str
+    label: str = ""
     state: DiffState = field(init=False)
     property_diffs: list[PropertyDiff] = field(default_factory=list)
     children: list[NodeDiff] = field(default_factory=list)

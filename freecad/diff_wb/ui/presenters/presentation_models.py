@@ -22,6 +22,7 @@ class NodePresentation:
 
     path: str
     type_id: str
+    label: str
     state: DiffState
     has_changes: bool
     children: list[NodePresentation] = field(default_factory=list)

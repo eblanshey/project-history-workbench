@@ -827,6 +827,7 @@ class DiffPresenter:
         return NodePresentation(
             path=node_diff.path,
             type_id=node_diff.type_id,
+            label=node_diff.label,
             state=node_diff.state,
             has_changes=node_diff.has_changes,
             children=[self._format_node(child) for child in node_diff.children],

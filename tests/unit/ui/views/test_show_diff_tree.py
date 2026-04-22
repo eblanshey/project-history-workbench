@@ -41,6 +41,7 @@ class TestShowDiffTreeEmptyList:
         root_node = NodePresentation(
             path="Body/Pad",
             type_id="PartDesign::Pad",
+            label="Pad",
             state=DiffState.ADDED,
             has_changes=True,
             children=[],
@@ -68,6 +69,7 @@ class TestShowDiffTreeMixedStates:
         added_node = NodePresentation(
             path="Body/NewPad",
             type_id="PartDesign::Pad",
+            label="NewPad",
             state=DiffState.ADDED,
             has_changes=True,
             children=[],
@@ -94,6 +96,7 @@ class TestShowDiffTreeMixedStates:
         deleted_node = NodePresentation(
             path="Body/OldPad",
             type_id="PartDesign::Pad",
+            label="OldPad",
             state=DiffState.DELETED,
             has_changes=True,
             children=[],
@@ -120,6 +123,7 @@ class TestShowDiffTreeMixedStates:
         modified_node = NodePresentation(
             path="Body/ModifiedPad",
             type_id="PartDesign::Pad",
+            label="ModifiedPad",
             state=DiffState.MODIFIED,
             has_changes=True,
             children=[],
@@ -146,6 +150,7 @@ class TestShowDiffTreeMixedStates:
         unchanged_node = NodePresentation(
             path="Body/BasePart",
             type_id="PartDesign::Body",
+            label="BasePart",
             state=DiffState.UNCHANGED,
             has_changes=False,
             children=[],
@@ -175,6 +180,7 @@ class TestShowDiffTreeMixedStates:
         test_node = NodePresentation(
             path="Body/Pad/Length",
             type_id="PropertyLength",
+            label="Length",
             state=DiffState.MODIFIED,
             has_changes=True,
             children=[],
@@ -203,6 +209,7 @@ class TestDisplayNameExtractionEdgeCases:
         node = NodePresentation(
             path="",
             type_id="PartDesign::Body",
+            label="PartDesign::Body",
             state=DiffState.UNCHANGED,
             has_changes=False,
             children=[],
@@ -211,12 +218,12 @@ class TestDisplayNameExtractionEdgeCases:
         # When: Show tree with the node
         panel.show_diff_tree([node])
 
-        # Then: Root exists and child uses type_id (no slash to split on)
+        # Then: Root exists and child shows label with empty name (no path segment)
         root_item = panel.tree_widget.topLevelItem(0)
         assert root_item is not None
         child_item = root_item.child(0)
         assert child_item is not None
-        assert child_item.text(0) == "PartDesign::Body (PartDesign::Body)"
+        assert child_item.text(0) == "PartDesign::Body ()"
 
     def test_path_ending_with_slash_uses_empty_display_name(self, panel) -> None:  # type: ignore[no-untyped-def]
         """Path ending with '/' results in empty string as last segment."""
@@ -226,6 +233,7 @@ class TestDisplayNameExtractionEdgeCases:
         node = NodePresentation(
             path="Body/Pad/",
             type_id="PartDesign::Pad",
+            label="",
             state=DiffState.UNCHANGED,
             has_changes=False,
             children=[],
@@ -234,12 +242,12 @@ class TestDisplayNameExtractionEdgeCases:
         # When: Show tree with the node
         panel.show_diff_tree([node])
 
-        # Then: Root exists and child shows empty name before type_id
+        # Then: Root exists and child shows empty string (label == name == "")
         root_item = panel.tree_widget.topLevelItem(0)
         assert root_item is not None
         child_item = root_item.child(0)
         assert child_item is not None
-        assert child_item.text(0) == " (PartDesign::Pad)"
+        assert child_item.text(0) == ""
 
     def test_single_segment_path_shows_as_display_name(self, panel) -> None:  # type: ignore[no-untyped-def]
         """Single segment path (no slashes) uses the entire path as display name."""
@@ -249,6 +257,7 @@ class TestDisplayNameExtractionEdgeCases:
         node = NodePresentation(
             path="Body",
             type_id="PartDesign::Body",
+            label="Body",
             state=DiffState.UNCHANGED,
             has_changes=False,
             children=[],
@@ -257,12 +266,12 @@ class TestDisplayNameExtractionEdgeCases:
         # When: Show tree with the node
         panel.show_diff_tree([node])
 
-        # Then: Root exists and child uses the path segment as display name
+        # Then: Root exists and child shows label without parentheses (label == name)
         root_item = panel.tree_widget.topLevelItem(0)
         assert root_item is not None
         child_item = root_item.child(0)
         assert child_item is not None
-        assert child_item.text(0) == "Body (PartDesign::Body)"
+        assert child_item.text(0) == "Body"
 
 
 class TestShowDiffTreeHierarchy:
@@ -276,6 +285,7 @@ class TestShowDiffTreeHierarchy:
         child1 = NodePresentation(
             path="Body/Pad/Length",
             type_id="PropertyLength",
+            label="Length",
             state=DiffState.MODIFIED,
             has_changes=True,
             children=[],
@@ -283,6 +293,7 @@ class TestShowDiffTreeHierarchy:
         child2 = NodePresentation(
             path="Body/Pad/Width",
             type_id="PropertyLength",
+            label="Width",
             state=DiffState.ADDED,
             has_changes=True,
             children=[],
@@ -290,6 +301,7 @@ class TestShowDiffTreeHierarchy:
         parent = NodePresentation(
             path="Body/Pad",
             type_id="PartDesign::Pad",
+            label="Pad",
             state=DiffState.MODIFIED,
             has_changes=True,
             children=[child1, child2],
@@ -306,8 +318,8 @@ class TestShowDiffTreeHierarchy:
         parent_item = root_item.child(0)
         assert parent_item is not None
         assert parent_item.childCount() == 2
-        assert parent_item.child(0).text(0) == "Length (PropertyLength)"
-        assert parent_item.child(1).text(0) == "Width (PropertyLength)"
+        assert parent_item.child(0).text(0) == "Length"
+        assert parent_item.child(1).text(0) == "Width"
 
     def test_deeply_nested_children_display_correctly(self, panel) -> None:  # type: ignore[no-untyped-def]
         """Deeply nested children are displayed at correct levels."""
@@ -317,6 +329,7 @@ class TestShowDiffTreeHierarchy:
         grandchild = NodePresentation(
             path="Body/Pad/Sketch/Constraint",
             type_id="PropertyConstraint",
+            label="Constraint",
             state=DiffState.MODIFIED,
             has_changes=True,
             children=[],
@@ -324,6 +337,7 @@ class TestShowDiffTreeHierarchy:
         child = NodePresentation(
             path="Body/Pad/Sketch",
             type_id="PartDesign::Sketch",
+            label="Sketch",
             state=DiffState.MODIFIED,
             has_changes=True,
             children=[grandchild],
@@ -331,6 +345,7 @@ class TestShowDiffTreeHierarchy:
         parent = NodePresentation(
             path="Body/Pad",
             type_id="PartDesign::Pad",
+            label="Pad",
             state=DiffState.MODIFIED,
             has_changes=True,
             children=[child],
@@ -344,13 +359,13 @@ class TestShowDiffTreeHierarchy:
         assert root_item is not None
         assert root_item.childCount() == 1
         pad_item = root_item.child(0)
-        assert pad_item.text(0) == "Pad (PartDesign::Pad)"
+        assert pad_item.text(0) == "Pad"
         assert pad_item.childCount() == 1
         sketch_item = pad_item.child(0)
-        assert sketch_item.text(0) == "Sketch (PartDesign::Sketch)"
+        assert sketch_item.text(0) == "Sketch"
         assert sketch_item.childCount() == 1
         constraint_item = sketch_item.child(0)
-        assert constraint_item.text(0) == "Constraint (PropertyConstraint)"
+        assert constraint_item.text(0) == "Constraint"
 
     def test_multiple_root_nodes_display_independently(self, panel) -> None:  # type: ignore[no-untyped-def]
         """Multiple root nodes display as children of the git_path wrapper."""
@@ -360,6 +375,7 @@ class TestShowDiffTreeHierarchy:
         root1 = NodePresentation(
             path="Body/Pad",
             type_id="PartDesign::Pad",
+            label="Pad",
             state=DiffState.ADDED,
             has_changes=True,
             children=[],
@@ -367,6 +383,7 @@ class TestShowDiffTreeHierarchy:
         root2 = NodePresentation(
             path="Pocket/Hole",
             type_id="PartDesign::Hole",
+            label="Hole",
             state=DiffState.DELETED,
             has_changes=True,
             children=[],
@@ -380,8 +397,8 @@ class TestShowDiffTreeHierarchy:
         root_item = panel.tree_widget.topLevelItem(0)
         assert root_item is not None
         assert root_item.childCount() == 2
-        assert root_item.child(0).text(0) == "Pad (PartDesign::Pad)"
-        assert root_item.child(1).text(0) == "Hole (PartDesign::Hole)"
+        assert root_item.child(0).text(0) == "Pad"
+        assert root_item.child(1).text(0) == "Hole"
 
 
 class TestShowDiffTreeExpandCollapse:
@@ -395,6 +412,7 @@ class TestShowDiffTreeExpandCollapse:
         child = NodePresentation(
             path="Body/Pad/Length",
             type_id="PropertyLength",
+            label="Length",
             state=DiffState.MODIFIED,
             has_changes=True,
             children=[],
@@ -402,6 +420,7 @@ class TestShowDiffTreeExpandCollapse:
         parent = NodePresentation(
             path="Body/Pad",
             type_id="PartDesign::Pad",
+            label="Pad",
             state=DiffState.MODIFIED,
             has_changes=True,
             children=[child],
@@ -420,7 +439,7 @@ class TestShowDiffTreeExpandCollapse:
         # Child should exist under parent
         assert parent_item.childCount() == 1
         child_item = parent_item.child(0)
-        assert child_item.text(0) == "Length (PropertyLength)"
+        assert child_item.text(0) == "Length"
 
 
 class TestShowDiffTreeScrolling:
@@ -435,6 +454,7 @@ class TestShowDiffTreeScrolling:
             NodePresentation(
                 path=f"Body/Feature{i}",
                 type_id="PartDesign::Feature",
+                label=f"Feature{i}",
                 state=DiffState.ADDED if i % 2 == 0 else "MODIFIED",
                 has_changes=True,
                 children=[],
@@ -466,6 +486,7 @@ class TestShowDiffTreeGitPath:
         node = NodePresentation(
             path="Body/Pad",
             type_id="PartDesign::Pad",
+            label="Pad",
             state=DiffState.MODIFIED,
             has_changes=True,
             children=[],
@@ -489,6 +510,7 @@ class TestShowDiffTreeGitPath:
         child1 = NodePresentation(
             path="Body/Pad",
             type_id="PartDesign::Pad",
+            label="Pad",
             state=DiffState.ADDED,
             has_changes=True,
             children=[],
@@ -496,6 +518,7 @@ class TestShowDiffTreeGitPath:
         child2 = NodePresentation(
             path="Body/Pocket",
             type_id="PartDesign::Pocket",
+            label="Pocket",
             state=DiffState.DELETED,
             has_changes=True,
             children=[],
@@ -510,8 +533,8 @@ class TestShowDiffTreeGitPath:
         assert root_item is not None
         assert root_item.text(0) == "projects/myproject/doc.FCStd"
         assert root_item.childCount() == 2
-        assert root_item.child(0).text(0) == "Pad (PartDesign::Pad)"
-        assert root_item.child(1).text(0) == "Pocket (PartDesign::Pocket)"
+        assert root_item.child(0).text(0) == "Pad"
+        assert root_item.child(1).text(0) == "Pocket"
 
     def test_document_name_fallback_when_git_path_empty(self, panel) -> None:  # type: ignore[no-untyped-def]
         """Tree widget falls back to document_name when git_path is empty."""
@@ -521,6 +544,7 @@ class TestShowDiffTreeGitPath:
         node = NodePresentation(
             path="Body/Pad",
             type_id="PartDesign::Pad",
+            label="Pad",
             state=DiffState.MODIFIED,
             has_changes=True,
             children=[],
@@ -543,6 +567,7 @@ class TestShowDiffTreeGitPath:
         grandchild = NodePresentation(
             path="Body/Pad/Sketch",
             type_id="PartDesign::Sketch",
+            label="Sketch",
             state=DiffState.MODIFIED,
             has_changes=True,
             children=[],
@@ -550,6 +575,7 @@ class TestShowDiffTreeGitPath:
         child = NodePresentation(
             path="Body/Pad",
             type_id="PartDesign::Pad",
+            label="Pad",
             state=DiffState.MODIFIED,
             has_changes=True,
             children=[grandchild],
@@ -566,11 +592,11 @@ class TestShowDiffTreeGitPath:
         assert root_item.childCount() == 1
 
         pad_item = root_item.child(0)
-        assert pad_item.text(0) == "Pad (PartDesign::Pad)"
+        assert pad_item.text(0) == "Pad"
         assert pad_item.childCount() == 1
 
         sketch_item = pad_item.child(0)
-        assert sketch_item.text(0) == "Sketch (PartDesign::Sketch)"
+        assert sketch_item.text(0) == "Sketch"
 
 
 class TestShowDiffTreesSelectionKeyWiring:
@@ -606,6 +632,7 @@ class TestShowDiffTreesSelectionKeyWiring:
                         NodePresentation(
                             path="Body",
                             type_id="PartDesign::Body",
+                            label="Body",
                             state=DiffState.MODIFIED,
                             has_changes=True,
                             children=[],

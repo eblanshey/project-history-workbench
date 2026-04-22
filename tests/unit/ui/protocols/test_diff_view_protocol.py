@@ -117,6 +117,7 @@ class TestFakeDiffViewShowDiffTrees:
                     NodePresentation(
                         path="test_path",
                         type_id="Part::Feature",
+                        label="test_path",
                         state=DiffState.UNCHANGED,
                         has_changes=False,
                     )

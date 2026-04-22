@@ -23,6 +23,7 @@ class TestNodePresentation:
         node = NodePresentation(
             path="Part",
             type_id="Part::Feature",
+            label="Part",
             state=DiffState.MODIFIED,
             has_changes=True,
         )
@@ -37,6 +38,7 @@ class TestNodePresentation:
         node = NodePresentation(
             path="Part/Body",
             type_id="PartDesign::Body",
+            label="Body",
             state=DiffState.ADDED,
             has_changes=False,
         )
@@ -53,18 +55,21 @@ class TestNodePresentation:
         child1 = NodePresentation(
             path="Part/Body/Pad",
             type_id="PartDesign::Pad",
+            label="Pad",
             state=DiffState.UNCHANGED,
             has_changes=False,
         )
         child2 = NodePresentation(
             path="Part/Body/Pocket",
             type_id="PartDesign::Pocket",
+            label="Pocket",
             state=DiffState.MODIFIED,
             has_changes=True,
         )
         parent = NodePresentation(
             path="Part/Body",
             type_id="PartDesign::Body",
+            label="Body",
             state=DiffState.MODIFIED,
             has_changes=True,
             children=[child1, child2],
@@ -83,6 +88,7 @@ class TestNodePresentation:
         node = NodePresentation(
             path="Part",
             type_id="Part::Feature",
+            label="Part",
             state=DiffState.UNCHANGED,
             has_changes=False,
         )
@@ -97,12 +103,14 @@ class TestNodePresentation:
         node1 = NodePresentation(
             path="Part1",
             type_id="Part::Feature",
+            label="Part1",
             state=DiffState.UNCHANGED,
             has_changes=False,
         )
         node2 = NodePresentation(
             path="Part2",
             type_id="Part::Feature",
+            label="Part2",
             state=DiffState.UNCHANGED,
             has_changes=False,
         )
@@ -364,18 +372,21 @@ class TestPresentationModelsAreDataclasses:
         node1 = NodePresentation(
             path="Part",
             type_id="Part::Feature",
+            label="Part",
             state=DiffState.MODIFIED,
             has_changes=True,
         )
         node2 = NodePresentation(
             path="Part",
             type_id="Part::Feature",
+            label="Part",
             state=DiffState.MODIFIED,
             has_changes=True,
         )
         node3 = NodePresentation(
             path="Part",
             type_id="Part::Feature",
+            label="Part",
             state=DiffState.UNCHANGED,
             has_changes=False,
         )
@@ -460,12 +471,14 @@ class TestDiffTreePresentation:
         node1 = NodePresentation(
             path="Part",
             type_id="Part::Feature",
+            label="Part",
             state=DiffState.ADDED,
             has_changes=True,
         )
         node2 = NodePresentation(
             path="Body",
             type_id="PartDesign::Body",
+            label="Body",
             state=DiffState.MODIFIED,
             has_changes=True,
         )

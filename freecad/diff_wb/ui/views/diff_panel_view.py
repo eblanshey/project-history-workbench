@@ -886,11 +886,14 @@ class DiffPanelView(QWidget):
             QTreeWidgetItem with text, color, and children populated.
         """
         # Extract display name: last path segment (e.g., "Pad" from "Body/Pad")
-        display_name = node.path.split("/")[-1] if node.path else node.type_id
-        text = f"{display_name} ({node.type_id})"
+        name = node.path.split("/")[-1] if node.path else ""
+        text = node.label if node.label == name else f"{node.label} ({name})"
 
         # Create tree item with display text
         item = QTreeWidgetItem([text])
+
+        # Set tooltip with node type
+        item.setToolTip(0, node.type_id)
 
         # Store path in UserRole for later property lookup
         item.setData(0, Qt.ItemDataRole.UserRole, node.path)

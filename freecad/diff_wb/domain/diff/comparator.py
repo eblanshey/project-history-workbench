@@ -332,6 +332,7 @@ class TreeComparator:
         return NodeDiff(
             path=new_node.path,
             type_id=new_node.type_id,
+            label=new_node.label,
             property_diffs=property_diffs,
             children=[],  # Will be populated hierarchically later
             old_path=old_node.path,
@@ -376,6 +377,7 @@ class TreeComparator:
         return NodeDiff(
             path=node.path,
             type_id=node.type_id,
+            label=node.label,
             property_diffs=property_diffs,
             children=[],  # Will be populated hierarchically later
             old_path=None,
@@ -421,6 +423,7 @@ class TreeComparator:
         return NodeDiff(
             path=node.path,
             type_id=node.type_id,
+            label=node.label,
             property_diffs=property_diffs,
             children=[],  # Will be populated hierarchically later
             old_path=node.path,
