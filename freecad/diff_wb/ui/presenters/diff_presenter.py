@@ -22,10 +22,10 @@ from ...application.actions.get_dirty_documents import GetDirtyDocumentsAction
 from ...application.actions.get_open_eligible_documents import GetOpenEligibleDocumentsAction
 from ...application.actions.get_staged_file_paths import GetStagedFilePathsAction
 from ...application.actions.stage_documents import StageDocumentsAction
-from ...config import FLOAT_PRECISION
 from ...domain.diff.engine import DiffResult
 from ...domain.diff.models import WARNING_OLD_SNAPSHOT_MISSING, DiffState, NodeDiff, PropertyPathDiff
 from ...domain.git.models import GitRepository
+from ...domain.settings import SettingsRepository
 from ...domain.tree import Property
 from ...utils import Log, format_float
 from ..protocols.diff_view import DiffView
@@ -218,21 +218,22 @@ def _collect_leaf_values(node: _PathTreeNode, include_expr: bool = False) -> tup
     return old_values, new_values
 
 
-def _derive_container_summary(values: list[Any]) -> str | None:
+def _derive_container_summary(values: list[Any], precision: int) -> str | None:
     """Create a bracketed summary string from child values.
 
     Used for container rows (e.g. Placement) where no direct value
     exists but children do. Produces output like "[0.00 0.00 0.00]".
 
-    Float values are formatted with the configured precision.
+    Float values are formatted with the given precision.
 
     Args:
         values: List of old or new values from child presentations.
+        precision: Number of decimal places for float formatting.
 
     Returns:
         A bracketed string like "[0.00 0.00 0.00]", or None if no values.
     """
-    non_null = [format_float(v, FLOAT_PRECISION) if isinstance(v, float) else str(v) for v in values if v is not None]
+    non_null = [format_float(v, precision) if isinstance(v, float) else str(v) for v in values if v is not None]
     if not non_null:
         return None
     return "[" + " ".join(non_null) + "]"
@@ -258,7 +259,7 @@ def _child_sort_key(name: str) -> tuple:
     return (0, name)
 
 
-def _path_tree_to_presentations(node: _PathTreeNode) -> list[PropertyPresentation]:
+def _path_tree_to_presentations(node: _PathTreeNode, precision: int) -> list[PropertyPresentation]:
     """Convert internal tree nodes to UI presentation rows.
 
     Value policy:
@@ -270,6 +271,7 @@ def _path_tree_to_presentations(node: _PathTreeNode) -> list[PropertyPresentatio
 
     Args:
         node: The root node to convert (typically the root of a path tree).
+        precision: Number of decimal places for float formatting.
 
     Returns:
         A list of ``PropertyPresentation`` objects.
@@ -277,14 +279,14 @@ def _path_tree_to_presentations(node: _PathTreeNode) -> list[PropertyPresentatio
     out: list[PropertyPresentation] = []
     for key in sorted(node.children.keys(), key=_child_sort_key):
         child = node.children[key]
-        grandchildren = _path_tree_to_presentations(child)
+        grandchildren = _path_tree_to_presentations(child, precision)
 
         old_value = child.old_value
         new_value = child.new_value
         if old_value is None and new_value is None and grandchildren:
             # FreeCAD-like container summary when there is no direct value row for this segment.
-            old_value = _derive_container_summary([gc.old_value for gc in grandchildren])
-            new_value = _derive_container_summary([gc.new_value for gc in grandchildren])
+            old_value = _derive_container_summary([gc.old_value for gc in grandchildren], precision)
+            new_value = _derive_container_summary([gc.new_value for gc in grandchildren], precision)
 
         out.append(
             PropertyPresentation(
@@ -320,6 +322,7 @@ class DiffPresenter:
         get_dirty_documents_action: GetDirtyDocumentsAction,
         get_staged_file_paths_action: GetStagedFilePathsAction,
         get_committed_file_paths_action: GetCommittedFilePathsAction,
+        settings_repo: SettingsRepository | None = None,
     ) -> None:
         """Initialize with required dependencies.
 
@@ -331,10 +334,13 @@ class DiffPresenter:
             create_commit_snapshot_action: Action to create commit snapshots
             create_diff_action: Action to compute diffs between snapshots
             stage_documents_action: Action to stage documents to git
-            get_dirty_documents_action: Action to get dirty document paths
+            get_dirty_documents_action: Action to get dirty documents
             get_staged_file_paths_action: Action to get staged file paths
             get_committed_file_paths_action: Action to get committed file paths
+            settings_repo: Settings repository for runtime precision (optional, uses default if None)
         """
+        from ...domain.config import FLOAT_PRECISION as DEFAULT_FLOAT_PRECISION
+
         self._view = view
         self._ui_state = ui_state
         self._get_eligible_docs = get_eligible_docs_action
@@ -345,6 +351,8 @@ class DiffPresenter:
         self._get_dirty_documents = get_dirty_documents_action
         self._get_staged_file_paths = get_staged_file_paths_action
         self._get_committed_file_paths = get_committed_file_paths_action
+        self._settings_repo = settings_repo
+        self._default_precision = DEFAULT_FLOAT_PRECISION
         self._diff_results_by_path: dict[str, DiffResult] = {}
         self._dirty_paths: set[str] = set()
 
@@ -353,6 +361,22 @@ class DiffPresenter:
 
         # Wire Stage All callback
         self._view.set_stage_all_callback(self.on_stage_all_clicked)
+
+    def _get_precision(self) -> int:
+        """Get the current float precision from settings or use default.
+
+        Returns:
+            The float precision value (decimal places) from settings,
+            or the default if settings repo is not available.
+        """
+        if self._settings_repo is not None:
+            try:
+                settings = self._settings_repo.get_settings()
+                return settings.float_precision
+            except (AttributeError, RuntimeError):
+                # If settings retrieval fails, fall back to default
+                pass
+        return self._default_precision
 
     def present_diff(self, diff_result: DiffResult) -> None:
         """Transform domain data and call view methods to render UI.
@@ -891,6 +915,7 @@ class DiffPresenter:
         Returns:
             List of PropertyPresentation for UI display
         """
+        precision = self._get_precision()
         presentations: list[PropertyPresentation] = []
 
         for prop_diff in node_diff.property_diffs:
@@ -912,11 +937,11 @@ class DiffPresenter:
             if prop_old_value is None and prop_new_value is None and root.children:
                 # Derive container summary from descendant leaf values
                 old_leaf_values, new_leaf_values = _collect_leaf_values(root, include_expr=False)
-                prop_old_value = _derive_container_summary(old_leaf_values)
-                prop_new_value = _derive_container_summary(new_leaf_values)
+                prop_old_value = _derive_container_summary(old_leaf_values, precision)
+                prop_new_value = _derive_container_summary(new_leaf_values, precision)
 
             # Convert path tree to presentations (excludes root itself)
-            children = _path_tree_to_presentations(root)
+            children = _path_tree_to_presentations(root, precision)
 
             presentations.append(
                 PropertyPresentation(

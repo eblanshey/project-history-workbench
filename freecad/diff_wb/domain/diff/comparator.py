@@ -50,7 +50,7 @@ def _effective_exclusions(
 
 
 class TreeComparator:
-    """Compares two tree structures using ID-based indexing.
+    """Compares two tree structures using ID-based comparison.
 
     This class provides instance methods for comparing tree snapshots efficiently
     using ID-based indexing to achieve O(n+m) performance. The flat node structure
@@ -58,7 +58,7 @@ class TreeComparator:
 
     The algorithm:
     1. Sort both snapshots by path length (parents first)
-    2. Build ID index for new snapshot (O(m))
+    2. Build ID index for new snapshot (by ID)
     3. Process old nodes to create deleted/modified diffs
     4. Process new nodes to create added diffs
     5. Build DiffHierarchy using add_node()
@@ -66,9 +66,14 @@ class TreeComparator:
     7. Return DiffResult with DiffHierarchy and counts
     """
 
-    def __init__(self) -> None:
-        """Initialize TreeComparator with a PropertyComparator instance."""
-        self._property_comparator = PropertyComparator()
+    def __init__(self, precision: int = 2) -> None:
+        """Initialize TreeComparator with a PropertyComparator instance.
+
+        Args:
+            precision: Number of decimal places for float comparison (default: 2)
+        """
+        self._property_comparator = PropertyComparator(precision=precision)
+        self._precision = precision
 
     def _get_parent_path(self, child_path: str) -> str:
         """Extract the parent path while preserving the leading slash format.
@@ -285,6 +290,7 @@ class TreeComparator:
         new_index: dict[int, TreeNode],
         excluded_properties: list[str],
         excluded_properties_by_type: dict[str, list[str]] | None = None,
+        precision: int | None = None,
     ) -> NodeDiff:
         """Compare two nodes at the same ID and produce a NodeDiff.
 
@@ -324,7 +330,10 @@ class TreeComparator:
 
         # Use property comparator to compare properties with exclusion filtering
         property_diffs = self._property_comparator.compare_properties(
-            old_node.properties, new_node.properties, list(effective)
+            old_node.properties,
+            new_node.properties,
+            list(effective),
+            precision=precision,
         )
 
         # Return NodeDiff - state will be auto-calculated in __post_init__
@@ -339,6 +348,7 @@ class TreeComparator:
             new_path=new_node.path,
             old_after=old_node.after,
             new_after=new_node.after,
+            precision=self._precision,
         )
 
     def _create_added_node_diff(
@@ -347,6 +357,7 @@ class TreeComparator:
         node: TreeNode,
         excluded_properties: list[str],
         excluded_properties_by_type: dict[str, list[str]] | None = None,
+        precision: int | None = None,
     ) -> NodeDiff:
         """Create a NodeDiff for an added node (ID-based).
 
@@ -371,7 +382,12 @@ class TreeComparator:
         effective = _effective_exclusions(excluded_properties, excluded_properties_by_type, None, node.type_id)
 
         # For added nodes, all properties are "added" (old_value=None)
-        property_diffs = self._property_comparator.compare_properties({}, node.properties, list(effective))
+        property_diffs = self._property_comparator.compare_properties(
+            {},
+            node.properties,
+            list(effective),
+            precision=precision,
+        )
 
         # For added nodes: old_path=None, new_path=node.path, old_after=None, new_after=node.after
         return NodeDiff(
@@ -384,6 +400,7 @@ class TreeComparator:
             new_path=node.path,
             old_after=None,
             new_after=node.after,
+            precision=self._precision,
             _force_state=DiffState.ADDED,
         )
 
@@ -393,6 +410,7 @@ class TreeComparator:
         node: TreeNode,
         excluded_properties: list[str],
         excluded_properties_by_type: dict[str, list[str]] | None = None,
+        precision: int | None = None,
     ) -> NodeDiff:
         """Create a NodeDiff for a deleted node (ID-based).
 
@@ -417,7 +435,12 @@ class TreeComparator:
         effective = _effective_exclusions(excluded_properties, excluded_properties_by_type, node.type_id, None)
 
         # For deleted nodes, all properties are "deleted" (new_value=None)
-        property_diffs = self._property_comparator.compare_properties(node.properties, {}, list(effective))
+        property_diffs = self._property_comparator.compare_properties(
+            node.properties,
+            {},
+            list(effective),
+            precision=precision,
+        )
 
         # For deleted nodes: old_path=node.path, new_path=None, old_after=node.after, new_after=None
         return NodeDiff(
@@ -430,6 +453,7 @@ class TreeComparator:
             new_path=None,
             old_after=node.after,
             new_after=None,
+            precision=self._precision,
             _force_state=DiffState.DELETED,
         )
 
@@ -440,6 +464,7 @@ class TreeComparator:
         excluded_types_set: set[str],
         excluded_properties: list[str],
         excluded_properties_by_type: dict[str, list[str]],
+        precision: int,
     ) -> tuple[list[NodeDiff], set[int], set[str], int, int]:
         """Process old nodes to create diffs for deleted and modified nodes.
 
@@ -475,7 +500,11 @@ class TreeComparator:
             node_diff: NodeDiff
             if new_node is None:
                 node_diff = self._create_deleted_node_diff(
-                    old_node.id, old_node, excluded_properties, excluded_properties_by_type
+                    old_node.id,
+                    old_node,
+                    excluded_properties,
+                    excluded_properties_by_type,
+                    precision,
                 )
                 deleted_count += 1
             else:
@@ -485,6 +514,7 @@ class TreeComparator:
                     id_index_new,
                     excluded_properties,
                     excluded_properties_by_type,
+                    precision,
                 )
                 if node_diff.state == DiffState.MODIFIED:
                     modified_count += 1
@@ -500,6 +530,7 @@ class TreeComparator:
         excluded_types_set: set[str],
         excluded_properties: list[str],
         excluded_properties_by_type: dict[str, list[str]],
+        precision: int,
     ) -> tuple[list[NodeDiff], int]:
         """Process new nodes to create diffs for added nodes.
 
@@ -529,7 +560,11 @@ class TreeComparator:
                 continue
 
             node_diff = self._create_added_node_diff(
-                new_node.id, new_node, excluded_properties, excluded_properties_by_type
+                new_node.id,
+                new_node,
+                excluded_properties,
+                excluded_properties_by_type,
+                precision,
             )
             added_count += 1
             added_node_diffs.append(node_diff)
@@ -543,6 +578,7 @@ class TreeComparator:
         excluded_properties: list[str],
         excluded_types: list[str],
         excluded_properties_by_type: dict[str, list[str]] | None = None,
+        precision: int = 2,
     ) -> DiffResult:
         """Compare two snapshots using ID-based comparison and produce a DiffResult.
 
@@ -573,6 +609,8 @@ class TreeComparator:
         if excluded_properties_by_type is None:
             excluded_properties_by_type = {}
 
+        self._precision = precision
+
         # Extract nodes from snapshots
         old_nodes = old_snapshot.nodes
         new_nodes = new_snapshot.nodes
@@ -590,6 +628,7 @@ class TreeComparator:
             excluded_types_set,
             excluded_properties,
             excluded_properties_by_type,
+            precision,
         )
 
         # Process new nodes for added diffs
@@ -599,6 +638,7 @@ class TreeComparator:
             excluded_types_set,
             excluded_properties,
             excluded_properties_by_type,
+            precision,
         )
 
         # Combine all node diffs
@@ -631,11 +671,20 @@ class PropertyComparator:
     exclusion filtering, and deterministic alphabetical ordering.
     """
 
+    def __init__(self, precision: int = 2) -> None:
+        """Initialize PropertyComparator with precision setting.
+
+        Args:
+            precision: Number of decimal places for float comparison (default: 2)
+        """
+        self._precision = precision
+
     def compare_properties(
         self,
         old_props: dict[str, Property],
         new_props: dict[str, Property],
         excluded_properties: list[str],
+        precision: int | None = None,
     ) -> list[PropertyDiff]:
         """Compare properties between two nodes and produce a list of PropertyDiff objects.
 
@@ -651,6 +700,7 @@ class PropertyComparator:
         Returns:
             List of PropertyDiff objects for all non-excluded properties (including unchanged)
         """
+        effective_precision = self._precision if precision is None else precision
         property_diffs: list[PropertyDiff] = []
         all_prop_names = sorted(set(old_props.keys()) | set(new_props.keys()))
 
@@ -663,6 +713,7 @@ class PropertyComparator:
                     property_name=prop_name,
                     old_value=old_props.get(prop_name),
                     new_value=new_props.get(prop_name),
+                    precision=effective_precision,
                 )
             )
 

@@ -10,8 +10,8 @@
 
 from typing import Protocol
 
-from ...config import EXCLUDED_PROPERTIES, EXCLUDED_PROPERTIES_BY_TYPE, EXCLUDED_TYPES
 from ...utils import Log
+from ..config import EXCLUDED_PROPERTIES, EXCLUDED_PROPERTIES_BY_TYPE, EXCLUDED_TYPES, FLOAT_PRECISION
 from ..settings import SettingsRepository
 from ..snapshots import Snapshot
 from .comparator import TreeComparator
@@ -28,6 +28,7 @@ class TreeComparatorProtocol(Protocol):
         excluded_properties: list[str],
         excluded_types: list[str],
         excluded_properties_by_type: dict[str, list[str]] | None = None,
+        precision: int = 2,
     ) -> DiffResult: ...
 
 
@@ -93,6 +94,16 @@ class DiffEngine:
             return self._settings_repo.get_excluded_properties_by_type()
         return dict(EXCLUDED_PROPERTIES_BY_TYPE)
 
+    def _get_float_precision(self) -> int:
+        """Get float precision for comparison.
+
+        Returns:
+            Number of decimal places for float comparison, using settings repo if available
+        """
+        if self._settings_repo is not None:
+            return self._settings_repo.get_float_precision()
+        return FLOAT_PRECISION
+
     # Excluded types filtering is handled in TreeComparator during diff building
 
     def compute_diff(self, old: Snapshot | None, new: Snapshot) -> DiffResult:
@@ -128,10 +139,11 @@ class DiffEngine:
         excluded_node_types = self._get_excluded_node_types()
         excluded_properties = self._get_excluded_properties()
         excluded_properties_by_type = self._get_excluded_properties_by_type()
+        precision = self._get_float_precision()
 
         # Step 2: Compare trees using TreeComparator (filters excluded types internally)
         result = self._tree_comparator.compare_snapshots(
-            old, new, excluded_properties, excluded_node_types, excluded_properties_by_type
+            old, new, excluded_properties, excluded_node_types, excluded_properties_by_type, precision
         )
 
         # Add warning for missing old snapshot if applicable

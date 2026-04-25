@@ -19,6 +19,10 @@ if TYPE_CHECKING:
     pass
 
 
+_PREFERENCES_REGISTRY_ATTR = "_diff_wb_preference_pages"
+_PREFERENCES_PAGE_ID = "freecad.diff_wb.ui.views.settings_preferences_page.DiffSettingsPreferencesPage"
+
+
 try:
     import FreeCADGui as Gui  # pylint: disable=import-error
     from FreeCADGui import getMainWindow  # noqa: N813
@@ -32,6 +36,8 @@ if Gui is not None:
 
     class DiffWorkbench(Gui.Workbench):
         """Workbench class for the Diff Workbench addon."""
+
+        _preferences_page_registered = False
 
         Icon = os.path.join(ICONPATH, "Logo.svg")
         toolbox = [
@@ -76,11 +82,43 @@ if Gui is not None:
             # Register commands
             register_commands()
 
+            # Configure preferences page action dependencies for FreeCAD no-arg construction
+            from ..ui.views.settings_preferences_page import DiffSettingsPreferencesPage
+
+            DiffSettingsPreferencesPage.configure_actions(
+                container.get_diff_settings_action,
+                container.save_diff_settings_action,
+            )
+
+            # Register preferences page once
+            self._register_preferences_page()
+
             # Setup toolbar and menu
             Log.info("Switching to diff_wb")
             qt_translate_noop = App.Qt.QT_TRANSLATE_NOOP
             self.appendToolbar(qt_translate_noop("Workbench", "Diff Workbench"), self.toolbox)
             self.appendMenu(qt_translate_noop("Workbench", "Diff Workbench"), self.toolbox)
+
+        @classmethod
+        def _register_preferences_page(cls) -> None:
+            if cls._preferences_page_registered:
+                return
+            if Gui is None:
+                return
+
+            registry = getattr(Gui, _PREFERENCES_REGISTRY_ATTR, None)
+            if not isinstance(registry, set):
+                registry = set()
+                setattr(Gui, _PREFERENCES_REGISTRY_ATTR, registry)
+            if _PREFERENCES_PAGE_ID in registry:
+                cls._preferences_page_registered = True
+                return
+
+            from ..ui.views.settings_preferences_page import DiffSettingsPreferencesPage
+
+            Gui.addPreferencePage(DiffSettingsPreferencesPage, "Diff")
+            registry.add(_PREFERENCES_PAGE_ID)
+            cls._preferences_page_registered = True
 
         def Activated(self) -> None:
             """Called when user switches to this workbench."""
@@ -111,6 +149,7 @@ if Gui is not None:
 
             try:
                 from PySide6.QtCore import Qt
+                from PySide6.QtGui import QIcon
                 from PySide6.QtWidgets import QMdiArea
 
                 from .._container import _container
@@ -130,6 +169,7 @@ if Gui is not None:
                 # Add as MDI subwindow
                 self._subwindow = mdi_area.addSubWindow(view)
                 self._subwindow.setWindowTitle("Diff View")
+                self._subwindow.setWindowIcon(QIcon(os.path.join(ICONPATH, "Logo.svg")))
                 self._subwindow.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
                 self._subwindow.resize(900, 600)
                 self._subwindow.show()

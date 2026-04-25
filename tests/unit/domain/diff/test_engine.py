@@ -521,6 +521,9 @@ class TestDiffEngineComputeDiff:
             def get_excluded_properties_by_type(self):
                 return {}
 
+            def get_float_precision(self):
+                return 2
+
         old_node = TreeNode(
             id=1,
             name="Body",
@@ -611,6 +614,9 @@ class TestDiffEngineComputeDiffWithSettings:
             def get_excluded_properties_by_type(self):
                 return {}
 
+            def get_float_precision(self):
+                return 2
+
         engine = DiffEngine(settings_repo=MockSettingsRepo())
         result = engine.compute_diff(old_snapshot, new_snapshot)
 
@@ -669,6 +675,9 @@ class TestDiffEngineComputeDiffWithSettings:
 
             def get_excluded_properties_by_type(self):
                 return {}
+
+            def get_float_precision(self):
+                return 2
 
         engine = DiffEngine(settings_repo=MockSettingsRepo())
         result = engine.compute_diff(old_snapshot, new_snapshot)
@@ -732,6 +741,9 @@ class TestDiffEngineTypeSpecificExclusions:
             def get_excluded_properties_by_type(self):
                 return {"TechDraw::DrawSVGTemplate": ["Template"]}
 
+            def get_float_precision(self):
+                return 2
+
         engine = DiffEngine(settings_repo=MockSettingsRepo())
         result = engine.compute_diff(old_snapshot, new_snapshot)
 
@@ -789,6 +801,9 @@ class TestDiffEngineTypeSpecificExclusions:
 
             def get_excluded_properties_by_type(self):
                 return {"TechDraw::DrawSVGTemplate": ["Template"]}
+
+            def get_float_precision(self):
+                return 2
 
         engine = DiffEngine(settings_repo=MockSettingsRepo())
         result = engine.compute_diff(old_snapshot, new_snapshot)

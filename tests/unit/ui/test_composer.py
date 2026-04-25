@@ -43,6 +43,7 @@ class TestComposeAndRegisterUiReturnsView:
         mock_container.get_committed_file_paths_action = MagicMock()
         mock_container.find_active_git_repository_action = MagicMock()
         mock_container.get_commits_action = MagicMock()
+        mock_container.settings_repo = MagicMock()
 
         # Mock the DiffPanelView to avoid PySide6 dependency in unit tests
         with patch("freecad.diff_wb.ui.composer.DiffPanelView") as MockView:
@@ -74,6 +75,7 @@ class TestComposeCreatesUiState:
         mock_container.get_committed_file_paths_action = MagicMock()
         mock_container.find_active_git_repository_action = MagicMock()
         mock_container.get_commits_action = MagicMock()
+        mock_container.settings_repo = MagicMock()
 
         with (
             patch("freecad.diff_wb.ui.composer.DiffPanelView"),
@@ -106,6 +108,7 @@ class TestComposerRegistersSnapshotPresenter:
         mock_container.get_committed_file_paths_action = MagicMock()
         mock_container.find_active_git_repository_action = MagicMock()
         mock_container.get_commits_action = MagicMock()
+        mock_container.settings_repo = MagicMock()
         return mock_container
 
     def test_snapshot_presenter_is_registered(self) -> None:
@@ -157,6 +160,7 @@ class TestComposerRegistersDiffPresenter:
         mock_container.get_committed_file_paths_action = MagicMock()
         mock_container.find_active_git_repository_action = MagicMock()
         mock_container.get_commits_action = MagicMock()
+        mock_container.settings_repo = MagicMock()
         return mock_container
 
     def test_diff_presenter_is_registered(self) -> None:
@@ -225,6 +229,7 @@ class TestComposerConnectsTreeWidgetCallback:
         mock_container.get_committed_file_paths_action = MagicMock()
         mock_container.find_active_git_repository_action = MagicMock()
         mock_container.get_commits_action = MagicMock()
+        mock_container.settings_repo = MagicMock()
         return mock_container
 
     def test_set_node_selection_callback_is_called(self) -> None:
@@ -288,6 +293,7 @@ class TestComposerInitializesGitRepositoryPresenter:
         mock_container.get_committed_file_paths_action = MagicMock()
         mock_container.find_active_git_repository_action = MagicMock()
         mock_container.get_commits_action = MagicMock()
+        mock_container.settings_repo = MagicMock()
         return mock_container
 
     def test_git_repository_presenter_is_created(self) -> None:
@@ -369,6 +375,7 @@ class TestComposerWiresAllDependencies:
         mock_container.get_committed_file_paths_action = MagicMock()
         mock_container.find_active_git_repository_action = MagicMock()
         mock_container.get_commits_action = MagicMock()
+        mock_container.settings_repo = MagicMock()
         return mock_container
 
     def test_all_actions_passed_from_container_to_presenters(self) -> None:

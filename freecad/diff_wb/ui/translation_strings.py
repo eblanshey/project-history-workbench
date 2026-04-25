@@ -195,6 +195,32 @@ No placeholders. This is a static message.
 """
 
 # ============================================================================
+# PREFERENCES VIEW STRINGS
+# ============================================================================
+# Context: "PreferencesView"
+
+PREFERENCES_RUNTIME_ONLY_NOTICE = (
+    "Settings apply only during diffing. Saved snapshots are unaffected by these settings."
+)
+"""Notice shown at top of preferences page clarifying runtime-only behavior."""
+
+PREFERENCES_GROUP_EXCLUDED_OBJECT_TYPES = "Excluded object types"
+PREFERENCES_GROUP_EXCLUDED_PROPERTIES = "Excluded properties"
+PREFERENCES_GROUP_TYPE_SPECIFIC_EXCLUDED_PROPERTIES = "Type-specific excluded properties"
+PREFERENCES_GROUP_NUMERIC_COMPARISON = "Numeric comparison"
+PREFERENCES_PAGE_GENERAL = "General"
+
+PREFERENCES_FLOAT_PRECISION_LABEL = "Float precision"
+
+PREFERENCES_RADIO_USE_DEFAULT_EXCLUSION_LIST = "Use default exclusion list"
+PREFERENCES_RADIO_USE_CUSTOM_EXCLUSION_LIST = "Use custom exclusion list"
+
+PREFERENCES_HELPER_TYPE_ID_PER_LINE = "One TypeId per line."
+PREFERENCES_HELPER_PROPERTY_NAME_PER_LINE = "One property name per line."
+PREFERENCES_HELPER_TYPE_PROPERTY_MAPPING_PER_LINE = "One line per mapping: TypeId -> Property"
+
+
+# ============================================================================
 # EXPORTS
 # ============================================================================
 
@@ -225,4 +251,17 @@ __all__ = [
     "COMMIT_EMPTY_MESSAGE_TITLE",
     "COMMIT_EMPTY_MESSAGE",
     "COMMIT_FAILED_TITLE",
+    # Preferences View
+    "PREFERENCES_RUNTIME_ONLY_NOTICE",
+    "PREFERENCES_GROUP_EXCLUDED_OBJECT_TYPES",
+    "PREFERENCES_GROUP_EXCLUDED_PROPERTIES",
+    "PREFERENCES_GROUP_TYPE_SPECIFIC_EXCLUDED_PROPERTIES",
+    "PREFERENCES_GROUP_NUMERIC_COMPARISON",
+    "PREFERENCES_PAGE_GENERAL",
+    "PREFERENCES_FLOAT_PRECISION_LABEL",
+    "PREFERENCES_RADIO_USE_DEFAULT_EXCLUSION_LIST",
+    "PREFERENCES_RADIO_USE_CUSTOM_EXCLUSION_LIST",
+    "PREFERENCES_HELPER_TYPE_ID_PER_LINE",
+    "PREFERENCES_HELPER_PROPERTY_NAME_PER_LINE",
+    "PREFERENCES_HELPER_TYPE_PROPERTY_MAPPING_PER_LINE",
 ]

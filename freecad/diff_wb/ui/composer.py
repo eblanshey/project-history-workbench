@@ -26,7 +26,6 @@ def compose_and_register_ui(container: ApplicationContainer) -> DiffPanelView:
 
     Args:
         container: Application container with actions wired (backend only)
-
     Returns:
         The configured DiffPanelView
 
@@ -40,8 +39,8 @@ def compose_and_register_ui(container: ApplicationContainer) -> DiffPanelView:
     ui_state = UIState(git_repository=None)
     ui_registry.register_ui_state(ui_state)
 
-    # Create view
-    view = DiffPanelView()
+    # Create view with settings repo for runtime precision
+    view = DiffPanelView(settings_repo=container.settings_repo)
 
     # Create and register snapshot_presenter (doesn't need ui_state)
     snapshot_presenter = SnapshotPresenter(
@@ -62,6 +61,7 @@ def compose_and_register_ui(container: ApplicationContainer) -> DiffPanelView:
         get_dirty_documents_action=container.get_dirty_documents_action,
         get_staged_file_paths_action=container.get_staged_file_paths_action,
         get_committed_file_paths_action=container.get_committed_file_paths_action,
+        settings_repo=container.settings_repo,
     )
     ui_registry.register_diff_presenter(diff_presenter)
 

@@ -1,11 +1,8 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
-# File responsibility: This module provides hard-coded configuration defaults that are
-# used by FreeCADSettingsRepository as fallback values.
-#
-# DEPRECATION NOTICE: This module will be replaced by SettingsRepository in future.
-# All configuration should eventually be managed through FreeCAD Preferences via
-# the SettingsRepository interface in domain/settings/.
-"""Hard-coded configuration defaults (DEPRECATED)."""
+# File responsibility: This module provides hard-coded configuration defaults for the
+# diff workbench, including excluded types, excluded properties, and float precision.
+# These values serve as fallback defaults when no user preferences are configured.
+"""Hard-coded configuration defaults."""
 
 # Type IDs to exclude from diff computation by default
 # Objects of these types and their children are removed from the diff view

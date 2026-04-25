@@ -25,7 +25,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ...config import FLOAT_PRECISION
+from ...domain.config import FLOAT_PRECISION as DEFAULT_FLOAT_PRECISION
+from ...domain.settings import SettingsRepository
 from ...utils import format_float
 
 
@@ -261,8 +262,10 @@ class DiffPanelView(QWidget):
     MODIFIED_COLOR = QColor(200, 200, 255)  # Light blue
     UNCHANGED_COLOR = QColor(240, 240, 240)  # Light gray (neutral)
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None, settings_repo: SettingsRepository | None = None) -> None:
         QWidget.__init__(self, parent)
+        self._settings_repo = settings_repo
+        self._default_precision = DEFAULT_FLOAT_PRECISION
         self._on_history_selection_callback: Callable[[HistorySelection], None] | None = None
         self._on_refresh_callback: Callable[[], None] | None = None
         self._on_add_button_callback: Callable[[str], None] | None = None
@@ -274,6 +277,22 @@ class DiffPanelView(QWidget):
         # Create the delegate for property value double-click editing (for copying)
         self._property_value_delegate = _PropertyValueDelegate(self)
         self._setup_ui()
+
+    def _get_precision(self) -> int:
+        """Get the current float precision from settings or use default.
+
+        Returns:
+            The float precision value (decimal places) from settings,
+            or the default if settings repo is not available.
+        """
+        if self._settings_repo is not None:
+            try:
+                settings = self._settings_repo.get_settings()
+                return settings.float_precision
+            except (AttributeError, RuntimeError):
+                # If settings retrieval fails, fall back to default
+                pass
+        return self._default_precision
 
     def _setup_ui(self) -> None:
         """Initialize the 3-column layout with placeholders."""
@@ -1098,8 +1117,9 @@ class DiffPanelView(QWidget):
         Returns:
             Formatted string matching FreeCAD's property viewer display.
         """
+        precision = self._get_precision()
         if isinstance(value, float):
-            return format_float(value, FLOAT_PRECISION)
+            return format_float(value, precision)
         return str(value)
 
     def _get_property_display_values(

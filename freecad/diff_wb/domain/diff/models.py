@@ -17,8 +17,11 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Any
 
-from ...config import FLOAT_PRECISION
 from ...utils import float_values_equal
+
+# Import fallback precision only for ad-hoc construction paths (mainly tests);
+# runtime diff flows always pass settings-derived precision explicitly.
+from ..config import FLOAT_PRECISION as DEFAULT_FLOAT_PRECISION
 from ..snapshots import Snapshot
 from ..tree import Property
 from ..tree.data_path import (
@@ -64,6 +67,7 @@ class PropertyPathDiff:
         new_value: Path value in the new snapshot (``None`` if deleted).
         value_state: Auto-calculated diff state for the raw value.
         expression_state: Auto-calculated diff state for the expression.
+        precision: Decimal places for float comparison (default: 2).
     """
 
     path: str
@@ -71,10 +75,11 @@ class PropertyPathDiff:
     new_value: PropertyPathValue | None
     value_state: DiffState = field(init=False)
     expression_state: DiffState = field(init=False)
+    precision: int = DEFAULT_FLOAT_PRECISION
 
     def __post_init__(self) -> None:
         """Calculate value_state and expression_state from old/new values."""
-        object.__setattr__(self, "value_state", _calc_value_state(self.old_value, self.new_value))
+        object.__setattr__(self, "value_state", _calc_value_state(self.old_value, self.new_value, self.precision))
         old_expr = _path_expression(self.old_value)
         new_expr = _path_expression(self.new_value)
         object.__setattr__(self, "expression_state", _calc_expression_state(old_expr, new_expr))
@@ -85,19 +90,28 @@ def _path_expression(value: PropertyPathValue | None) -> str | None:
     return value.expression if value is not None else None
 
 
-def _calc_value_state(old: PropertyPathValue | None, new: PropertyPathValue | None) -> DiffState:
+def _calc_value_state(
+    old: PropertyPathValue | None,
+    new: PropertyPathValue | None,
+    precision: int = DEFAULT_FLOAT_PRECISION,
+) -> DiffState:
     """Calculate the diff state for a single path value.
 
     - ``None -> None``  → UNCHANGED
     - ``None -> Some``  → ADDED
     - ``Some -> None``  → DELETED
     - ``Some -> Some``  → UNCHANGED if equal (float-tolerant), MODIFIED otherwise
+
+    Args:
+        old: The old PropertyPathValue (or None)
+        new: The new PropertyPathValue (or None)
+        precision: Number of decimal places for float comparison
     """
     if old is None:
         return DiffState.ADDED if new is not None else DiffState.UNCHANGED
     if new is None:
         return DiffState.DELETED
-    return DiffState.UNCHANGED if _path_values_equal(old, new) else DiffState.MODIFIED
+    return DiffState.UNCHANGED if _path_values_equal(old, new, precision) else DiffState.MODIFIED
 
 
 def _calc_expression_state(old_expr: str | None, new_expr: str | None) -> DiffState:
@@ -116,17 +130,26 @@ def _calc_expression_state(old_expr: str | None, new_expr: str | None) -> DiffSt
     return DiffState.UNCHANGED if old_expr == new_expr else DiffState.MODIFIED
 
 
-def _path_values_equal(old: PropertyPathValue, new: PropertyPathValue) -> bool:
+def _path_values_equal(
+    old: PropertyPathValue,
+    new: PropertyPathValue,
+    precision: int = DEFAULT_FLOAT_PRECISION,
+) -> bool:
     """Compare two ``PropertyPathValue`` instances for equality.
 
-    Float values are compared after rounding to the configured precision.
+    Float values are compared after rounding to the given precision.
     All other types use exact equality.  Expression is NOT compared here
     (expression has its own state).
+
+    Args:
+        old: The old PropertyPathValue
+        new: The new PropertyPathValue
+        precision: Number of decimal places for float comparison (default: 2)
     """
     if old.type_ != new.type_:
         return False
     if old.type_ == PropertyPathType.FLOAT:
-        return float_values_equal(float(old.value), float(new.value), FLOAT_PRECISION)
+        return float_values_equal(float(old.value), float(new.value), precision)
     return old.value == new.value
 
 
@@ -271,6 +294,7 @@ class PropertyDiff:
         new_value: Value in the new snapshot (None if deleted)
         state: The diff state (ADDED, DELETED, MODIFIED, UNCHANGED) - auto-calculated
         path_diffs: List of path-level diffs for all sub-paths (auto-calculated)
+        precision: Decimal places for float comparison (default: 2).
     """
 
     property_name: str
@@ -278,6 +302,7 @@ class PropertyDiff:
     new_value: Property | None
     state: DiffState = field(init=False)
     path_diffs: list[PropertyPathDiff] = field(init=False)
+    precision: int = DEFAULT_FLOAT_PRECISION
 
     def __post_init__(self) -> None:
         """Calculate state and path_diffs from flattened path maps."""
@@ -285,7 +310,10 @@ class PropertyDiff:
         new_paths = _flatten_data_path(self.new_value.value) if self.new_value else {}
 
         all_paths = sorted(set(old_paths) | set(new_paths), key=_path_sort_key)
-        diffs = [PropertyPathDiff(path=p, old_value=old_paths.get(p), new_value=new_paths.get(p)) for p in all_paths]
+        diffs = [
+            PropertyPathDiff(path=p, old_value=old_paths.get(p), new_value=new_paths.get(p), precision=self.precision)
+            for p in all_paths
+        ]
         object.__setattr__(self, "path_diffs", diffs)
 
         if self.old_value is None:
@@ -331,7 +359,7 @@ class NodeDiff:
         label: The user-friendly label of the node (from new snapshot for added/modified,
             from old snapshot for deleted)
         state: The overall state of this node - auto-calculated or forced
-        property_diffs: List of property-level differences
+        property_diffs: List of property-level diffs
         children: List of child node diffs
         old_path: Path in old snapshot (None for added nodes). Used for move detection.
         new_path: Path in new snapshot (None for deleted nodes). Used for move detection.
@@ -339,6 +367,7 @@ class NodeDiff:
             Used for reorder detection.
         new_after: The 'after' field in new snapshot (None for deleted/root nodes).
             Used for reorder detection.
+        precision: Decimal places for float comparison (default: 2).
         _force_state: Internal override for state calculation. Only used by
             factory functions (`create_added_node_diff`, `create_deleted_node_diff`)
             to indicate node-level changes (ADDED/DELETED). When None, state is
@@ -356,6 +385,7 @@ class NodeDiff:
     new_path: str | None = field(default=None)
     old_after: str | None = field(default=None)
     new_after: str | None = field(default=None)
+    precision: int = DEFAULT_FLOAT_PRECISION
     _force_state: DiffState | None = field(default=None, repr=False, compare=False)
 
     def __post_init__(self) -> None:

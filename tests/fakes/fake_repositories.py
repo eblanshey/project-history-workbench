@@ -62,6 +62,10 @@ class FakeSettingsRepository(SettingsRepository):
         """Get the configured type-specific property exclusions."""
         return dict(self._excluded_properties_by_type)
 
+    def get_float_precision(self) -> int:
+        """Get the configured float precision."""
+        return 2
+
     def get_settings(self) -> Settings:
         """Get all settings as a Settings object."""
         return Settings(

@@ -13,6 +13,7 @@ from ...domain.diff.engine import DiffEngine
 from ...domain.freecad_ports import AppPort, FreeCadContext, FreeCadPort
 from ...domain.git.git_service import GitService
 from ...domain.git.ports import GitPort
+from ...domain.settings import SettingsRepository
 from ...domain.snapshots.gui_extractor import SnapshotExtractor
 from ...domain.snapshots.repository import InMemorySnapshotRepository
 from ...infrastructure.freecad.ports import get_app_port, get_port
@@ -27,10 +28,12 @@ from ..actions.create_document_snapshot_working import CreateDocumentSnapshotFor
 from ..actions.find_active_git_repository import FindActiveGitRepositoryAction
 from ..actions.get_commits import GetCommitsAction
 from ..actions.get_committed_file_paths import GetCommittedFilePathsAction
+from ..actions.get_diff_settings import GetDiffSettingsAction
 from ..actions.get_dirty_documents import GetDirtyDocumentsAction
 from ..actions.get_open_eligible_documents import GetOpenEligibleDocumentsAction
 from ..actions.get_staged_file_paths import GetStagedFilePathsAction
 from ..actions.queries.list_snapshots import ListSnapshotsAction
+from ..actions.save_diff_settings import SaveDiffSettingsAction
 from ..actions.stage_documents import StageDocumentsAction
 
 
@@ -70,6 +73,11 @@ class ApplicationContainer:
     get_staged_file_paths_action: GetStagedFilePathsAction
     get_committed_file_paths_action: GetCommittedFilePathsAction
     commit_staging_action: CommitStagingAction
+    get_diff_settings_action: GetDiffSettingsAction
+    save_diff_settings_action: SaveDiffSettingsAction
+
+    # Settings repository for runtime precision and user preferences
+    settings_repo: SettingsRepository
 
     # Git components (domain layer)
     git_port: GitPort
@@ -171,6 +179,8 @@ def create_application_container(ctx: FreeCadContext) -> ApplicationContainer:
     get_staged_file_paths_action = GetStagedFilePathsAction(git_service=git_service)
     get_committed_file_paths_action = GetCommittedFilePathsAction(git_service=git_service)
     commit_staging_action = CommitStagingAction(git_service=git_service)
+    get_diff_settings_action = GetDiffSettingsAction(settings_repo=settings_repo)
+    save_diff_settings_action = SaveDiffSettingsAction(settings_repo=settings_repo)
 
     return ApplicationContainer(
         _freecad_port=freecad_port,
@@ -187,6 +197,9 @@ def create_application_container(ctx: FreeCadContext) -> ApplicationContainer:
         get_staged_file_paths_action=get_staged_file_paths_action,
         get_committed_file_paths_action=get_committed_file_paths_action,
         commit_staging_action=commit_staging_action,
+        get_diff_settings_action=get_diff_settings_action,
+        save_diff_settings_action=save_diff_settings_action,
+        settings_repo=settings_repo,
         git_port=git_port,
         git_service=git_service,
         find_active_git_repository_action=find_active_git_repository_action,

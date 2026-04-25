@@ -5,7 +5,7 @@
 
 import pytest
 
-from freecad.diff_wb.config import FLOAT_PRECISION
+from freecad.diff_wb.domain.config import FLOAT_PRECISION
 from freecad.diff_wb.utils import float_values_equal, format_float
 
 

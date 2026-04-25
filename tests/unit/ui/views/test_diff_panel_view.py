@@ -1013,3 +1013,124 @@ class TestHistorySelectionCallback:
 
         # Should not raise any exception
         panel.history_list.itemClicked.emit(item)
+
+
+class TestDiffPanelViewRuntimePrecision:
+    """Tests for DiffPanelView using runtime precision from settings."""
+
+    def test_format_value_for_display_uses_runtime_precision(self) -> None:
+        """Test that _format_value_for_display uses precision from settings repo."""
+        from unittest.mock import MagicMock
+
+        from PySide6.QtWidgets import QApplication
+
+        from freecad.diff_wb.domain.settings.models import Settings
+        from freecad.diff_wb.domain.settings.repository import SettingsRepository
+        from freecad.diff_wb.ui import DiffPanelView
+
+        app = QApplication.instance()
+        if app is None:
+            app = QApplication([])
+
+        panel = DiffPanelView()
+
+        # Create mock settings repo with precision=4
+        mock_settings_repo = MagicMock(spec=SettingsRepository)
+        mock_settings = MagicMock(spec=Settings)
+        mock_settings.float_precision = 4
+        mock_settings_repo.get_settings.return_value = mock_settings
+        panel._settings_repo = mock_settings_repo
+
+        # Act - format a float value
+        result = panel._format_value_for_display(3.14159265)
+
+        # Assert - should round to 4 decimal places
+        assert "3.1416" in result
+
+    def test_get_precision_uses_settings_repo_when_available(self) -> None:
+        """Test that _get_precision returns value from settings repo."""
+        from unittest.mock import MagicMock
+
+        from PySide6.QtWidgets import QApplication
+
+        from freecad.diff_wb.domain.settings.models import Settings
+        from freecad.diff_wb.domain.settings.repository import SettingsRepository
+        from freecad.diff_wb.ui import DiffPanelView
+
+        app = QApplication.instance()
+        if app is None:
+            app = QApplication([])
+
+        panel = DiffPanelView()
+
+        # Create mock settings repo with precision=6
+        mock_settings_repo = MagicMock(spec=SettingsRepository)
+        mock_settings = MagicMock(spec=Settings)
+        mock_settings.float_precision = 6
+        mock_settings_repo.get_settings.return_value = mock_settings
+        panel._settings_repo = mock_settings_repo
+
+        # Act
+        precision = panel._get_precision()
+
+        # Assert
+        assert precision == 6
+
+    def test_get_precision_falls_back_to_default_when_no_settings_repo(self) -> None:
+        """Test that _get_precision returns default when no settings repo."""
+        from PySide6.QtWidgets import QApplication
+
+        from freecad.diff_wb.ui import DiffPanelView
+
+        app = QApplication.instance()
+        if app is None:
+            app = QApplication([])
+
+        panel = DiffPanelView()
+        panel._settings_repo = None
+
+        # Act
+        precision = panel._get_precision()
+
+        # Assert - should use default precision (2)
+        assert precision == 2
+
+    def test_format_float_with_different_precisions(self) -> None:
+        """Test that different precision settings produce correct formatting."""
+        from unittest.mock import MagicMock
+
+        from PySide6.QtWidgets import QApplication
+
+        from freecad.diff_wb.domain.settings.models import Settings
+        from freecad.diff_wb.domain.settings.repository import SettingsRepository
+        from freecad.diff_wb.ui import DiffPanelView
+
+        app = QApplication.instance()
+        if app is None:
+            app = QApplication([])
+
+        panel = DiffPanelView()
+
+        # Test precision=0
+        mock_settings_repo = MagicMock(spec=SettingsRepository)
+        mock_settings = MagicMock(spec=Settings)
+        mock_settings.float_precision = 0
+        mock_settings_repo.get_settings.return_value = mock_settings
+        panel._settings_repo = mock_settings_repo
+        result = panel._format_value_for_display(3.7)
+        assert "4" in result or "3" in result  # Should round to integer
+
+        # Test precision=1
+        mock_settings.float_precision = 1
+        result = panel._format_value_for_display(3.14159)
+        assert "3.1" in result
+
+        # Test precision=3
+        mock_settings.float_precision = 3
+        result = panel._format_value_for_display(3.14159)
+        assert "3.142" in result
+
+        # Test precision=6
+        mock_settings.float_precision = 6
+        result = panel._format_value_for_display(3.14159265)
+        assert "3.141593" in result

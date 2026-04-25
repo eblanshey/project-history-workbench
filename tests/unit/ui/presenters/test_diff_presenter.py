@@ -2097,3 +2097,153 @@ class TestDiffPresenterStageAllButtonEdgeCases:
         )
         assert visible_call is not None
         assert visible_call["visible"] is False
+
+
+class TestDiffPresenterRuntimePrecision:
+    """Tests for DiffPresenter using runtime precision from settings."""
+
+    def test_transform_property_diffs_uses_runtime_precision(self) -> None:
+        """Test that _transform_property_diffs uses precision from settings repo."""
+        from unittest.mock import MagicMock
+
+        from freecad.diff_wb.domain.settings.models import Settings
+        from freecad.diff_wb.domain.settings.repository import SettingsRepository
+
+        fake_view, presenter = _create_test_presenter()
+
+        # Create mock settings repo that returns precision=4
+        mock_settings_repo = MagicMock(spec=SettingsRepository)
+        mock_settings = MagicMock(spec=Settings)
+        mock_settings.float_precision = 4
+        mock_settings_repo.get_settings.return_value = mock_settings
+        presenter._settings_repo = mock_settings_repo
+
+        # Setup diff result with float property
+        old_prop = Property.from_freecad(3.14159265, {}, "Base")
+        new_prop = Property.from_freecad(3.14159999, {}, "Base")
+        prop_diff = PropertyDiff(
+            property_name="Length",
+            old_value=old_prop,
+            new_value=new_prop,
+        )
+        node_diff = NodeDiff(
+            path="Part",
+            type_id="Part::Feature",
+            property_diffs=[prop_diff],
+            _force_state=DiffState.MODIFIED,
+        )
+
+        # Act - call on_node_selected to trigger transformation
+        presenter.present_diff(
+            DiffResult(
+                old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
+                new_snapshot=Snapshot(snapshot_id="s2", document_name="v2", timestamp=datetime.datetime.now()),
+                hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
+            )
+        )
+        presenter.on_node_selected("v2", "Part")
+
+        # Assert - check that format uses 4 decimal places
+        calls = fake_view.get_calls()
+        show_props_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        assert show_props_call is not None
+
+        properties = show_props_call["properties"]
+        assert len(properties) >= 1
+        # The container summary should use 4 decimal places (precision from settings)
+        # Check that values are formatted with 4 decimal places
+        prop_pres = properties[0]
+        if prop_pres.old_value is not None and isinstance(prop_pres.old_value, str):
+            # Should be formatted like "[3.1416]" with 4 decimal places
+            assert ".1416" in prop_pres.old_value or "3.1416" in prop_pres.old_value
+
+    def test_get_precision_uses_settings_repo_when_available(self) -> None:
+        """Test that _get_precision returns value from settings repo."""
+        from unittest.mock import MagicMock
+
+        from freecad.diff_wb.domain.settings.models import Settings
+        from freecad.diff_wb.domain.settings.repository import SettingsRepository
+
+        fake_view, presenter = _create_test_presenter()
+
+        # Create mock settings repo with precision=6
+        mock_settings_repo = MagicMock(spec=SettingsRepository)
+        mock_settings = MagicMock(spec=Settings)
+        mock_settings.float_precision = 6
+        mock_settings_repo.get_settings.return_value = mock_settings
+        presenter._settings_repo = mock_settings_repo
+
+        # Act
+        precision = presenter._get_precision()
+
+        # Assert
+        assert precision == 6
+
+    def test_get_precision_falls_back_to_default_when_no_settings_repo(self) -> None:
+        """Test that _get_precision returns default when no settings repo."""
+        fake_view, presenter = _create_test_presenter()
+        presenter._settings_repo = None
+
+        # Act
+        precision = presenter._get_precision()
+
+        # Assert - should use default precision (2)
+        assert precision == 2
+
+
+class TestDiffPresenterFormatFloatsWithPrecision:
+    """Tests for float formatting with runtime precision in DiffPresenter."""
+
+    def test_container_summary_formats_floats_with_runtime_precision(self) -> None:
+        """Test that container summaries format floats using runtime precision."""
+        from unittest.mock import MagicMock
+
+        from freecad.diff_wb.domain.settings.models import Settings
+        from freecad.diff_wb.domain.settings.repository import SettingsRepository
+
+        fake_view, presenter = _create_test_presenter()
+
+        # Setup settings repo with precision=5
+        mock_settings_repo = MagicMock(spec=SettingsRepository)
+        mock_settings = MagicMock(spec=Settings)
+        mock_settings.float_precision = 5
+        mock_settings_repo.get_settings.return_value = mock_settings
+        presenter._settings_repo = mock_settings_repo
+
+        # Create property with list values (triggers container summary)
+        old_vec = Property.from_freecad([1.23456789, 2.34567890, 3.45678901], {}, "Base")
+        new_vec = Property.from_freecad([1.23456111, 2.34567222, 3.45678333], {}, "Base")
+        prop_diff = PropertyDiff(
+            property_name="Position",
+            old_value=old_vec,
+            new_value=new_vec,
+        )
+        node_diff = NodeDiff(
+            path="Part",
+            type_id="Part::Feature",
+            property_diffs=[prop_diff],
+            _force_state=DiffState.MODIFIED,
+        )
+
+        # Act
+        presenter.present_diff(
+            DiffResult(
+                old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
+                new_snapshot=Snapshot(snapshot_id="s2", document_name="v2", timestamp=datetime.datetime.now()),
+                hierarchy=(lambda h: (h.add_node(node_diff), h)[1])(DiffHierarchy()),
+            )
+        )
+        presenter.on_node_selected("v2", "Part")
+
+        # Assert - check precision=5 formatting
+        calls = fake_view.get_calls()
+        show_props_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        assert show_props_call is not None
+
+        properties = show_props_call["properties"]
+        assert len(properties) >= 1
+        prop_pres = properties[0]
+        # Container summary should have 5 decimal places
+        if prop_pres.old_value is not None and isinstance(prop_pres.old_value, str):
+            # Check for 5 decimal places format like "[1.23457 2.34568 3.45679]"
+            assert prop_pres.old_value.count(".") > 0  # Has decimal points

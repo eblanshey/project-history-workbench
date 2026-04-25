@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
-# File responsibility: Defines the SettingsRepository Protocol for
-# retrieving configuration settings used during diff computation.
+# File responsibility: Defines domain repository Protocols for reading effective
+# diff settings and reading/writing raw persistence state.
 """Settings repository interface (port)."""
 
 from typing import Protocol
 
 from .models import Settings
+from .persistence_state import SettingsPersistenceState
 
 
 class SettingsRepository(Protocol):
@@ -42,6 +43,14 @@ class SettingsRepository(Protocol):
         """
         ...
 
+    def get_float_precision(self) -> int:
+        """Get float precision for comparison and display.
+
+        Returns:
+            Number of decimal places for float comparison (default: 2)
+        """
+        ...
+
     def get_settings(self) -> Settings:
         """Get all settings as a Settings object.
 
@@ -49,4 +58,16 @@ class SettingsRepository(Protocol):
             Settings object containing excluded types, properties, and
             type-specific property exclusions
         """
+        ...
+
+
+class SettingsPersistenceRepository(Protocol):
+    """Interface for raw diff settings persistence state access."""
+
+    def get_persistence_state(self) -> SettingsPersistenceState:
+        """Get full persisted state including mode/initialization flags."""
+        ...
+
+    def save_persistence_state(self, state: SettingsPersistenceState) -> None:
+        """Persist full settings state including mode/initialization flags."""
         ...

@@ -9,7 +9,7 @@ from datetime import datetime
 
 import pytest
 
-from freecad.diff_wb.config import EXCLUDED_PROPERTIES
+from freecad.diff_wb.domain.config import EXCLUDED_PROPERTIES
 from freecad.diff_wb.domain.diff.comparator import PropertyComparator, TreeComparator
 from freecad.diff_wb.domain.diff.models import DiffState, NodeDiff, PropertyDiff
 from freecad.diff_wb.domain.snapshots.models import Snapshot

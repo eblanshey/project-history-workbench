@@ -14,7 +14,11 @@ except Exception as e:
 if Gui is not None:
     from .entrypoints.workbench import DiffWorkbench
     from .freecad_version_check import check_python_and_freecad_version
-    from .resources import TRANSLATIONSPATH
+    from .resources import ICONPATH, TRANSLATIONSPATH
+
+    # Register icon search path so preference group icons like
+    # "preferences-diff.svg" are discoverable by FreeCAD.
+    Gui.addIconPath(ICONPATH)
 
     # Initialize FreeCAD language support
     Gui.addLanguagePath(TRANSLATIONSPATH)

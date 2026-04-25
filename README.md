@@ -39,5 +39,28 @@ For now snapshots are stored in memory and are lost when FreeCAD is closed, but 
 
 The FreeCAD Preferences dialog has a Diff Workbench panel with the following options:
 
-- Excluded Types: a textarea with types, one on each line to exclude from the diff view. Objects of this type, and all its children are removed from the tree. By default, "App::Origin" is excluded because it never changes.
-- Excluded Properties: a textarea with property names to exclude from the diff view. Exclude properties that create too much noise for a diff view, such as properties with timestamps.
+### Exclusion Lists
+
+Each exclusion list (Types, Properties, Type-specific Properties) supports two modes:
+
+- **Use default exclusion list**: Uses the built-in defaults from the workbench configuration
+- **Use custom exclusion list**: Allows you to specify your own exclusions
+
+When switching from default to custom mode for the first time, the custom list is pre-filled with the default values. After you edit or save once, the custom list preserves your changes (including empty lists) and will not be auto-repopulated.
+
+#### Excluded Object Types
+One TypeId per line (e.g., `App::Origin`). Objects of these types and their children are removed from the diff view. Default: `App::Origin`.
+
+#### Excluded Properties
+One property name per line (e.g., `TimeStamp`, `Label2`). These properties are excluded from all objects. Default: timestamp and UI-only properties.
+
+#### Type-specific Excluded Properties
+One mapping per line in the format `TypeId -> PropertyName`. This allows excluding a property for a specific type while keeping it visible for other types. Example:
+```
+TechDraw::DrawSVGTemplate -> PageResult
+```
+
+### Numeric Comparison
+
+#### Float Precision
+Number of decimal places for float comparison and display (0-12). Default: 2. This setting affects both the diff computation and how float values are formatted in the diff view.

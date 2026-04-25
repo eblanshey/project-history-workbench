@@ -30,8 +30,11 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, ClassVar, Protocol, runtime_checkable
 
-from ...config import FLOAT_PRECISION
 from ...utils import float_values_equal
+
+# Import fallback precision only for ad-hoc value construction (mainly tests);
+# runtime comparison/display precision is supplied via settings-driven flows.
+from ..config import FLOAT_PRECISION as DEFAULT_FLOAT_PRECISION
 
 
 class InternalType(StrEnum):
@@ -77,6 +80,7 @@ class PropertyPathValue:
     value: Any
     expression: str | None = None
     freecad_type: str | None = None
+    precision: int = DEFAULT_FLOAT_PRECISION  # Decimal places for float comparison
 
     @staticmethod
     def from_python(value: Any, expression: str | None = None) -> PropertyPathValue:
@@ -114,7 +118,9 @@ class PropertyPathValue:
         if self.expression != other.expression:
             return False
         if self.type_ == PropertyPathType.FLOAT:
-            return float_values_equal(float(self.value), float(other.value), FLOAT_PRECISION)
+            # Use the minimum precision of both values for comparison
+            precision = min(self.precision, other.precision)
+            return float_values_equal(float(self.value), float(other.value), precision)
         return self.value == other.value
 
 

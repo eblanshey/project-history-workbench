@@ -5,11 +5,7 @@
 This module contains shared utilities including the unified logging system.
 """
 
-from typing import TYPE_CHECKING, Protocol
-
-
-if TYPE_CHECKING:
-    from PyQt5.QtCore import QLocale  # noqa: F401
+from typing import Protocol
 
 
 class LoggerProtocol(Protocol):
@@ -160,7 +156,7 @@ def format_float(value: float, precision: int) -> str:
         Formatted string like "1.23" or "-0.01".
     """
     try:
-        from PyQt5.QtCore import QLocale
+        from PyQt5.QtCore import QLocale  # type: ignore[import-not-found]
 
         return QLocale().toString(value, "f", precision)  # type: ignore[no-any-return]
     except ImportError:
