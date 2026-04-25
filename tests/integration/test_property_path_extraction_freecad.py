@@ -121,10 +121,10 @@ class TestConstraintItemExpression:
 
 
 class TestQuantityExtraction:
-    """Test quantity extraction maps to QuantityData."""
+    """Test quantity extraction maps to root-only QuantityData."""
 
     def test_quantity_property_type(self, temp_document):
-        """Quantity property should extract as QuantityData."""
+        """Quantity property should extract as root-only string QuantityData."""
         from freecad.diff_wb.domain.snapshots.gui_extractor import (
             _extract_property_value,
         )
@@ -138,9 +138,10 @@ class TestQuantityExtraction:
         prop = _extract_property_value(pad, "Length")
         assert prop is not None
         assert isinstance(prop.value, QuantityData)
-        assert prop.value.paths["Value"].value == pytest.approx(10.0)
-        # FreeCAD's Quantity.Unit str representation includes full unit description
-        assert "mm" in prop.value.paths["Unit"].value
+        quantity_text = prop.value.paths["."].value
+        assert isinstance(quantity_text, str)
+        assert "mm" in quantity_text
+        assert quantity_text.startswith("10")
 
     def test_quantity_with_expression(self, temp_document):
         """Quantity property with expression should preserve expression."""
