@@ -196,8 +196,8 @@ class TestDiffPresenterPropertyHandling:
         prop_pres = properties[0]
         assert prop_pres.name == "Length"
         assert prop_pres.state == DiffState.MODIFIED
-        assert prop_pres.old_value == 10.0
-        assert prop_pres.new_value == 20.0
+        assert prop_pres.old_value == "10.00"
+        assert prop_pres.new_value == "20.00"
 
         # Expression should be nested under the property row
         assert len(prop_pres.children) == 1
@@ -249,8 +249,8 @@ class TestDiffPresenterPropertyHandling:
         prop_pres = properties[0]
         # Value row should be UNCHANGED (value is the same)
         assert prop_pres.name == "Length"
-        assert prop_pres.old_value == 3.0
-        assert prop_pres.new_value == 3.0
+        assert prop_pres.old_value == "3.00"
+        assert prop_pres.new_value == "3.00"
 
         # Expression row should be nested and show DELETED
         assert len(prop_pres.children) == 1
@@ -780,8 +780,8 @@ class TestPhase2OldValueAndExpression:
         properties = prop_call["properties"]
         prop_pres = properties[0]
 
-        assert prop_pres.old_value == 10.0
-        assert prop_pres.new_value == 20.0
+        assert prop_pres.old_value == "10.00"
+        assert prop_pres.new_value == "20.00"
 
     def test_expandable_property_passes_both_old_and_new_values(self) -> None:
         """Expandable properties pass both old and new values for child diff computation."""
@@ -986,18 +986,26 @@ class TestPhase2OldValueAndExpression:
 
 
 class TestQuantityPropertyPresentation:
-    """Tests for QuantityData property presentation with root-only string path."""
+    """Tests for QuantityData property presentation with single QUANTITY path."""
 
-    def test_quantity_property_single_row_from_root_string(self) -> None:
-        """Quantity property renders as a single row with root string value, no children."""
+    def test_quantity_property_renders_as_leaf(self) -> None:
+        """Quantity property renders as single leaf row with value/unit summary."""
         fake_view, presenter = _create_test_presenter()
 
         old_prop = Property(
-            value=QuantityData(paths={".": PropertyPathValue(PropertyPathType.STRING, "10.0 mm")}),
+            value=QuantityData(
+                paths={
+                    ".": PropertyPathValue(PropertyPathType.QUANTITY, 10.0, unit="mm"),
+                }
+            ),
             group="Base",
         )
         new_prop = Property(
-            value=QuantityData(paths={".": PropertyPathValue(PropertyPathType.STRING, "12.0 mm")}),
+            value=QuantityData(
+                paths={
+                    ".": PropertyPathValue(PropertyPathType.QUANTITY, 12.0, unit="mm"),
+                }
+            ),
             group="Base",
         )
 
@@ -1022,21 +1030,35 @@ class TestQuantityPropertyPresentation:
         prop_pres = prop_call["properties"][0]
 
         assert prop_pres.name == "Length"
-        assert prop_pres.old_value == "10.0 mm"
-        assert prop_pres.new_value == "12.0 mm"
+        assert prop_pres.old_value == "10.00 mm"
+        assert prop_pres.new_value == "12.00 mm"
         assert prop_pres.state == DiffState.MODIFIED
-        assert prop_pres.children == []
+        # Quantity is single leaf — no Value/Unit children
+        assert len(prop_pres.children) == 0
 
-    def test_quantity_expression_row_still_supported_on_root_path(self) -> None:
-        """Quantity with root expression shows expression as nested child row."""
+    def test_quantity_expression_row_on_root_path(self) -> None:
+        """Quantity with expression shows expression as nested child row."""
         fake_view, presenter = _create_test_presenter()
 
         old_prop = Property(
-            value=QuantityData(paths={".": PropertyPathValue(PropertyPathType.STRING, "10.0 mm", "Sketch.Length")}),
+            value=QuantityData(
+                paths={
+                    ".": PropertyPathValue(
+                        PropertyPathType.QUANTITY,
+                        10.0,
+                        expression="Sketch.Length",
+                        unit="mm",
+                    ),
+                }
+            ),
             group="Base",
         )
         new_prop = Property(
-            value=QuantityData(paths={".": PropertyPathValue(PropertyPathType.STRING, "10.0 mm", None)}),
+            value=QuantityData(
+                paths={
+                    ".": PropertyPathValue(PropertyPathType.QUANTITY, 10.0, unit="mm"),
+                }
+            ),
             group="Base",
         )
 
@@ -1060,12 +1082,13 @@ class TestQuantityPropertyPresentation:
         assert prop_call is not None
         prop_pres = prop_call["properties"][0]
 
+        # Only expression child, no Value/Unit children
         assert len(prop_pres.children) == 1
         expr_pres = prop_pres.children[0]
         assert expr_pres.name == "Expression"
         assert expr_pres.state == DiffState.DELETED
         assert expr_pres.old_value == "Sketch.Length"
         assert expr_pres.new_value is None
-        # Quantity value should be unchanged
-        assert prop_pres.old_value == "10.0 mm"
-        assert prop_pres.new_value == "10.0 mm"
+        # Quantity value unchanged
+        assert prop_pres.old_value == "10.00 mm"
+        assert prop_pres.new_value == "10.00 mm"

@@ -27,6 +27,7 @@ from ...domain.diff.models import WARNING_OLD_SNAPSHOT_MISSING, DiffState, NodeD
 from ...domain.git.models import GitRepository
 from ...domain.settings import SettingsRepository
 from ...domain.tree import Property
+from ...domain.tree.data_path import PropertyPathType
 from ...utils import Log, format_float
 from ..protocols.diff_view import DiffView
 from ..state import UIState
@@ -132,6 +133,34 @@ def _aggregate_states(states: list[DiffState]) -> DiffState:
     return DiffState.MODIFIED
 
 
+def _format_pv(pv: Any, precision: int) -> Any:
+    """Format a PropertyPathValue for UI display.
+
+    FLOAT and QUANTITY types use precision-based float formatting.
+    QUANTITY returns bracketed string like "[10.00 mm]".
+    Non-PropertyPathValue inputs (strings from container summaries or
+    expression rows) are returned unchanged.
+
+    Args:
+        pv: A PropertyPathValue instance, a pre-formatted string, or None.
+        precision: Number of decimal places for float formatting.
+
+    Returns:
+        Formatted display value, or the input unchanged if not a PropertyPathValue.
+    """
+    if pv is None:
+        return None
+    if getattr(pv, "type_", None) == PropertyPathType.FLOAT:
+        return format_float(float(pv.value), precision)
+    if getattr(pv, "type_", None) == PropertyPathType.QUANTITY:
+        num = format_float(float(pv.value), precision)
+        unit = pv.unit if pv.unit else ""
+        return num + " " + unit
+    if hasattr(pv, "value"):
+        return pv.value
+    return pv
+
+
 def _insert_path_diff(root: _PathTreeNode, pd: PropertyPathDiff) -> None:
     """Insert a single path diff into the tree at the correct position.
 
@@ -148,9 +177,9 @@ def _insert_path_diff(root: _PathTreeNode, pd: PropertyPathDiff) -> None:
     for seg in segments:
         node = node.children.setdefault(seg, _PathTreeNode(name=seg))
 
-    # Leaf value row (show all rows, including unchanged)
-    node.old_value = pd.old_value.value if pd.old_value is not None else None
-    node.new_value = pd.new_value.value if pd.new_value is not None else None
+    # Leaf value row (store PropertyPathValue for type-aware formatting later)
+    node.old_value = pd.old_value
+    node.new_value = pd.new_value
     leaf_states = [pd.value_state]
 
     # Nested expression row under leaf, if expression exists on either side
@@ -224,16 +253,20 @@ def _derive_container_summary(values: list[Any], precision: int) -> str | None:
     Used for container rows (e.g. Placement) where no direct value
     exists but children do. Produces output like "[0.00 0.00 0.00]".
 
-    Float values are formatted with the given precision.
+    Accepts PropertyPathValue instances and formats them with the given
+    precision. QUANTITY types are formatted as "10.00 mm" within the
+    summary brackets.
 
     Args:
-        values: List of old or new values from child presentations.
+        values: List of PropertyPathValue or raw values from child nodes.
         precision: Number of decimal places for float formatting.
 
     Returns:
         A bracketed string like "[0.00 0.00 0.00]", or None if no values.
     """
-    non_null = [format_float(v, precision) if isinstance(v, float) else str(v) for v in values if v is not None]
+    non_null_values = [v for v in values if v is not None]
+    non_null = [_format_pv(v, precision) for v in non_null_values]
+    non_null = [str(v) for v in non_null if v is not None]
     if not non_null:
         return None
     return "[" + " ".join(non_null) + "]"
@@ -246,7 +279,7 @@ def _child_sort_key(name: str) -> tuple:
     This keeps [2] before [10] and prevents lexicographic jitter.
 
     Args:
-        name: A child node name (e.g. "Base", "[0]", "Expression").
+        name: A child node name (e.g. "Base", "[0]", "Value", "Unit").
 
     Returns:
         A tuple suitable for sorting.
@@ -284,9 +317,13 @@ def _path_tree_to_presentations(node: _PathTreeNode, precision: int) -> list[Pro
         old_value = child.old_value
         new_value = child.new_value
         if old_value is None and new_value is None and grandchildren:
-            # FreeCAD-like container summary when there is no direct value row for this segment.
+            # FreeCAD-like container summary when there is no direct value row.
             old_value = _derive_container_summary([gc.old_value for gc in grandchildren], precision)
             new_value = _derive_container_summary([gc.new_value for gc in grandchildren], precision)
+
+        # Format PropertyPathValue to display values
+        old_value = _format_pv(old_value, precision)
+        new_value = _format_pv(new_value, precision)
 
         out.append(
             PropertyPresentation(
@@ -939,6 +976,10 @@ class DiffPresenter:
                 old_leaf_values, new_leaf_values = _collect_leaf_values(root, include_expr=False)
                 prop_old_value = _derive_container_summary(old_leaf_values, precision)
                 prop_new_value = _derive_container_summary(new_leaf_values, precision)
+
+            # Format PropertyPathValue to display values
+            prop_old_value = _format_pv(prop_old_value, precision)
+            prop_new_value = _format_pv(prop_new_value, precision)
 
             # Convert path tree to presentations (excludes root itself)
             children = _path_tree_to_presentations(root, precision)

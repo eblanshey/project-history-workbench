@@ -87,8 +87,8 @@ class TestSerializePropertiesEnvelope:
         assert vec_data["group"] == "Data"
 
     @pytest.mark.skip(reason="Requires FreeCAD runtime; move to integration tests")
-    def test_quantity_property_envelope_root_string_only(self):
-        """A quantity property should serialize with type_, paths, and group keys."""
+    def test_quantity_property_envelope(self):
+        """A quantity property should serialize with single QUANTITY path and unit."""
         from FreeCAD import Base
 
         qty = Base.Quantity("10 mm")
@@ -99,10 +99,9 @@ class TestSerializePropertiesEnvelope:
         assert qty_data["type_"] == "Quantity"
         assert "paths" in qty_data
         assert set(qty_data["paths"].keys()) == {"."}
-        assert qty_data["paths"]["."]["type_"] == "STRING"
-        assert qty_data["paths"]["."]["value"] == "10.0 mm"
-        assert "Value" not in qty_data["paths"]
-        assert "Unit" not in qty_data["paths"]
+        assert qty_data["paths"]["."]["type_"] == "QUANTITY"
+        assert qty_data["paths"]["."]["value"] == pytest.approx(10.0)
+        assert qty_data["paths"]["."]["unit"] == "mm"
 
     def test_string_property_envelope(self):
         """A string property should serialize with type_, paths, and group keys."""
@@ -388,11 +387,11 @@ class TestSnapshotRoundTrip:
         assert restored_prop.value.paths["Base.z"].value == pytest.approx(3.0)
 
     @pytest.mark.skip(reason="Requires FreeCAD runtime; move to integration tests")
-    def test_roundtrip_preserves_quantity_root_string(self):
-        """Quantity property values should survive round-trip with root string value."""
+    def test_roundtrip_preserves_quantity_value_and_unit(self):
+        """Quantity property values should survive round-trip with QUANTITY path."""
         from FreeCAD import Base
 
-        from freecad.diff_wb.domain.tree.data_path import QuantityData
+        from freecad.diff_wb.domain.tree.data_path import PropertyPathType, QuantityData
 
         qty = Base.Quantity("10 mm")
         props = {"Amount": Property.from_freecad(qty, {}, group="Base")}
@@ -409,9 +408,9 @@ class TestSnapshotRoundTrip:
         restored_prop = restored.nodes[0].properties["Amount"]
         assert isinstance(restored_prop.value, QuantityData)
         assert set(restored_prop.value.paths.keys()) == {"."}
-        assert restored_prop.value.paths["."].value == "10.0 mm"
-        assert "Value" not in restored_prop.value.paths
-        assert "Unit" not in restored_prop.value.paths
+        assert restored_prop.value.paths["."].type_ == PropertyPathType.QUANTITY
+        assert restored_prop.value.paths["."].value == pytest.approx(10.0)
+        assert restored_prop.value.paths["."].unit == "mm"
 
     def test_roundtrip_preserves_list(self):
         """List property values should survive round-trip with correct items."""

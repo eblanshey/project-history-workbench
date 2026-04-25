@@ -13,6 +13,7 @@ The module provides:
 
 * ``PropertyPathValue`` - A single path entry with type, value, expression,
   and optional FreeCAD type info. Float values use tolerance-based equality.
+  QUANTITY types store an associated unit string.
 * ``DataPath`` - A Protocol that all path-based data classes implement,
   providing factory methods for creation from FreeCAD values or serialized
   dicts, and a ``serialize`` method for YAML output.
@@ -65,6 +66,7 @@ class PropertyPathType(StrEnum):
     STRING = "STRING"
     BOOL = "BOOL"
     NULL = "NULL"
+    QUANTITY = "QUANTITY"
 
 
 @dataclass(frozen=True)
@@ -74,6 +76,7 @@ class PropertyPathValue:
     Float values use tolerance-based equality (1e-9 relative and absolute).
     Expressions are compared for equality, so two values with different
     expressions are never equal even if their values match.
+    QUANTITY types store a numeric value with an associated unit string.
     """
 
     type_: PropertyPathType
@@ -81,6 +84,7 @@ class PropertyPathValue:
     expression: str | None = None
     freecad_type: str | None = None
     precision: int = DEFAULT_FLOAT_PRECISION  # Decimal places for float comparison
+    unit: str | None = None  # Unit string for QUANTITY types (e.g. "mm", "N")
 
     @staticmethod
     def from_python(value: Any, expression: str | None = None) -> PropertyPathValue:
@@ -105,11 +109,12 @@ class PropertyPathValue:
         return PropertyPathValue(PropertyPathType.STRING, str(value), expression)
 
     def __eq__(self, other: object) -> bool:
-        """Equality with float precision for FLOAT types.
+        """Equality with float precision for FLOAT and QUANTITY types.
 
         Two values are equal if they have the same type, the same expression
         (both None or both the same string), and values that round to the
-        same value at the configured precision for floats.
+        same value at the configured precision for floats. QUANTITY types
+        also require matching unit strings.
         """
         if not isinstance(other, PropertyPathValue):
             return NotImplemented
@@ -121,6 +126,11 @@ class PropertyPathValue:
             # Use the minimum precision of both values for comparison
             precision = min(self.precision, other.precision)
             return float_values_equal(float(self.value), float(other.value), precision)
+        if self.type_ == PropertyPathType.QUANTITY:
+            precision = min(self.precision, other.precision)
+            value_eq = float_values_equal(float(self.value), float(other.value), precision)
+            unit_eq = self.unit == other.unit
+            return value_eq and unit_eq
         return self.value == other.value
 
 
@@ -143,8 +153,6 @@ class DataPath(Protocol):
 
     def serialize(self) -> dict[str, Any]: ...
 
-    def to_python(self) -> Any: ...
-
 
 def _serialize_path_entries(paths: dict[str, PropertyPathValue]) -> dict[str, Any]:
     """Serialize a dict of path entries to a plain dict suitable for YAML.
@@ -165,6 +173,8 @@ def _serialize_path_entries(paths: dict[str, PropertyPathValue]) -> dict[str, An
             entry["expression"] = pv.expression
         if pv.freecad_type is not None:
             entry["freecad_type"] = pv.freecad_type
+        if pv.unit is not None:
+            entry["unit"] = pv.unit
         result[path] = entry
     return result
 
@@ -190,6 +200,7 @@ def _deserialize_path_entries(raw: dict[str, Any]) -> dict[str, PropertyPathValu
             value=entry.get("value"),
             expression=entry.get("expression"),
             freecad_type=entry.get("freecad_type"),
+            unit=entry.get("unit"),
         )
     return paths
 
@@ -308,23 +319,15 @@ class PrimitiveData:
         """
         return {"type_": self.INTERNAL_TYPE.value, "paths": _serialize_path_entries(self.paths)}
 
-    def to_python(self) -> Any:
-        """Extract the raw Python value from this PrimitiveData.
-
-        Returns:
-            The primitive value stored at the '.' path.
-        """
-        pv = self.paths.get(".")
-        return pv.value if pv is not None else None
-
 
 @dataclass(frozen=True)
 class QuantityData:
-    """Wraps a Base.Quantity as a single root string path entry.
+    """Wraps a Base.Quantity with a single QUANTITY path entry.
 
-    The quantity is stored as a single STRING value at the root path "."
-    (e.g. "10.0 mm"), with the optional root expression co-located on the
-    same entry. This eliminates noisy Value/Unit sub-rows in the UI.
+    Stores numeric magnitude and unit string in one PropertyPathValue:
+    - ``.`` path: QUANTITY (e.g. value=10.0, unit="mm")
+
+    Root expression, when present, is preserved on the same path entry.
     """
 
     INTERNAL_TYPE: ClassVar[InternalType] = InternalType.Quantity
@@ -334,26 +337,35 @@ class QuantityData:
     def from_freecad_value(value: Any, expr_map: dict[str, str]) -> QuantityData:
         """Create QuantityData from a FreeCAD Base.Quantity value.
 
-        Stores the string representation of the quantity (e.g. "10.0 mm")
-        as a single STRING entry at the root path ".". If the root expression
-        map contains a '.' key, it is stored as the expression on the same
-        root entry.
+        Stores the quantity as a single QUANTITY path entry with numeric
+        value and unit string. Both are taken from the quantity's internal
+        representation (matching ``str(quantity)``), not user-preferred
+        display units.
+
+        If the root expression map contains a ``'.'`` key, it is preserved
+        on the same path entry as the expression field.
 
         Args:
             value: A FreeCAD Base.Quantity or compatible object.
             expr_map: Expression mapping that may contain a '.' key.
 
         Returns:
-            A new QuantityData instance with root-only path entry.
+            A new QuantityData instance.
         """
         root_expr = _root_expression(expr_map)
+        quantity_value = float(getattr(value, "Value", float(value)))
         quantity_text = str(value)
+        _, _, unit_text = quantity_text.partition(" ")
+        if not unit_text:
+            unit_text = str(getattr(value, "Unit", ""))
+
         return QuantityData(
             paths={
                 ".": PropertyPathValue(
-                    type_=PropertyPathType.STRING,
-                    value=quantity_text,
+                    PropertyPathType.QUANTITY,
+                    quantity_value,
                     expression=root_expr,
+                    unit=unit_text,
                 )
             }
         )
@@ -377,15 +389,6 @@ class QuantityData:
             A dict with 'type_' and 'paths' keys.
         """
         return {"type_": self.INTERNAL_TYPE.value, "paths": _serialize_path_entries(self.paths)}
-
-    def to_python(self) -> str | None:
-        """Extract the raw string value from this QuantityData.
-
-        Returns:
-            The quantity string (e.g. "10.0 mm"), or None if no root entry exists.
-        """
-        root = self.paths.get(".")
-        return str(root.value) if root is not None and root.value is not None else None
 
 
 @dataclass(frozen=True)
@@ -439,14 +442,6 @@ class VectorData:
             A dict with 'type_' and 'paths' keys.
         """
         return {"type_": self.INTERNAL_TYPE.value, "paths": _serialize_path_entries(self.paths)}
-
-    def to_python(self) -> dict[str, Any]:
-        """Extract raw values from this VectorData as a dict.
-
-        Returns:
-            Dict mapping path keys to their raw values (e.g. {"x": 1.0, "y": 2.0, "z": 3.0}).
-        """
-        return {path: pv.value for path, pv in self.paths.items()}
 
 
 @dataclass(frozen=True)
@@ -504,14 +499,6 @@ class RotationData:
             A dict with 'type_' and 'paths' keys.
         """
         return {"type_": self.INTERNAL_TYPE.value, "paths": _serialize_path_entries(self.paths)}
-
-    def to_python(self) -> dict[str, Any]:
-        """Extract raw values from this RotationData as a dict.
-
-        Returns:
-            Dict mapping path keys to their raw values.
-        """
-        return {path: pv.value for path, pv in self.paths.items()}
 
 
 @dataclass(frozen=True)
@@ -586,14 +573,6 @@ class PlacementData:
             A dict with 'type_' and 'paths' keys.
         """
         return {"type_": self.INTERNAL_TYPE.value, "paths": _serialize_path_entries(self.paths)}
-
-    def to_python(self) -> dict[str, Any]:
-        """Extract raw values from this PlacementData as a dict.
-
-        Returns:
-            Dict mapping path keys to their raw values.
-        """
-        return {path: pv.value for path, pv in self.paths.items()}
 
 
 @dataclass(frozen=True)
@@ -672,14 +651,6 @@ class ConstraintData:
         """
         return {"type_": self.INTERNAL_TYPE.value, "paths": _serialize_path_entries(self.paths)}
 
-    def to_python(self) -> dict[str, Any]:
-        """Extract raw values from this ConstraintData as a dict.
-
-        Returns:
-            Dict mapping path keys to their raw values.
-        """
-        return {path: pv.value for path, pv in self.paths.items()}
-
 
 @dataclass(frozen=True)
 class UnknownData:
@@ -735,15 +706,6 @@ class UnknownData:
             A dict with 'type_' and 'paths' keys.
         """
         return {"type_": self.INTERNAL_TYPE.value, "paths": _serialize_path_entries(self.paths)}
-
-    def to_python(self) -> Any:
-        """Extract the raw Python value from this UnknownData.
-
-        Returns:
-            The value stored at the '.' path.
-        """
-        pv = self.paths.get(".")
-        return pv.value if pv is not None else None
 
 
 @dataclass(frozen=True)
@@ -809,16 +771,6 @@ class ListData:
             "paths": _serialize_path_entries(self.paths),
             "items": [item.serialize() for item in self.items],
         }
-
-    def to_python(self) -> list[Any]:
-        """Extract raw Python values from this ListData as a list.
-
-        Recursively converts each item to its Python equivalent.
-
-        Returns:
-            A list of raw Python values.
-        """
-        return [item.to_python() for item in self.items]
 
 
 # ---------------------------------------------------------------------------

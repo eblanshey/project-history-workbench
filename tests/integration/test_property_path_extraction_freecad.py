@@ -121,14 +121,14 @@ class TestConstraintItemExpression:
 
 
 class TestQuantityExtraction:
-    """Test quantity extraction maps to root-only QuantityData."""
+    """Test quantity extraction maps to QuantityData with QUANTITY path."""
 
     def test_quantity_property_type(self, temp_document):
-        """Quantity property should extract as root-only string QuantityData."""
+        """Quantity property should extract with QUANTITY type and unit field."""
         from freecad.diff_wb.domain.snapshots.gui_extractor import (
             _extract_property_value,
         )
-        from freecad.diff_wb.domain.tree.data_path import QuantityData
+        from freecad.diff_wb.domain.tree.data_path import PropertyPathType, QuantityData
 
         doc = temp_document
         pad = doc.addObject("PartDesign::Pad", "TestPad")
@@ -138,18 +138,18 @@ class TestQuantityExtraction:
         prop = _extract_property_value(pad, "Length")
         assert prop is not None
         assert isinstance(prop.value, QuantityData)
-        quantity_text = prop.value.paths["."].value
-        assert isinstance(quantity_text, str)
-        assert "mm" in quantity_text
-        assert quantity_text.startswith("10")
+        assert set(prop.value.paths.keys()) == {"."}
+        assert prop.value.paths["."].type_ == PropertyPathType.QUANTITY
+        assert prop.value.paths["."].value == pytest.approx(10.0)
+        assert prop.value.paths["."].unit == "mm"
 
     def test_quantity_with_expression(self, temp_document):
-        """Quantity property with expression should preserve expression."""
+        """Quantity property with expression should preserve expression on root path."""
         from freecad.diff_wb.domain.snapshots.gui_extractor import (
             _build_expression_map_for_property,
             _extract_property_value,
         )
-        from freecad.diff_wb.domain.tree.data_path import QuantityData
+        from freecad.diff_wb.domain.tree.data_path import PropertyPathType, QuantityData
 
         doc = temp_document
         pad = doc.addObject("PartDesign::Pad", "TestPad")
@@ -162,8 +162,11 @@ class TestQuantityExtraction:
         prop = _extract_property_value(pad, "Length")
         assert prop is not None
         assert isinstance(prop.value, QuantityData)
-        # Quantity stores expression at root path "."
+        # Quantity stores expression on the same root path "."
         assert prop.value.paths["."].expression == "5 mm"
+        assert prop.value.paths["."].type_ == PropertyPathType.QUANTITY
+        assert prop.value.paths["."].value == pytest.approx(5.0)
+        assert prop.value.paths["."].unit == "mm"
 
         expr_map = _build_expression_map_for_property("Length", pad.ExpressionEngine)
         assert expr_map.get(".") == "5 mm"

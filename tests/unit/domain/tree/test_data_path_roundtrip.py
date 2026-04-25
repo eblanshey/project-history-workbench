@@ -90,41 +90,46 @@ class TestUnknownDataRoundTrip:
 
 
 class TestQuantityDataRoundTrip:
-    """Round-trip tests for QuantityData with root-only string path."""
+    """Round-trip tests for QuantityData with single QUANTITY path."""
 
-    def test_roundtrip_root_string_only(self) -> None:
-        """Test QuantityData round-trip with single root string path."""
-        original = QuantityData(
-            paths={
-                ".": PropertyPathValue(PropertyPathType.STRING, "10.0 mm", None),
-            }
-        )
-        serialized = original.serialize()
-        restored = data_path_from_serialized(serialized)
-        assert isinstance(restored, QuantityData)
-        assert set(restored.paths.keys()) == {"."}
-        assert restored.paths["."].type_ == PropertyPathType.STRING
-        assert restored.paths["."].value == "10.0 mm"
-
-    def test_roundtrip_root_expression_preserved(self) -> None:
-        """Test QuantityData round-trip preserves root expression on same entry."""
+    def test_roundtrip_value_and_unit(self) -> None:
+        """Test QuantityData round-trip stores value/unit in single QUANTITY path."""
         original = QuantityData(
             paths={
                 ".": PropertyPathValue(
-                    PropertyPathType.STRING,
-                    "5.0 mm",
-                    "Body.Length",
-                )
+                    PropertyPathType.QUANTITY,
+                    10.0,
+                    unit="mm",
+                ),
             }
         )
         serialized = original.serialize()
         restored = data_path_from_serialized(serialized)
         assert isinstance(restored, QuantityData)
         assert set(restored.paths.keys()) == {"."}
-        assert restored.paths["."].value == "5.0 mm"
+        assert restored.paths["."].type_ == PropertyPathType.QUANTITY
+        assert restored.paths["."].value == 10.0
+        assert restored.paths["."].unit == "mm"
+
+    def test_roundtrip_expression_preserved(self) -> None:
+        """Test QuantityData round-trip preserves expression on root path."""
+        original = QuantityData(
+            paths={
+                ".": PropertyPathValue(
+                    PropertyPathType.QUANTITY,
+                    5.0,
+                    expression="Body.Length",
+                    unit="mm",
+                ),
+            }
+        )
+        serialized = original.serialize()
+        restored = data_path_from_serialized(serialized)
+        assert isinstance(restored, QuantityData)
+        assert set(restored.paths.keys()) == {"."}
+        assert restored.paths["."].value == 5.0
+        assert restored.paths["."].unit == "mm"
         assert restored.paths["."].expression == "Body.Length"
-        assert "Value" not in restored.paths
-        assert "Unit" not in restored.paths
 
 
 class TestVectorDataRoundTrip:
