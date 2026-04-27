@@ -432,14 +432,9 @@ class DiffPresenter:
 
         # Call view methods to trigger UI rendering
         self._view.show_diff_tree(nodes, git_path)
-        # Pass raw integers - view handles translation and formatting using
-        # individual labels (DIFF_SUMMARY_ADDED_LABEL, etc.) per user decision
-        # Use explicit counts from DiffResult
-        self._view.show_summary(
-            added=diff_result.added_count,
-            deleted=diff_result.deleted_count,
-            modified=diff_result.modified_count,
-        )
+        has_changes = (diff_result.added_count + diff_result.deleted_count + diff_result.modified_count) > 0
+        changed_docs = 1 if has_changes else 0
+        self._view.show_summary(changed_docs=changed_docs)
 
     def on_history_item_selected(self, selection: HistorySelection) -> None:
         """Handle single item selection from history list.
@@ -875,14 +870,12 @@ class DiffPresenter:
         else:
             self._view.set_stage_all_button_visible(False)
 
-        # Show summary from first document (for now)
-        if diff_results:
-            first = diff_results[0]
-            self._view.show_summary(
-                added=first.added_count,
-                deleted=first.deleted_count,
-                modified=first.modified_count,
-            )
+        changed_docs = sum(
+            1
+            for diff_result in diff_results
+            if (diff_result.added_count + diff_result.deleted_count + diff_result.modified_count) > 0
+        )
+        self._view.show_summary(changed_docs=changed_docs)
 
     def _format_node(self, node_diff: NodeDiff) -> NodePresentation:
         """Transform domain NodeDiff to presentation model.

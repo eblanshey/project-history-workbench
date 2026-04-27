@@ -43,9 +43,9 @@ class FakeDiffView:
         """
         self._record_call("show_diff_trees", diff_trees=diff_trees)
 
-    def show_summary(self, added: int, deleted: int, modified: int) -> None:
+    def show_summary(self, changed_docs: int) -> None:
         """Capture summary call instead of showing UI."""
-        self._record_call("show_summary", added=added, deleted=deleted, modified=modified)
+        self._record_call("show_summary", changed_docs=changed_docs)
 
     def show_error(self, message: str) -> None:
         """Capture error call instead of showing UI."""

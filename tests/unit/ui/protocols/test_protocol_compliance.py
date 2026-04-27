@@ -83,8 +83,8 @@ class TestDiffViewProtocolCompliance:
         assert len(params) >= 1, "show_diff_tree missing 'nodes' parameter"
         assert params[0].name == "nodes", f"Expected 'nodes' parameter, got '{params[0].name}'"
 
-    def test_show_summary_accepts_three_integers(self) -> None:
-        """show_summary must accept added, deleted, modified integers."""
+    def test_show_summary_accepts_changed_docs_integer(self) -> None:
+        """show_summary must accept changed_docs integer."""
         import inspect
 
         from freecad.diff_wb.ui.views.diff_panel_view import DiffPanelView
@@ -96,11 +96,8 @@ class TestDiffViewProtocolCompliance:
         if params and params[0].name == "self":
             params = params[1:]
 
-        param_names = [p.name for p in params]
-        expected = ["added", "deleted", "modified"]
-
-        for name in expected:
-            assert name in param_names, f"show_summary missing '{name}' parameter"
+        assert len(params) >= 1, "show_summary missing 'changed_docs' parameter"
+        assert params[0].name == "changed_docs", f"Expected 'changed_docs' parameter, got '{params[0].name}'"
 
 
 class TestSnapshotViewProtocolCompliance:
@@ -187,7 +184,7 @@ class TestProtocolValidationUtility:
             def show_diff_trees(self, diffs: list[Any]) -> None:
                 pass
 
-            def show_summary(self, added: int, deleted: int, modified: int) -> None:
+            def show_summary(self, changed_docs: int) -> None:
                 pass
 
             def show_error(self, message: str) -> None:

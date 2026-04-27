@@ -6,17 +6,12 @@ substitution using Qt-style placeholders (%1, %2, etc.). Presenters pass
 raw data only - they never format user-facing messages.
 
 Translation Strategy for Summary:
-    The show_summary method passes raw integers. The view should translate
-    individual labels and combine them with values:
+    The show_summary method passes changed-document count.
+    The view should translate the label and combine it with the value:
 
-        def show_summary(self, added: int, deleted: int, modified: int) -> None:
-            added_label = QCoreApplication.translate("DiffView", DIFF_SUMMARY_ADDED_LABEL)
-            deleted_label = QCoreApplication.translate("DiffView", DIFF_SUMMARY_DELETED_LABEL)
-            modified_label = QCoreApplication.translate("DiffView", DIFF_SUMMARY_MODIFIED_LABEL)
-
-            self._addedLabel.setText(f"{added_label} {added}")
-            self._deletedLabel.setText(f"{deleted_label} {deleted}")
-            self._modifiedLabel.setText(f"{modified_label} {modified}")
+        def show_summary(self, changed_docs: int) -> None:
+            changed_label = QCoreApplication.translate("DiffView", DIFF_SUMMARY_CHANGED_LABEL)
+            self._changed_label.setText(f"{changed_label} {changed_docs}")
 """
 
 from collections.abc import Callable
@@ -57,17 +52,13 @@ class DiffView(Protocol):
             git_path: The git path to display as top-level item (falls back to document name).
         """
 
-    def show_summary(self, added: int, deleted: int, modified: int) -> None:
-        """Display the diff summary counts.
+    def show_summary(self, changed_docs: int) -> None:
+        """Display count of documents that contain changes.
 
         Args:
-            added: Number of added nodes.
-            deleted: Number of deleted nodes.
-            modified: Number of modified nodes.
+            changed_docs: Number of changed documents.
 
-        The view should use individual labels (DIFF_SUMMARY_ADDED_LABEL,
-        DIFF_SUMMARY_DELETED_LABEL, DIFF_SUMMARY_MODIFIED_LABEL) and
-        append the counts after each label.
+        The view should use DIFF_SUMMARY_CHANGED_LABEL and append the count.
         """
 
     def show_error(self, message: str) -> None:

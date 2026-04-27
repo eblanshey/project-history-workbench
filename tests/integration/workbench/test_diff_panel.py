@@ -76,4 +76,4 @@ class TestDiffPanelView:
         panel.show_error("test error")
         panel.show_loading("loading...")
         panel.show_diff_tree([])
-        panel.show_summary(0, 0, 0)
+        panel.show_summary(0)

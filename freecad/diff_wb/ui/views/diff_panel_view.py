@@ -38,9 +38,7 @@ from ..presenters.presentation_models import (
     PropertyPresentation,
 )
 from ..translation_strings import (
-    DIFF_SUMMARY_ADDED_LABEL,
-    DIFF_SUMMARY_DELETED_LABEL,
-    DIFF_SUMMARY_MODIFIED_LABEL,
+    DIFF_SUMMARY_CHANGED_LABEL,
     HISTORY_LABEL,
     REPOSITORY_INFO_TEMPLATE,
     REPOSITORY_NO_REPO_MESSAGE,
@@ -340,16 +338,10 @@ class DiffPanelView(QWidget):
         summary_layout.setContentsMargins(0, 0, 0, 0)
         summary_layout.setSpacing(16)
 
-        self._added_label = QLabel("")
-        self._added_label.setStyleSheet("font-weight: bold;")
-        self._deleted_label = QLabel("")
-        self._deleted_label.setStyleSheet("font-weight: bold;")
-        self._modified_label = QLabel("")
-        self._modified_label.setStyleSheet("font-weight: bold;")
+        self._changed_label = QLabel("")
+        self._changed_label.setStyleSheet("font-weight: bold;")
 
-        summary_layout.addWidget(self._added_label)
-        summary_layout.addWidget(self._deleted_label)
-        summary_layout.addWidget(self._modified_label)
+        summary_layout.addWidget(self._changed_label)
 
         # Stage All button (hidden by default, shown during Working Tree selection)
         self._stage_all_button = QPushButton()
@@ -941,28 +933,18 @@ class DiffPanelView(QWidget):
 
         return item
 
-    def show_summary(self, added: int, deleted: int, modified: int) -> None:
-        """Display the diff summary counts.
+    def show_summary(self, changed_docs: int) -> None:
+        """Display count of documents that contain changes.
 
         Args:
-            added: Number of added nodes.
-            deleted: Number of deleted nodes.
-            modified: Number of modified nodes.
+            changed_docs: Number of changed documents.
         """
-        # Translate labels
-        added_text = QCoreApplication.translate("DiffView", DIFF_SUMMARY_ADDED_LABEL)
-        deleted_text = QCoreApplication.translate("DiffView", DIFF_SUMMARY_DELETED_LABEL)
-        modified_text = QCoreApplication.translate("DiffView", DIFF_SUMMARY_MODIFIED_LABEL)
+        if changed_docs == 0:
+            self._changed_label.setText("No changes")
+            return
 
-        # Set text with counts
-        if added == 0 and deleted == 0 and modified == 0:
-            self._added_label.setText("No changes")
-            self._deleted_label.setText("")
-            self._modified_label.setText("")
-        else:
-            self._added_label.setText(f"{added_text} {added}")
-            self._deleted_label.setText(f"{deleted_text} {deleted}")
-            self._modified_label.setText(f"{modified_text} {modified}")
+        changed_text = QCoreApplication.translate("DiffView", DIFF_SUMMARY_CHANGED_LABEL)
+        self._changed_label.setText(f"{changed_text} {changed_docs}")
 
     def show_properties(self, properties: list[PropertyPresentation]) -> None:
         """Display property diffs in the properties tree widget.

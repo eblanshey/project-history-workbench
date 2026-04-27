@@ -47,31 +47,13 @@ No placeholders. This is a static message.
 # Context: "DiffView"
 # These strings are used by the diff view component for displaying results.
 
-DIFF_SUMMARY_ADDED_LABEL = "Added:"
-"""Label for the added nodes count in the diff summary.
+DIFF_SUMMARY_CHANGED_LABEL = "Changed:"
+"""Label for the changed-documents count in the diff summary.
 
 No placeholders. The view appends the count after this label.
 
 Example:
-    "Added: 5"
-"""
-
-DIFF_SUMMARY_DELETED_LABEL = "Deleted:"
-"""Label for the deleted nodes count in the diff summary.
-
-No placeholders. The view appends the count after this label.
-
-Example:
-    "Deleted: 3"
-"""
-
-DIFF_SUMMARY_MODIFIED_LABEL = "Modified:"
-"""Label for the modified nodes count in the diff summary.
-
-No placeholders. The view appends the count after this label.
-
-Example:
-    "Modified: 2"
+    "Changed: 2"
 """
 
 DIFF_LOADING_MESSAGE = "Computing diff..."
@@ -237,9 +219,7 @@ __all__ = [
     "SNAPSHOT_SUCCESS_TEMPLATE",
     "SNAPSHOT_LOADING_DEFAULT",
     # Diff View
-    "DIFF_SUMMARY_ADDED_LABEL",
-    "DIFF_SUMMARY_DELETED_LABEL",
-    "DIFF_SUMMARY_MODIFIED_LABEL",
+    "DIFF_SUMMARY_CHANGED_LABEL",
     "DIFF_LOADING_MESSAGE",
     "STAGE_ALL_LABEL",
     # Common

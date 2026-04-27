@@ -231,12 +231,10 @@ class TestDiffPresenter:
         assert calls[2]["method"] == "show_diff_tree"
         assert calls[2]["nodes"] == []
         assert calls[3]["method"] == "show_summary"
-        assert calls[3]["added"] == 0
-        assert calls[3]["deleted"] == 0
-        assert calls[3]["modified"] == 0
+        assert calls[3]["changed_docs"] == 0
 
-    def test_calculates_summary_counts(self) -> None:
-        """Calculates correct added/deleted/modified counts."""
+    def test_calculates_changed_docs_for_single_diff(self) -> None:
+        """Shows changed_docs=1 when single diff has any changes."""
         # Arrange
         fake_view, presenter = _create_test_presenter()
         added_node = NodeDiff(path="NewPart", type_id="Part::Feature", _force_state=DiffState.ADDED)
@@ -275,9 +273,7 @@ class TestDiffPresenter:
         # set_stage_all_callback (constructor), show_diff_tree, show_summary
         calls = fake_view.get_calls()
         summary_call = calls[3]
-        assert summary_call["added"] == 1
-        assert summary_call["deleted"] == 1
-        assert summary_call["modified"] == 1
+        assert summary_call["changed_docs"] == 1
 
 
 class TestDiffPresenterFormatsChildren:
@@ -783,6 +779,29 @@ class TestDiffPresenterPresentDiffs:
         show_trees_call = next((c for c in calls if c["method"] == "show_diff_trees"), None)
         assert show_trees_call is not None
         assert show_trees_call["diff_trees"] == []
+
+    def test_present_diffs_counts_changed_documents(self) -> None:
+        """present_diffs() shows number of documents with changes."""
+        fake_view, presenter = _create_test_presenter()
+
+        changed = DiffResult(
+            old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s2", document_name="v2", timestamp=datetime.datetime.now()),
+            hierarchy=DiffHierarchy(),
+            modified_count=2,
+        )
+        unchanged = DiffResult(
+            old_snapshot=Snapshot(snapshot_id="s3", document_name="v3", timestamp=datetime.datetime.now()),
+            new_snapshot=Snapshot(snapshot_id="s4", document_name="v4", timestamp=datetime.datetime.now()),
+            hierarchy=DiffHierarchy(),
+        )
+
+        presenter.present_diffs([changed, unchanged])
+
+        calls = fake_view.get_calls()
+        show_summary_call = next((c for c in calls if c["method"] == "show_summary"), None)
+        assert show_summary_call is not None
+        assert show_summary_call["changed_docs"] == 1
 
 
 class TestDiffPresenterWorkingTreeOrchestration:
