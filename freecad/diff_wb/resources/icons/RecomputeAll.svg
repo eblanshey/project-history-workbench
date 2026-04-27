@@ -85,18 +85,18 @@ id="path1880" /><path
   d="M 55.067292,47.468336 C 53.683665,57.143642 34.437051,67.001342 12.54045,48.570623 l -4.5888419,4.832097 0.19413,-16.695009 14.5994479,-0.0047 -5.534397,6.0237 c 13.525005,10.857147 30.444015,13.796366 37.856503,4.741623 z"
   style="color:#000000;display:block;overflow:visible;visibility:visible;fill:none;stroke:#729fcf;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:21;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;marker:none" /></g>
 
-  <!-- Asterisk outline (black, drawn first/underneath, thicker) -->
-  <g id="asterisk-outline" transform="translate(32,32)" stroke="black" stroke-width="13" stroke-linecap="round">
-    <line x1="0" y1="-18" x2="0" y2="18"/>
-    <line x1="-15.588" y1="-9" x2="15.588" y2="9"/>
-    <line x1="-15.588" y1="9" x2="15.588" y2="-9"/>
+  <!-- Asterisk outline (black, drawn first/underneath, thicker), top-right corner -->
+  <g id="asterisk-outline" transform="translate(52,12)" stroke="black" stroke-width="7" stroke-linecap="round">
+    <line x1="0" y1="-8" x2="0" y2="8"/>
+    <line x1="-6.928" y1="-4" x2="6.928" y2="4"/>
+    <line x1="-6.928" y1="4" x2="6.928" y2="-4"/>
   </g>
 
-  <!-- Asterisk fill (white, drawn on top, thinner) -->
-  <g id="asterisk-fill" transform="translate(32,32)" stroke="white" stroke-width="6" stroke-linecap="round">
-    <line x1="0" y1="-18" x2="0" y2="18"/>
-    <line x1="-15.588" y1="-9" x2="15.588" y2="9"/>
-    <line x1="-15.588" y1="9" x2="15.588" y2="-9"/>
+  <!-- Asterisk fill (white, drawn on top, thinner), top-right corner -->
+  <g id="asterisk-fill" transform="translate(52,12)" stroke="white" stroke-width="3" stroke-linecap="round">
+    <line x1="0" y1="-8" x2="0" y2="8"/>
+    <line x1="-6.928" y1="-4" x2="6.928" y2="4"/>
+    <line x1="-6.928" y1="4" x2="6.928" y2="-4"/>
   </g>
 
 </svg>
