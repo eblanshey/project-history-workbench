@@ -774,12 +774,11 @@ class TestShowCommits:
         assert "a1b2c3d" in text
         assert "e5f6789" not in text  # Full hash should not appear
 
-    def test_show_commits_defaults_to_working_tree_selection(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_commits() auto-selects Working Tree when nothing was selected."""
-        from PySide6.QtCore import Qt
-
+    def test_show_commits_leaves_history_unselected_without_previous_selection(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """show_commits() leaves history unselected when user had no selection."""
         from freecad.diff_wb.domain.git.models import GitCommit
 
+        panel._current_selection = None
         commits = [
             GitCommit(
                 id="a1b2c3d4e5f67890",
@@ -798,9 +797,8 @@ class TestShowCommits:
         panel.show_commits(commits)
 
         selected_items = panel.history_list.selectedItems()
-        assert len(selected_items) == 1
-        selected_selection = selected_items[0].data(Qt.ItemDataRole.UserRole)
-        assert selected_selection == HistorySelection(item_kind="WORKING_TREE", commit_hash=None)
+        assert selected_items == []
+        assert panel._current_selection is None
 
     def test_show_commits_refresh_restores_previous_selection_if_it_still_exists(self, panel) -> None:  # type: ignore[no-untyped-def]
         """Refreshing commits re-selects the same commit when still present."""
@@ -846,10 +844,8 @@ class TestShowCommits:
         selected_selection = selected_items[0].data(Qt.ItemDataRole.UserRole)
         assert selected_selection == HistorySelection(item_kind="COMMIT", commit_hash=selected_commit_hash)
 
-    def test_show_commits_refresh_falls_back_to_working_tree_when_previous_selection_missing(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """Refreshing commits selects Working Tree when prior commit selection disappears."""
-        from PySide6.QtCore import Qt
-
+    def test_show_commits_refresh_clears_selection_when_previous_selection_missing(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Refreshing commits clears selection when prior commit selection disappears."""
         from freecad.diff_wb.domain.git.models import GitCommit
 
         removed_commit_hash = "a1b2c3d4e5f67890"
@@ -883,9 +879,8 @@ class TestShowCommits:
         )
 
         selected_items = panel.history_list.selectedItems()
-        assert len(selected_items) == 1
-        selected_selection = selected_items[0].data(Qt.ItemDataRole.UserRole)
-        assert selected_selection == HistorySelection(item_kind="WORKING_TREE", commit_hash=None)
+        assert selected_items == []
+        assert panel._current_selection is None
 
     def test_show_commits_long_message_wraps(self, panel) -> None:  # type: ignore[no-untyped-def]
         """Test that long commit messages wrap within the list item."""

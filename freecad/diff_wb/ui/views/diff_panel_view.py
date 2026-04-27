@@ -545,7 +545,7 @@ class DiffPanelView(QWidget):
             self.history_list.setItemWidget(item, commit_widget)
             item.setSizeHint(commit_widget.sizeHint())
 
-        # Restore previous selection if possible; otherwise default to Working Tree.
+        # Restore previous user selection if possible; otherwise leave history unselected.
         self._restore_history_selection(previous_selection)
 
     def set_history_selection_callback(self, callback: Callable[[HistorySelection], None]) -> None:
@@ -661,17 +661,20 @@ class DiffPanelView(QWidget):
         return False
 
     def _restore_history_selection(self, previous_selection: HistorySelection | None) -> None:
-        """Restore previous history selection, or default to Working Tree.
+        """Restore previous history selection if present in the refreshed list.
 
         Args:
             previous_selection: Previously selected history item, if any.
         """
-        default_selection = HistorySelection(item_kind="WORKING_TREE", commit_hash=None)
-        selection_to_restore = previous_selection if previous_selection is not None else default_selection
+        self.history_list.clearSelection()
+        self.history_list.setCurrentRow(-1)
 
-        if not self._select_history_item(selection_to_restore):
-            # Previously selected commit may have disappeared after refresh.
-            self._select_history_item(default_selection)
+        if previous_selection is None:
+            self._current_selection = None
+            return
+
+        if not self._select_history_item(previous_selection):
+            self._current_selection = None
 
     def _format_timestamp(self, iso_string: str) -> str:
         """Format ISO timestamp string for display.
