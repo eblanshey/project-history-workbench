@@ -238,7 +238,9 @@ class _RefreshRepositoryCommand:
         """Return FreeCAD command metadata for UI integration."""
         return {
             "MenuText": "Refresh Git Repository and Commits",
-            "ToolTip": "Refresh repository detection and reload commits",
+            "ToolTip": "Refresh the detected git repository and reload commits.\nOpen at least one FreeCAD document "
+            "located within a git repository before running this command.\nHow it works: open FreeCAD "
+            "documents are checked one by one until one is found to be located within a git repository.",
             "Pixmap": os.path.join(ICONPATH, "RefreshRepository.svg"),
         }
 
@@ -317,6 +319,31 @@ class _RecomputeAllOpenDocumentsCommand:
         container.recompute_all_open_documents_action.execute()
 
 
+class _RecomputeActiveDocumentCommand:
+    """Command to recompute the active document in FreeCAD."""
+
+    def GetResources(self) -> dict[str, str]:
+        """Return FreeCAD command metadata for UI integration."""
+        return {
+            "MenuText": "Recompute Active Document",
+            "ToolTip": "Recompute the active document",
+            "Pixmap": "view-refresh",  # FreeCAD's standard recompute icon (from Std_Recompute)
+        }
+
+    def IsActive(self) -> bool:
+        """Return whether the command should be enabled."""
+        return True
+
+    def Activated(self) -> None:
+        """FreeCAD calls this when user clicks toolbar button."""
+        from .._container import get_container
+
+        container = get_container()
+
+        # Use FreeCAD port to recompute the active document
+        container._freecad_port.try_recompute_active_document()
+
+
 def register_commands() -> None:
     """Register the Diff Workbench commands with FreeCAD."""
     import FreeCADGui as Gui  # pylint: disable=import-error
@@ -328,3 +355,4 @@ def register_commands() -> None:
     Gui.addCommand("DiffRefreshRepository", _RefreshRepositoryCommand())
     Gui.addCommand("DiffOpenAllDocumentsInRepository", _OpenAllDocumentsInRepositoryCommand())
     Gui.addCommand("DiffRecomputeAllOpenDocuments", _RecomputeAllOpenDocumentsCommand())
+    Gui.addCommand("DiffRecomputeActiveDocument", _RecomputeActiveDocumentCommand())
