@@ -239,8 +239,8 @@ class _RefreshRepositoryCommand:
         return {
             "MenuText": "Refresh Git Repository and Commits",
             "ToolTip": "Refresh the detected git repository and reload commits.\nOpen at least one FreeCAD document "
-            "located within a git repository before running this command.\nHow it works: open FreeCAD "
-            "documents are checked one by one until one is found to be located within a git repository.",
+                       "located within a git repository before running this command.\nHow it works: open FreeCAD "
+                       "documents are checked one by one until one is found to be located within a git repository.",
             "Pixmap": os.path.join(ICONPATH, "RefreshRepository.svg"),
         }
 

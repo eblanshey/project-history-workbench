@@ -319,9 +319,11 @@ class DiffPanelView(QWidget):
         self._refresh_button.setToolTip("Refresh Git Repository and Commits")
         # Create header layout with repository label on left and refresh button on right
         repository_header_layout = QHBoxLayout()
-        repository_header_layout.addWidget(self._repository_label)
+        repository_header_layout.setContentsMargins(0, 0, 0, 0)
+        repository_header_layout.setSpacing(6)
+        repository_header_layout.addWidget(self._repository_label, 0, Qt.AlignmentFlag.AlignVCenter)
         repository_header_layout.addStretch()
-        repository_header_layout.addWidget(self._refresh_button)
+        repository_header_layout.addWidget(self._refresh_button, 0, Qt.AlignmentFlag.AlignVCenter)
         repository_header_container = QWidget()
         repository_header_container.setLayout(repository_header_layout)
         # Reorder widgets: repository header FIRST, then placeholder, then history list
