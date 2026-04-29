@@ -26,6 +26,8 @@ AUTO_EXCLUDED_PROPERTIES = [
     "EditorMode",  # UI-only property
     "EditorObject",  # UI-only property
     "Proxy",  # Contains custom logic not useful for diffing, e.g. assembly joint logic
+    "SvgIncluded",  # Techdraw cache
+    "PatIncluded",  # Techdraw cache
 ]
 
 # Configurable float precision for comparison and display (matching FreeCAD's lowPrec)
