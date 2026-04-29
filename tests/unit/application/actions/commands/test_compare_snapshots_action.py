@@ -3,10 +3,29 @@
 import datetime
 
 from freecad.diff_wb.application.actions.commands import CompareSnapshotsAction
-from freecad.diff_wb.domain.snapshots.models import Snapshot
+from freecad.diff_wb.domain.snapshots.models import Snapshot, SnapshotObject, SnapshotOccurrence
 from freecad.diff_wb.domain.tree import Property
-from freecad.diff_wb.domain.tree.node import TreeNode
 from tests.fakes import FakeDiffEngine, FakeSettingsRepository, FakeSnapshotRepository
+
+
+def snapshot_from_parts(
+    *,
+    snapshot_id: str,
+    document_name: str,
+    timestamp: datetime.datetime,
+    objects: list[SnapshotObject],
+    occurrences: list[SnapshotOccurrence],
+    git_path: str,
+) -> Snapshot:
+    """Build normalized snapshot from objects and occurrences."""
+    return Snapshot(
+        snapshot_id=snapshot_id,
+        document_name=document_name,
+        timestamp=timestamp,
+        objects=objects,
+        occurrences=occurrences,
+        git_path=git_path,
+    )
 
 
 class TestCompareSnapshotsAction:
@@ -16,38 +35,20 @@ class TestCompareSnapshotsAction:
         """Happy path: compares two snapshots successfully."""
         # Arrange
         snapshot_repo = FakeSnapshotRepository()
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_parts(
             snapshot_id="",
             document_name="OldDoc",
             timestamp=datetime.datetime.now(),
-            nodes=[
-                TreeNode(
-                    id=1,
-                    name="Node1",
-                    type_id="Part::Feature",
-                    label="Node1",
-                    path="Node1",
-                    after=None,
-                    properties={},
-                )
-            ],
+            objects=[SnapshotObject(name="Node1", id=1, type_id="Part::Feature", properties={})],
+            occurrences=[SnapshotOccurrence(path="Node1", after=None)],
             git_path="",
         )
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_parts(
             snapshot_id="",
             document_name="NewDoc",
             timestamp=datetime.datetime.now(),
-            nodes=[
-                TreeNode(
-                    id=1,
-                    name="Node1",
-                    type_id="Part::Feature",
-                    label="Node1 Modified",
-                    path="Node1",
-                    after=None,
-                    properties={},
-                )
-            ],
+            objects=[SnapshotObject(name="Node1", id=1, type_id="Part::Feature", properties={})],
+            occurrences=[SnapshotOccurrence(path="Node1", after=None)],
             git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
@@ -96,11 +97,12 @@ class TestCompareSnapshotsAction:
         """Error: new snapshot ID doesn't exist."""
         # Arrange
         snapshot_repo = FakeSnapshotRepository()
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_parts(
             snapshot_id="",
             document_name="OldDoc",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
@@ -126,38 +128,34 @@ class TestCompareSnapshotsAction:
         """Verifies DiffEngine is called with correct parameters."""
         # Arrange
         snapshot_repo = FakeSnapshotRepository()
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_parts(
             snapshot_id="",
             document_name="OldDoc",
             timestamp=datetime.datetime.now(),
-            nodes=[
-                TreeNode(
-                    id=1,
+            objects=[
+                SnapshotObject(
                     name="Node1",
+                    id=1,
                     type_id="Part::Feature",
-                    label="Node1",
-                    path="Node1",
-                    after=None,
                     properties={"Property1": Property.from_freecad("Value1", {}, "Base")},
                 )
             ],
+            occurrences=[SnapshotOccurrence(path="Node1", after=None)],
             git_path="",
         )
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_parts(
             snapshot_id="",
             document_name="NewDoc",
             timestamp=datetime.datetime.now(),
-            nodes=[
-                TreeNode(
-                    id=1,
+            objects=[
+                SnapshotObject(
                     name="Node1",
+                    id=1,
                     type_id="Part::Feature",
-                    label="Node1",
-                    path="Node1",
-                    after=None,
                     properties={"Property1": Property.from_freecad("Value1", {}, "Base")},
                 )
             ],
+            occurrences=[SnapshotOccurrence(path="Node1", after=None)],
             git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)

@@ -10,10 +10,35 @@ from freecad.diff_wb.domain.diff.models import DiffHierarchy, DiffResult
 from freecad.diff_wb.domain.settings.models import Settings
 from freecad.diff_wb.domain.settings.repository import SettingsRepository
 from freecad.diff_wb.domain.snapshots import Snapshot
+from freecad.diff_wb.domain.snapshots.models import SnapshotObject, SnapshotOccurrence
 from freecad.diff_wb.domain.snapshots.repository import (
     InMemorySnapshotRepository,
     SnapshotRepository,
 )
+
+
+def snapshot_from_rows(
+    *,
+    snapshot_id: str,
+    document_name: str,
+    timestamp: datetime.datetime,
+    tree: list | None = None,
+    objects: list[SnapshotObject] | None = None,
+    occurrences: list[SnapshotOccurrence] | None = None,
+    git_path: str = "",
+) -> Snapshot:
+    """Build normalized Snapshot for fake fixtures."""
+    if tree is not None:
+        objects = [SnapshotObject(name=n.name, id=n.id, type_id=n.type_id, properties=n.properties) for n in tree]
+        occurrences = [SnapshotOccurrence(path=n.path, after=n.after) for n in tree]
+    return Snapshot(
+        snapshot_id=snapshot_id,
+        document_name=document_name,
+        timestamp=timestamp,
+        objects=objects or [],
+        occurrences=occurrences or [],
+        git_path=git_path,
+    )
 
 
 class FakeSnapshotRepository(InMemorySnapshotRepository, SnapshotRepository):
@@ -90,17 +115,17 @@ class FakeDiffEngine(DiffEngine):
             side_effect: Optional exception to raise instead of returning a result.
         """
         # Create default snapshots for the fake result
-        default_old_snapshot = Snapshot(
+        default_old_snapshot = snapshot_from_rows(
             snapshot_id="fake-old-id",
             document_name="Comparison",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            tree=[],
         )
-        default_new_snapshot = Snapshot(
+        default_new_snapshot = snapshot_from_rows(
             snapshot_id="fake-new-id",
             document_name="Comparison",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            tree=[],
         )
         self._return_value = return_value or DiffResult(
             old_snapshot=default_old_snapshot,

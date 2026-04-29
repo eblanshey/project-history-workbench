@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
-# File responsibility: YAML serialization and deserialization for Snapshot objects
-# using the DataPath-based Property model.
+# File responsibility: YAML serialization and deserialization for normalized
+# Snapshot objects using DataPath-based Property model.
 """YAML persistence for snapshot storage and retrieval."""
 
 from datetime import UTC, datetime
@@ -9,7 +9,7 @@ from typing import Any
 
 import yaml  # type: ignore[import-untyped]
 
-from freecad.diff_wb.domain import Property, Snapshot, TreeNode
+from freecad.diff_wb.domain import Property, Snapshot, SnapshotObject, SnapshotOccurrence
 
 
 class SnapshotYamlSerializer:
@@ -31,7 +31,7 @@ class SnapshotYamlSerializer:
           properties: {...}
     """
 
-    SNAPSHOT_VERSION = 1
+    SNAPSHOT_VERSION = 2
 
     @staticmethod
     def to_yaml(snapshot: Snapshot, path: Path) -> None:
@@ -41,26 +41,27 @@ class SnapshotYamlSerializer:
             snapshot: The snapshot to serialize
             path: The path to write the YAML file to
         """
-        # Sort nodes by ID (as per spec: "objects are stored in order of the integer id")
-        sorted_nodes = sorted(snapshot.nodes, key=lambda n: n.id)
+        sorted_objects = sorted(snapshot.objects, key=lambda obj: obj.id)
+        sorted_occurrences = sorted(snapshot.occurrences, key=lambda occ: occ.path)
 
-        objects = []
-        for node in sorted_nodes:
-            obj_dict = {
-                "id": node.id,
-                "type_id": node.type_id,
-                "name": node.name,
-                "after": node.after,
-                "path": node.path,
-                "properties": SnapshotYamlSerializer._serialize_properties(node.properties),
+        objects = [
+            {
+                "name": obj.name,
+                "id": obj.id,
+                "type_id": obj.type_id,
+                "properties": SnapshotYamlSerializer._serialize_properties(obj.properties),
             }
-            objects.append(obj_dict)
+            for obj in sorted_objects
+        ]
+
+        occurrences = [{"path": occ.path, "after": occ.after} for occ in sorted_occurrences]
 
         data = {
             "v": SnapshotYamlSerializer.SNAPSHOT_VERSION,
             "timestamp": snapshot.timestamp.isoformat(),
             "uid": snapshot.snapshot_id,
             "objects": objects,
+            "occurrences": occurrences,
         }
 
         # Write YAML with explicit styling for better text diff readability
@@ -113,27 +114,33 @@ class SnapshotYamlSerializer:
         else:
             timestamp = datetime.now(UTC)
 
-        # Parse objects
-        nodes = []
+        objects: list[SnapshotObject] = []
         for obj in data.get("objects", []):
             properties = SnapshotYamlSerializer._deserialize_properties(obj.get("properties", {}))
-
-            node = TreeNode(
-                id=obj["id"],
-                name=obj["name"],
-                type_id=obj["type_id"],
-                label=obj.get("label", obj["name"]),
-                path=obj["path"],
-                after=obj.get("after"),
-                properties=properties,
+            objects.append(
+                SnapshotObject(
+                    name=obj["name"],
+                    id=obj["id"],
+                    type_id=obj["type_id"],
+                    properties=properties,
+                )
             )
-            nodes.append(node)
+
+        occurrences: list[SnapshotOccurrence] = []
+        for occ in data.get("occurrences", []):
+            occurrences.append(
+                SnapshotOccurrence(
+                    path=occ["path"],
+                    after=occ.get("after"),
+                )
+            )
 
         return Snapshot(
             snapshot_id=data.get("uid", ""),
             document_name="",  # Not stored in YAML format
             timestamp=timestamp,
-            nodes=nodes,
+            objects=objects,
+            occurrences=occurrences,
         )
 
     @staticmethod

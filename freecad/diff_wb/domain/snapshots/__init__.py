@@ -9,7 +9,7 @@
 import os
 from pathlib import Path
 
-from .models import Snapshot, SnapshotMetadata
+from .models import Snapshot, SnapshotMetadata, SnapshotObject, SnapshotOccurrence
 from .repository import InMemorySnapshotRepository, SnapshotRepository
 
 
@@ -34,6 +34,8 @@ def get_snapshot_yaml_path_for_document(document_path: str) -> Path:
 __all__ = [
     "Snapshot",
     "SnapshotMetadata",
+    "SnapshotObject",
+    "SnapshotOccurrence",
     "SnapshotRepository",
     "InMemorySnapshotRepository",
     "get_snapshot_yaml_path_for_document",

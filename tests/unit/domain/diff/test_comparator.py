@@ -6,14 +6,14 @@ These tests verify the core diff computation logic without any FreeCAD dependenc
 """
 
 from datetime import datetime
+from typing import Any
 
 import pytest
 
 from freecad.diff_wb.domain.config import EXCLUDED_PROPERTIES
 from freecad.diff_wb.domain.diff.comparator import PropertyComparator, TreeComparator
 from freecad.diff_wb.domain.diff.models import DiffState, NodeDiff, PropertyDiff
-from freecad.diff_wb.domain.snapshots.models import Snapshot
-from freecad.diff_wb.domain.tree.node import TreeNode
+from freecad.diff_wb.domain.snapshots.models import Snapshot, SnapshotObject, SnapshotOccurrence
 from freecad.diff_wb.domain.tree.property import Property
 
 
@@ -28,6 +28,44 @@ def compare_properties(
 ) -> list[PropertyDiff]:
     """Wrapper with default excluded_properties."""
     return _property_comparator.compare_properties(old_props, new_props, EXCLUDED_PROPERTIES)
+
+
+def snapshot_from_rows(
+    *,
+    snapshot_id: str,
+    document_name: str,
+    timestamp: datetime,
+    tree: list[dict[str, Any]] | None = None,
+    objects: list[SnapshotObject] | None = None,
+    occurrences: list[SnapshotOccurrence] | None = None,
+    git_path: str = "",
+) -> Snapshot:
+    """Build normalized snapshot from tree nodes."""
+    if tree is not None:
+        objects = [
+            SnapshotObject(
+                name=str(n["name"]),
+                id=int(n["id"]),
+                type_id=str(n["type_id"]),
+                properties=n.get("properties", {}),  # type: ignore[arg-type]
+            )
+            for n in tree
+        ]
+        occurrences = [
+            SnapshotOccurrence(
+                path=str(n["path"]),
+                after=(str(n["after"]) if n["after"] is not None else None),
+            )
+            for n in tree
+        ]
+    return Snapshot(
+        snapshot_id=snapshot_id,
+        document_name=document_name,
+        timestamp=timestamp,
+        objects=objects or [],
+        occurrences=occurrences or [],
+        git_path=git_path,
+    )
 
 
 class TestGetParentPath:
@@ -373,37 +411,50 @@ class TestCompareProperties:
         assert any(pd.expression_state != DiffState.UNCHANGED for pd in result[0].path_diffs)
 
 
-class TestCompareNodesById:
-    """Tests for ID-based node comparison."""
+class TestCompareOccurrenceRows:
+    """Tests for occurrence-row pair comparison."""
 
     def test_identical_nodes_returns_unchanged(self) -> None:
         """Test comparing identical nodes returns UNCHANGED."""
         props = {
             "Label": Property.from_freecad("Body", {}, "Base"),
         }
-        old_node = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-            properties=props,
-        )
-        new_node = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-            properties=props,
-        )
+        old_node = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+            "properties": props,
+        }
+        new_node = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+            "properties": props,
+        }
 
-        old_index = {1: old_node}
-        new_index = {1: new_node}
-
-        result = _tree_comparator._compare_nodes_by_id(1, old_index, new_index, EXCLUDED_PROPERTIES)
+        old_snapshot = snapshot_from_rows(
+            snapshot_id="old",
+            document_name="Test",
+            timestamp=datetime.now(),
+            tree=[old_node],
+        )
+        new_snapshot = snapshot_from_rows(
+            snapshot_id="new",
+            document_name="Test",
+            timestamp=datetime.now(),
+            tree=[new_node],
+        )
+        result = _tree_comparator._compare_node_pair(
+            _tree_comparator._materialize_occurrence_rows(old_snapshot)[0],
+            _tree_comparator._materialize_occurrence_rows(new_snapshot)[0],
+            EXCLUDED_PROPERTIES,
+        )
 
         assert result is not None
         assert result.state == DiffState.UNCHANGED
@@ -416,56 +467,82 @@ class TestCompareNodesById:
         new_props = {
             "Length": Property.from_freecad(20.0, {}, "Base"),
         }
-        old_node = TreeNode(
-            id=1,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-            properties=old_props,
-        )
-        new_node = TreeNode(
-            id=1,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-            properties=new_props,
-        )
+        old_node = {
+            "id": 1,
+            "name": "Pad",
+            "type_id": "PartDesign::Pad",
+            "label": "Pad",
+            "path": "Body/Pad",
+            "after": "Body",
+            "properties": old_props,
+        }
+        new_node = {
+            "id": 1,
+            "name": "Pad",
+            "type_id": "PartDesign::Pad",
+            "label": "Pad",
+            "path": "Body/Pad",
+            "after": "Body",
+            "properties": new_props,
+        }
 
-        old_index = {1: old_node}
-        new_index = {1: new_node}
-
-        result = _tree_comparator._compare_nodes_by_id(1, old_index, new_index, EXCLUDED_PROPERTIES)
+        old_snapshot = snapshot_from_rows(
+            snapshot_id="old",
+            document_name="Test",
+            timestamp=datetime.now(),
+            tree=[old_node],
+        )
+        new_snapshot = snapshot_from_rows(
+            snapshot_id="new",
+            document_name="Test",
+            timestamp=datetime.now(),
+            tree=[new_node],
+        )
+        result = _tree_comparator._compare_node_pair(
+            _tree_comparator._materialize_occurrence_rows(old_snapshot)[0],
+            _tree_comparator._materialize_occurrence_rows(new_snapshot)[0],
+            EXCLUDED_PROPERTIES,
+        )
 
         assert result is not None
         assert result.state == DiffState.MODIFIED
 
     def test_includes_old_and_new_path_in_result(self) -> None:
         """Test that NodeDiff includes old_path and new_path."""
-        old_node = TreeNode(
-            id=1,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-        )
-        new_node = TreeNode(
-            id=1,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-        )
+        old_node = {
+            "id": 1,
+            "name": "Pad",
+            "type_id": "PartDesign::Pad",
+            "label": "Pad",
+            "path": "Body/Pad",
+            "after": "Body",
+        }
+        new_node = {
+            "id": 1,
+            "name": "Pad",
+            "type_id": "PartDesign::Pad",
+            "label": "Pad",
+            "path": "Body/Pad",
+            "after": "Body",
+        }
 
-        old_index = {1: old_node}
-        new_index = {1: new_node}
-
-        result = _tree_comparator._compare_nodes_by_id(1, old_index, new_index, EXCLUDED_PROPERTIES)
+        old_snapshot = snapshot_from_rows(
+            snapshot_id="old",
+            document_name="Test",
+            timestamp=datetime.now(),
+            tree=[old_node],
+        )
+        new_snapshot = snapshot_from_rows(
+            snapshot_id="new",
+            document_name="Test",
+            timestamp=datetime.now(),
+            tree=[new_node],
+        )
+        result = _tree_comparator._compare_node_pair(
+            _tree_comparator._materialize_occurrence_rows(old_snapshot)[0],
+            _tree_comparator._materialize_occurrence_rows(new_snapshot)[0],
+            EXCLUDED_PROPERTIES,
+        )
 
         # NodeDiff should include old_path and new_path for move detection
         assert result.old_path == "Body/Pad"
@@ -473,27 +550,40 @@ class TestCompareNodesById:
 
     def test_includes_old_and_new_after_in_result(self) -> None:
         """Test that NodeDiff includes old_after and new_after."""
-        old_node = TreeNode(
-            id=1,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-        )
-        new_node = TreeNode(
-            id=1,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-        )
+        old_node = {
+            "id": 1,
+            "name": "Pad",
+            "type_id": "PartDesign::Pad",
+            "label": "Pad",
+            "path": "Body/Pad",
+            "after": "Body",
+        }
+        new_node = {
+            "id": 1,
+            "name": "Pad",
+            "type_id": "PartDesign::Pad",
+            "label": "Pad",
+            "path": "Body/Pad",
+            "after": "Body",
+        }
 
-        old_index = {1: old_node}
-        new_index = {1: new_node}
-
-        result = _tree_comparator._compare_nodes_by_id(1, old_index, new_index, EXCLUDED_PROPERTIES)
+        old_snapshot = snapshot_from_rows(
+            snapshot_id="old",
+            document_name="Test",
+            timestamp=datetime.now(),
+            tree=[old_node],
+        )
+        new_snapshot = snapshot_from_rows(
+            snapshot_id="new",
+            document_name="Test",
+            timestamp=datetime.now(),
+            tree=[new_node],
+        )
+        result = _tree_comparator._compare_node_pair(
+            _tree_comparator._materialize_occurrence_rows(old_snapshot)[0],
+            _tree_comparator._materialize_occurrence_rows(new_snapshot)[0],
+            EXCLUDED_PROPERTIES,
+        )
 
         # NodeDiff should include old_after and new_after for reorder detection
         assert result.old_after == "Body"
@@ -506,43 +596,43 @@ class TestIdBasedCompareSnapshots:
     def test_compare_two_flat_node_lists_by_id(self) -> None:
         """Test comparing two flat node lists by ID."""
         # Old snapshot has ID 1 only
-        old_node = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-        )
-        old_snapshot = Snapshot(
+        old_node = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[old_node],
+            tree=[old_node],
         )
 
         # New snapshot has both ID 1 and ID 2
-        new_node1 = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-        )
-        new_node2 = TreeNode(
-            id=2,
-            name="Box",
-            type_id="Part::Box",
-            label="Box",
-            path="Box",
-            after=None,
-        )
-        new_snapshot = Snapshot(
+        new_node1 = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+        }
+        new_node2 = {
+            "id": 2,
+            "name": "Box",
+            "type_id": "Part::Box",
+            "label": "Box",
+            "path": "Box",
+            "after": None,
+        }
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[new_node1, new_node2],
+            tree=[new_node1, new_node2],
         )
 
         result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
@@ -555,43 +645,43 @@ class TestIdBasedCompareSnapshots:
     def test_detect_added_nodes(self) -> None:
         """Test detecting ADDED nodes (in new, not in old)."""
         # Old snapshot: only ID 1
-        old_node = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-        )
-        old_snapshot = Snapshot(
+        old_node = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[old_node],
+            tree=[old_node],
         )
 
         # New snapshot: ID 1 and ID 2 (added)
-        new_node1 = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-        )
-        new_node2 = TreeNode(
-            id=2,
-            name="Box",
-            type_id="Part::Box",
-            label="Box",
-            path="Box",
-            after=None,
-        )
-        new_snapshot = Snapshot(
+        new_node1 = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+        }
+        new_node2 = {
+            "id": 2,
+            "name": "Box",
+            "type_id": "Part::Box",
+            "label": "Box",
+            "path": "Box",
+            "after": None,
+        }
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[new_node1, new_node2],
+            tree=[new_node1, new_node2],
         )
 
         result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
@@ -603,43 +693,43 @@ class TestIdBasedCompareSnapshots:
     def test_detect_deleted_nodes(self) -> None:
         """Test detecting DELETED nodes (in old, not in new)."""
         # Old snapshot: ID 1 and ID 2
-        old_node1 = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-        )
-        old_node2 = TreeNode(
-            id=2,
-            name="Box",
-            type_id="Part::Box",
-            label="Box",
-            path="Box",
-            after=None,
-        )
-        old_snapshot = Snapshot(
+        old_node1 = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+        }
+        old_node2 = {
+            "id": 2,
+            "name": "Box",
+            "type_id": "Part::Box",
+            "label": "Box",
+            "path": "Box",
+            "after": None,
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[old_node1, old_node2],
+            tree=[old_node1, old_node2],
         )
 
         # New snapshot: only ID 1
-        new_node = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-        )
-        new_snapshot = Snapshot(
+        new_node = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+        }
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[new_node],
+            tree=[new_node],
         )
 
         result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
@@ -651,37 +741,37 @@ class TestIdBasedCompareSnapshots:
     def test_detect_modified_nodes(self) -> None:
         """Test detecting MODIFIED nodes (in both, properties differ)."""
         # Old snapshot: ID 1 with Length=10
-        old_node = TreeNode(
-            id=1,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-            properties={"Length": Property.from_freecad(10.0, {}, "Base")},
-        )
-        old_snapshot = Snapshot(
+        old_node = {
+            "id": 1,
+            "name": "Pad",
+            "type_id": "PartDesign::Pad",
+            "label": "Pad",
+            "path": "Body/Pad",
+            "after": "Body",
+            "properties": {"Length": Property.from_freecad(10.0, {}, "Base")},
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[old_node],
+            tree=[old_node],
         )
 
         # New snapshot: ID 1 with Length=20 (modified)
-        new_node = TreeNode(
-            id=1,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-            properties={"Length": Property.from_freecad(20.0, {}, "Base")},
-        )
-        new_snapshot = Snapshot(
+        new_node = {
+            "id": 1,
+            "name": "Pad",
+            "type_id": "PartDesign::Pad",
+            "label": "Pad",
+            "path": "Body/Pad",
+            "after": "Body",
+            "properties": {"Length": Property.from_freecad(20.0, {}, "Base")},
+        }
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[new_node],
+            tree=[new_node],
         )
 
         result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
@@ -710,29 +800,38 @@ class TestIdBasedCompareSnapshots:
         """Test ID-based comparison produces correct added/deleted/common sets."""
         # Old: IDs 1, 2, 3
         old_nodes = [
-            TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body", after=None),
-            TreeNode(id=2, name="Pad", type_id="PartDesign::Pad", label="Pad", path="Body/Pad", after="Body"),
-            TreeNode(
-                id=3, name="Sketch", type_id="PartDesign::Sketch", label="Sketch", path="Body/Sketch", after="Pad"
-            ),
+            {"id": 1, "name": "Body", "type_id": "PartDesign::Body", "label": "Body", "path": "Body", "after": None},
+            {"id": 2, "name": "Pad", "type_id": "PartDesign::Pad", "label": "Pad", "path": "Body/Pad", "after": "Body"},
+            {
+                "id": 3,
+                "name": "Sketch",
+                "type_id": "PartDesign::Sketch",
+                "label": "Sketch",
+                "path": "Body/Sketch",
+                "after": "Pad",
+            },
         ]
         # New: IDs 1, 2, 4 (2 unchanged, 1 modified, 3 deleted, 4 added)
         new_nodes = [
-            TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body", after=None),
-            TreeNode(  # ID 2 modified (different properties)
-                id=2,
-                name="Pad",
-                type_id="PartDesign::Pad",
-                label="Pad",
-                path="Body/Pad",
-                after="Body",
-                properties={"Length": Property.from_freecad(20.0, {}, "Base")},
-            ),
-            TreeNode(id=4, name="Box", type_id="Part::Box", label="Box", path="Box", after=None),  # Added
+            {"id": 1, "name": "Body", "type_id": "PartDesign::Body", "label": "Body", "path": "Body", "after": None},
+            {  # ID 2 modified (different properties)
+                "id": 2,
+                "name": "Pad",
+                "type_id": "PartDesign::Pad",
+                "label": "Pad",
+                "path": "Body/Pad",
+                "after": "Body",
+                "properties": {"Length": Property.from_freecad(20.0, {}, "Base")},
+            },
+            {"id": 4, "name": "Box", "type_id": "Part::Box", "label": "Box", "path": "Box", "after": None},  # Added
         ]
 
-        old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=old_nodes)
-        new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=new_nodes)
+        old_snapshot = snapshot_from_rows(
+            snapshot_id="old", document_name="Test", timestamp=datetime.now(), tree=old_nodes
+        )
+        new_snapshot = snapshot_from_rows(
+            snapshot_id="new", document_name="Test", timestamp=datetime.now(), tree=new_nodes
+        )
 
         result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
 
@@ -741,45 +840,43 @@ class TestIdBasedCompareSnapshots:
         assert result.deleted_count == 1
         assert result.modified_count == 1
 
-    def test_node_diff_includes_path_and_after_for_move_detection(self) -> None:
-        """Test NodeDiff includes old_path, new_path, old_after, new_after for future move/reorder detection."""
-        # Old: ID 1 at path "Body/Original"
-        old_node = TreeNode(
-            id=1,
-            name="Feature",
-            type_id="Part::Feature",
-            label="Feature",
-            path="Body/Original",
-            after="Body",
-        )
-        old_snapshot = Snapshot(
+    def test_path_based_comparison_treats_path_change_as_delete_and_add(self) -> None:
+        """Path-based identity treats path changes as delete+add occurrences."""
+        # Old: ID 1 at path "Body/Feature"
+        old_node = {
+            "id": 1,
+            "name": "Feature",
+            "type_id": "Part::Feature",
+            "label": "Feature",
+            "path": "Body/Feature",
+            "after": "Body",
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[old_node],
+            tree=[old_node],
         )
 
-        # New: Same ID but moved to different path "Body/Moved"
-        new_node = TreeNode(
-            id=1,
-            name="Feature",
-            type_id="Part::Feature",
-            label="Feature",
-            path="Body/Moved",
-            after="Body",
-        )
-        new_snapshot = Snapshot(
+        # New: Same ID but moved to different path "Part/Feature"
+        new_node = {
+            "id": 1,
+            "name": "Feature",
+            "type_id": "Part::Feature",
+            "label": "Feature",
+            "path": "Part/Feature",
+            "after": "Part",
+        }
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[new_node],
+            tree=[new_node],
         )
 
         result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
 
-        # The NodeDiff should include old_path and new_path for move detection
-        # Since the node is unchanged in properties but path changed
-        # The node may be nested under a parent placeholder
+        # Path identity means one deleted old occurrence and one added new occurrence.
         def find_node_diff(node_diffs: list[NodeDiff], path: str) -> NodeDiff | None:
             """Recursively find a NodeDiff by path."""
             for diff in node_diffs:
@@ -790,35 +887,39 @@ class TestIdBasedCompareSnapshots:
                     return found
             return None
 
-        feature_diff = find_node_diff(result.hierarchy.roots, "Body/Moved")
-        assert feature_diff is not None
-        assert feature_diff.old_path == "Body/Original"
-        assert feature_diff.new_path == "Body/Moved"
+        added_diff = find_node_diff(result.hierarchy.roots, "Part/Feature")
+        deleted_diff = find_node_diff(result.hierarchy.roots, "Body/Feature")
+        assert added_diff is not None
+        assert deleted_diff is not None
+        assert added_diff.old_path is None
+        assert added_diff.new_path == "Part/Feature"
+        assert deleted_diff.old_path == "Body/Feature"
+        assert deleted_diff.new_path is None
 
     def test_node_diff_for_added_node_has_null_old_path(self) -> None:
         """Test that added node has None for old_path."""
         # New only: ID 2
-        new_node = TreeNode(
-            id=2,
-            name="Box",
-            type_id="Part::Box",
-            label="Box",
-            path="Box",
-            after=None,
-        )
-        new_snapshot = Snapshot(
+        new_node = {
+            "id": 2,
+            "name": "Box",
+            "type_id": "Part::Box",
+            "label": "Box",
+            "path": "Box",
+            "after": None,
+        }
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[new_node],
+            tree=[new_node],
         )
 
         # Old is empty
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[],
+            tree=[],
         )
 
         result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
@@ -831,27 +932,27 @@ class TestIdBasedCompareSnapshots:
     def test_node_diff_for_deleted_node_has_null_new_path(self) -> None:
         """Test that deleted node has None for new_path."""
         # Old only: ID 1
-        old_node = TreeNode(
-            id=1,
-            name="Box",
-            type_id="Part::Box",
-            label="Box",
-            path="Box",
-            after=None,
-        )
-        old_snapshot = Snapshot(
+        old_node = {
+            "id": 1,
+            "name": "Box",
+            "type_id": "Part::Box",
+            "label": "Box",
+            "path": "Box",
+            "after": None,
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[old_node],
+            tree=[old_node],
         )
 
         # New is empty
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[],
+            tree=[],
         )
 
         result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
@@ -864,24 +965,28 @@ class TestIdBasedCompareSnapshots:
     def test_hierarchical_output_preserved(self) -> None:
         """Test that hierarchical NodeDiff.children is preserved for UI."""
         # Create a parent-child relationship in flat nodes
-        body = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
+        body = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+        }
+        pad = {
+            "id": 2,
+            "name": "Pad",
+            "type_id": "PartDesign::Pad",
+            "label": "Pad",
+            "path": "Body/Pad",
+            "after": "Body",
+        }
+        old_snapshot = snapshot_from_rows(
+            snapshot_id="old", document_name="Test", timestamp=datetime.now(), tree=[body, pad]
         )
-        pad = TreeNode(
-            id=2,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
+        new_snapshot = snapshot_from_rows(
+            snapshot_id="new", document_name="Test", timestamp=datetime.now(), tree=[body, pad]
         )
-        old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=[body, pad])
-        new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=[body, pad])
 
         result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
 
@@ -897,30 +1002,32 @@ class TestHierarchyOrderingByAfter:
 
     def test_orders_added_siblings_using_new_after(self) -> None:
         """Added siblings follow new snapshot ordering from new_after links."""
-        old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=[])
+        old_snapshot = snapshot_from_rows(snapshot_id="old", document_name="Test", timestamp=datetime.now(), tree=[])
 
         new_nodes = [
-            TreeNode(id=1, name="Body", type_id="PartDesign::Body", label="Body", path="Body", after=None),
+            {"id": 1, "name": "Body", "type_id": "PartDesign::Body", "label": "Body", "path": "Body", "after": None},
             # Intentionally not in desired after-chain order.
-            TreeNode(
-                id=4,
-                name="Pocket",
-                type_id="PartDesign::Pocket",
-                label="Pocket",
-                path="Body/Pocket",
-                after="Sketch",
-            ),
-            TreeNode(id=2, name="Pad", type_id="PartDesign::Pad", label="Pad", path="Body/Pad", after=None),
-            TreeNode(
-                id=3,
-                name="Sketch",
-                type_id="PartDesign::Sketch",
-                label="Sketch",
-                path="Body/Sketch",
-                after="Pad",
-            ),
+            {
+                "id": 4,
+                "name": "Pocket",
+                "type_id": "PartDesign::Pocket",
+                "label": "Pocket",
+                "path": "Body/Pocket",
+                "after": "Sketch",
+            },
+            {"id": 2, "name": "Pad", "type_id": "PartDesign::Pad", "label": "Pad", "path": "Body/Pad", "after": None},
+            {
+                "id": 3,
+                "name": "Sketch",
+                "type_id": "PartDesign::Sketch",
+                "label": "Sketch",
+                "path": "Body/Sketch",
+                "after": "Pad",
+            },
         ]
-        new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=new_nodes)
+        new_snapshot = snapshot_from_rows(
+            snapshot_id="new", document_name="Test", timestamp=datetime.now(), tree=new_nodes
+        )
 
         result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
 
@@ -930,14 +1037,28 @@ class TestHierarchyOrderingByAfter:
 
     def test_orders_roots_using_new_after(self) -> None:
         """Root ordering follows new_after when nodes exist in new snapshot."""
-        old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=[])
-        new_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(snapshot_id="old", document_name="Test", timestamp=datetime.now(), tree=[])
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[
-                TreeNode(id=1, name="ZRoot", type_id="Part::Feature", label="ZRoot", path="ZRoot", after=None),
-                TreeNode(id=2, name="ARoot", type_id="Part::Feature", label="ARoot", path="ARoot", after="ZRoot"),
+            tree=[
+                {
+                    "id": 1,
+                    "name": "ZRoot",
+                    "type_id": "Part::Feature",
+                    "label": "ZRoot",
+                    "path": "ZRoot",
+                    "after": None,
+                },
+                {
+                    "id": 2,
+                    "name": "ARoot",
+                    "type_id": "Part::Feature",
+                    "label": "ARoot",
+                    "path": "ARoot",
+                    "after": "ZRoot",
+                },
             ],
         )
 
@@ -947,16 +1068,30 @@ class TestHierarchyOrderingByAfter:
 
     def test_orders_deleted_nodes_using_old_after(self) -> None:
         """Deleted-only siblings fall back to old snapshot ordering via old_after."""
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[
-                TreeNode(id=1, name="ZRoot", type_id="Part::Feature", label="ZRoot", path="ZRoot", after=None),
-                TreeNode(id=2, name="ARoot", type_id="Part::Feature", label="ARoot", path="ARoot", after="ZRoot"),
+            tree=[
+                {
+                    "id": 1,
+                    "name": "ZRoot",
+                    "type_id": "Part::Feature",
+                    "label": "ZRoot",
+                    "path": "ZRoot",
+                    "after": None,
+                },
+                {
+                    "id": 2,
+                    "name": "ARoot",
+                    "type_id": "Part::Feature",
+                    "label": "ARoot",
+                    "path": "ARoot",
+                    "after": "ZRoot",
+                },
             ],
         )
-        new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=[])
+        new_snapshot = snapshot_from_rows(snapshot_id="new", document_name="Test", timestamp=datetime.now(), tree=[])
 
         result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
 
@@ -969,35 +1104,35 @@ class TestExcludedTypesFiltering:
     def test_excludes_nodes_with_excluded_type(self) -> None:
         """Test that nodes with excluded type_id are filtered out."""
         # Old snapshot with App::Origin (excluded type)
-        old_node = TreeNode(
-            id=1,
-            name="Origin",
-            type_id="App::Origin",
-            label="Origin",
-            path="Origin",
-            after=None,
-        )
-        old_snapshot = Snapshot(
+        old_node = {
+            "id": 1,
+            "name": "Origin",
+            "type_id": "App::Origin",
+            "label": "Origin",
+            "path": "Origin",
+            "after": None,
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[old_node],
+            tree=[old_node],
         )
 
         # New snapshot with same node
-        new_node = TreeNode(
-            id=1,
-            name="Origin",
-            type_id="App::Origin",
-            label="Origin",
-            path="Origin",
-            after=None,
-        )
-        new_snapshot = Snapshot(
+        new_node = {
+            "id": 1,
+            "name": "Origin",
+            "type_id": "App::Origin",
+            "label": "Origin",
+            "path": "Origin",
+            "after": None,
+        }
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[new_node],
+            tree=[new_node],
         )
 
         # Pass App::Origin in excluded_types
@@ -1012,51 +1147,51 @@ class TestExcludedTypesFiltering:
     def test_excludes_children_of_excluded_type_parent(self) -> None:
         """Test that children of excluded type nodes are also filtered."""
         # Old snapshot with App::Origin and its child
-        origin = TreeNode(
-            id=1,
-            name="Origin",
-            type_id="App::Origin",
-            label="Origin",
-            path="Origin",
-            after=None,
-        )
-        xy_plane = TreeNode(
-            id=2,
-            name="XYPlane",
-            type_id="App::Plane",
-            label="XYPlane",
-            path="Origin/XYPlane",
-            after="Origin",
-        )
-        old_snapshot = Snapshot(
+        origin = {
+            "id": 1,
+            "name": "Origin",
+            "type_id": "App::Origin",
+            "label": "Origin",
+            "path": "Origin",
+            "after": None,
+        }
+        xy_plane = {
+            "id": 2,
+            "name": "XYPlane",
+            "type_id": "App::Plane",
+            "label": "XYPlane",
+            "path": "Origin/XYPlane",
+            "after": "Origin",
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[origin, xy_plane],
+            tree=[origin, xy_plane],
         )
 
         # New snapshot with same nodes
-        new_origin = TreeNode(
-            id=1,
-            name="Origin",
-            type_id="App::Origin",
-            label="Origin",
-            path="Origin",
-            after=None,
-        )
-        new_xy_plane = TreeNode(
-            id=2,
-            name="XYPlane",
-            type_id="App::Plane",
-            label="XYPlane",
-            path="Origin/XYPlane",
-            after="Origin",
-        )
-        new_snapshot = Snapshot(
+        new_origin = {
+            "id": 1,
+            "name": "Origin",
+            "type_id": "App::Origin",
+            "label": "Origin",
+            "path": "Origin",
+            "after": None,
+        }
+        new_xy_plane = {
+            "id": 2,
+            "name": "XYPlane",
+            "type_id": "App::Plane",
+            "label": "XYPlane",
+            "path": "Origin/XYPlane",
+            "after": "Origin",
+        }
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[new_origin, new_xy_plane],
+            tree=[new_origin, new_xy_plane],
         )
 
         # Pass App::Origin in excluded_types - should exclude both origin and its child
@@ -1068,35 +1203,35 @@ class TestExcludedTypesFiltering:
     def test_includes_nodes_not_in_excluded_types(self) -> None:
         """Test that nodes not in excluded_types are included."""
         # Old snapshot with Part::Feature
-        old_node = TreeNode(
-            id=1,
-            name="Box",
-            type_id="Part::Feature",
-            label="Box",
-            path="Box",
-            after=None,
-        )
-        old_snapshot = Snapshot(
+        old_node = {
+            "id": 1,
+            "name": "Box",
+            "type_id": "Part::Feature",
+            "label": "Box",
+            "path": "Box",
+            "after": None,
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[old_node],
+            tree=[old_node],
         )
 
         # New snapshot with same node
-        new_node = TreeNode(
-            id=1,
-            name="Box",
-            type_id="Part::Feature",
-            label="Box",
-            path="Box",
-            after=None,
-        )
-        new_snapshot = Snapshot(
+        new_node = {
+            "id": 1,
+            "name": "Box",
+            "type_id": "Part::Feature",
+            "label": "Box",
+            "path": "Box",
+            "after": None,
+        }
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[new_node],
+            tree=[new_node],
         )
 
         # Pass App::Origin in excluded_types (but our node is Part::Feature)
@@ -1109,27 +1244,27 @@ class TestExcludedTypesFiltering:
     def test_excludes_added_nodes_with_excluded_type(self) -> None:
         """Test that added nodes with excluded type are filtered."""
         # Old snapshot is empty
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[],
+            tree=[],
         )
 
         # New snapshot with App::Origin (newly added)
-        new_node = TreeNode(
-            id=1,
-            name="Origin",
-            type_id="App::Origin",
-            label="Origin",
-            path="Origin",
-            after=None,
-        )
-        new_snapshot = Snapshot(
+        new_node = {
+            "id": 1,
+            "name": "Origin",
+            "type_id": "App::Origin",
+            "label": "Origin",
+            "path": "Origin",
+            "after": None,
+        }
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[new_node],
+            tree=[new_node],
         )
 
         result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], ["App::Origin"])
@@ -1140,27 +1275,27 @@ class TestExcludedTypesFiltering:
     def test_excludes_deleted_nodes_with_excluded_type(self) -> None:
         """Test that deleted nodes with excluded type are filtered."""
         # Old snapshot with App::Origin (deleted)
-        old_node = TreeNode(
-            id=1,
-            name="Origin",
-            type_id="App::Origin",
-            label="Origin",
-            path="Origin",
-            after=None,
-        )
-        old_snapshot = Snapshot(
+        old_node = {
+            "id": 1,
+            "name": "Origin",
+            "type_id": "App::Origin",
+            "label": "Origin",
+            "path": "Origin",
+            "after": None,
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[old_node],
+            tree=[old_node],
         )
 
         # New snapshot is empty
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[],
+            tree=[],
         )
 
         result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], ["App::Origin"])
@@ -1175,67 +1310,67 @@ class TestExcludedParentPathFiltering:
     def test_excludes_child_when_parent_excluded_by_type(self) -> None:
         """Test that child nodes are excluded when parent type is excluded."""
         # Old: Body -> Pad -> Sketch (Sketch will be excluded because parent Pad type is excluded)
-        body = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-        )
-        pad = TreeNode(
-            id=2,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-        )
-        sketch = TreeNode(
-            id=3,
-            name="Sketch",
-            type_id="PartDesign::Sketch",
-            label="Sketch",
-            path="Body/Pad/Sketch",
-            after="Pad",
-        )
-        old_snapshot = Snapshot(
+        body = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+        }
+        pad = {
+            "id": 2,
+            "name": "Pad",
+            "type_id": "PartDesign::Pad",
+            "label": "Pad",
+            "path": "Body/Pad",
+            "after": "Body",
+        }
+        sketch = {
+            "id": 3,
+            "name": "Sketch",
+            "type_id": "PartDesign::Sketch",
+            "label": "Sketch",
+            "path": "Body/Pad/Sketch",
+            "after": "Pad",
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[body, pad, sketch],
+            tree=[body, pad, sketch],
         )
 
         # New: same nodes
-        new_body = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-        )
-        new_pad = TreeNode(
-            id=2,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-        )
-        new_sketch = TreeNode(
-            id=3,
-            name="Sketch",
-            type_id="PartDesign::Sketch",
-            label="Sketch",
-            path="Body/Pad/Sketch",
-            after="Pad",
-        )
-        new_snapshot = Snapshot(
+        new_body = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+        }
+        new_pad = {
+            "id": 2,
+            "name": "Pad",
+            "type_id": "PartDesign::Pad",
+            "label": "Pad",
+            "path": "Body/Pad",
+            "after": "Body",
+        }
+        new_sketch = {
+            "id": 3,
+            "name": "Sketch",
+            "type_id": "PartDesign::Sketch",
+            "label": "Sketch",
+            "path": "Body/Pad/Sketch",
+            "after": "Pad",
+        }
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[new_body, new_pad, new_sketch],
+            tree=[new_body, new_pad, new_sketch],
         )
 
         # Exclude PartDesign::Pad (parent of Sketch)
@@ -1250,69 +1385,69 @@ class TestExcludedParentPathFiltering:
     def test_mixed_excluded_and_included_nodes(self) -> None:
         """Test that some nodes are excluded while others are included."""
         # Create nodes: Body with two children - one excluded, one included
-        body = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-        )
+        body = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+        }
         # This Pad will be excluded
-        pad = TreeNode(
-            id=2,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-        )
+        pad = {
+            "id": 2,
+            "name": "Pad",
+            "type_id": "PartDesign::Pad",
+            "label": "Pad",
+            "path": "Body/Pad",
+            "after": "Body",
+        }
         # This box will NOT be excluded (different parent)
-        box = TreeNode(
-            id=3,
-            name="Box",
-            type_id="Part::Box",
-            label="Box",
-            path="Box",
-            after=None,
-        )
-        old_snapshot = Snapshot(
+        box = {
+            "id": 3,
+            "name": "Box",
+            "type_id": "Part::Box",
+            "label": "Box",
+            "path": "Box",
+            "after": None,
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[body, pad, box],
+            tree=[body, pad, box],
         )
 
         # New: same nodes
-        new_body = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-        )
-        new_pad = TreeNode(
-            id=2,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-        )
-        new_box = TreeNode(
-            id=3,
-            name="Box",
-            type_id="Part::Box",
-            label="Box",
-            path="Box",
-            after=None,
-        )
-        new_snapshot = Snapshot(
+        new_body = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+        }
+        new_pad = {
+            "id": 2,
+            "name": "Pad",
+            "type_id": "PartDesign::Pad",
+            "label": "Pad",
+            "path": "Body/Pad",
+            "after": "Body",
+        }
+        new_box = {
+            "id": 3,
+            "name": "Box",
+            "type_id": "Part::Box",
+            "label": "Box",
+            "path": "Box",
+            "after": None,
+        }
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[new_body, new_pad, new_box],
+            tree=[new_body, new_pad, new_box],
         )
 
         # Exclude PartDesign::Pad only
@@ -1330,17 +1465,17 @@ class TestEmptySnapshots:
 
     def test_both_snapshots_empty_returns_empty(self) -> None:
         """Test that comparing two empty snapshots returns empty result."""
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[],
+            tree=[],
         )
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[],
+            tree=[],
         )
 
         result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
@@ -1352,26 +1487,26 @@ class TestEmptySnapshots:
 
     def test_old_empty_new_with_nodes_returns_added(self) -> None:
         """Test that when old is empty, new nodes are marked as added."""
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[],
+            tree=[],
         )
 
-        new_box = TreeNode(
-            id=1,
-            name="Box",
-            type_id="Part::Box",
-            label="Box",
-            path="Box",
-            after=None,
-        )
-        new_snapshot = Snapshot(
+        new_box = {
+            "id": 1,
+            "name": "Box",
+            "type_id": "Part::Box",
+            "label": "Box",
+            "path": "Box",
+            "after": None,
+        }
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[new_box],
+            tree=[new_box],
         )
 
         result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
@@ -1384,26 +1519,26 @@ class TestEmptySnapshots:
 
     def test_new_empty_old_with_nodes_returns_deleted(self) -> None:
         """Test that when new is empty, old nodes are marked as deleted."""
-        old_box = TreeNode(
-            id=1,
-            name="Box",
-            type_id="Part::Box",
-            label="Box",
-            path="Box",
-            after=None,
-        )
-        old_snapshot = Snapshot(
+        old_box = {
+            "id": 1,
+            "name": "Box",
+            "type_id": "Part::Box",
+            "label": "Box",
+            "path": "Box",
+            "after": None,
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[old_box],
+            tree=[old_box],
         )
 
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[],
+            tree=[],
         )
 
         result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
@@ -1417,27 +1552,27 @@ class TestEmptySnapshots:
     def test_hierarchy_preserved_with_empty_parent(self) -> None:
         """Test that hierarchy is preserved when parent becomes empty."""
         # Old: Body with child Pad
-        body = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-        )
-        old_snapshot = Snapshot(
+        body = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[body],
+            tree=[body],
         )
 
         # New: empty (Body deleted)
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new",
             document_name="Test",
             timestamp=datetime.now(),
-            nodes=[],
+            tree=[],
         )
 
         result = _tree_comparator.compare_snapshots(old_snapshot, new_snapshot, [], [])
@@ -1463,32 +1598,36 @@ class TestTypeSpecificPropertyExclusions:
 
     def test_excludes_property_for_matching_type(self) -> None:
         """Test that Template property is excluded for TechDraw::DrawSVGTemplate."""
-        old_node = TreeNode(
-            id=1,
-            name="Template",
-            type_id="TechDraw::DrawSVGTemplate",
-            label="Template",
-            path="Template",
-            after=None,
-            properties={
+        old_node = {
+            "id": 1,
+            "name": "Template",
+            "type_id": "TechDraw::DrawSVGTemplate",
+            "label": "Template",
+            "path": "Template",
+            "after": None,
+            "properties": {
                 "Template": Property.from_freecad("some_template_data", {}, "Base"),
                 "Label": Property.from_freecad("MyTemplate", {}, "Base"),
             },
-        )
-        new_node = TreeNode(
-            id=1,
-            name="Template",
-            type_id="TechDraw::DrawSVGTemplate",
-            label="MyTemplate",
-            path="Template",
-            after=None,
-            properties={
+        }
+        new_node = {
+            "id": 1,
+            "name": "Template",
+            "type_id": "TechDraw::DrawSVGTemplate",
+            "label": "MyTemplate",
+            "path": "Template",
+            "after": None,
+            "properties": {
                 "Template": Property.from_freecad("different_template_data", {}, "Base"),
                 "Label": Property.from_freecad("MyTemplate", {}, "Base"),
             },
+        }
+        old_snapshot = snapshot_from_rows(
+            snapshot_id="old", document_name="Test", timestamp=datetime.now(), tree=[old_node]
         )
-        old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=[old_node])
-        new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=[new_node])
+        new_snapshot = snapshot_from_rows(
+            snapshot_id="new", document_name="Test", timestamp=datetime.now(), tree=[new_node]
+        )
 
         by_type: dict[str, list[str]] = {"TechDraw::DrawSVGTemplate": ["Template"]}
 
@@ -1500,32 +1639,36 @@ class TestTypeSpecificPropertyExclusions:
 
     def test_includes_property_for_non_matching_type(self) -> None:
         """Test that Template property is NOT excluded for unrelated types."""
-        old_node = TreeNode(
-            id=1,
-            name="Feature",
-            type_id="Part::Feature",
-            label="Feature",
-            path="Feature",
-            after=None,
-            properties={
+        old_node = {
+            "id": 1,
+            "name": "Feature",
+            "type_id": "Part::Feature",
+            "label": "Feature",
+            "path": "Feature",
+            "after": None,
+            "properties": {
                 "Template": Property.from_freecad("some_data", {}, "Base"),
                 "Label": Property.from_freecad("MyFeature", {}, "Base"),
             },
-        )
-        new_node = TreeNode(
-            id=1,
-            name="Feature",
-            type_id="Part::Feature",
-            label="MyFeature",
-            path="Feature",
-            after=None,
-            properties={
+        }
+        new_node = {
+            "id": 1,
+            "name": "Feature",
+            "type_id": "Part::Feature",
+            "label": "MyFeature",
+            "path": "Feature",
+            "after": None,
+            "properties": {
                 "Template": Property.from_freecad("different_data", {}, "Base"),
                 "Label": Property.from_freecad("MyFeature", {}, "Base"),
             },
+        }
+        old_snapshot = snapshot_from_rows(
+            snapshot_id="old", document_name="Test", timestamp=datetime.now(), tree=[old_node]
         )
-        old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=[old_node])
-        new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=[new_node])
+        new_snapshot = snapshot_from_rows(
+            snapshot_id="new", document_name="Test", timestamp=datetime.now(), tree=[new_node]
+        )
 
         by_type: dict[str, list[str]] = {"TechDraw::DrawSVGTemplate": ["Template"]}
 
@@ -1538,33 +1681,37 @@ class TestTypeSpecificPropertyExclusions:
     def test_type_change_uses_union_of_rules(self) -> None:
         """Test that type change uses union of per-type rules from both old and new types."""
         # Old node is TechDraw::DrawSVGTemplate with Template property changed
-        old_node = TreeNode(
-            id=1,
-            name="Item",
-            type_id="TechDraw::DrawSVGTemplate",
-            label="Item",
-            path="Item",
-            after=None,
-            properties={
+        old_node = {
+            "id": 1,
+            "name": "Item",
+            "type_id": "TechDraw::DrawSVGTemplate",
+            "label": "Item",
+            "path": "Item",
+            "after": None,
+            "properties": {
                 "Template": Property.from_freecad("old_template", {}, "Base"),
                 "Label": Property.from_freecad("Item", {}, "Base"),
             },
-        )
+        }
         # New node is Part::Feature with Template property changed
-        new_node = TreeNode(
-            id=1,
-            name="Item",
-            type_id="Part::Feature",
-            label="Item",
-            path="Item",
-            after=None,
-            properties={
+        new_node = {
+            "id": 1,
+            "name": "Item",
+            "type_id": "Part::Feature",
+            "label": "Item",
+            "path": "Item",
+            "after": None,
+            "properties": {
                 "Template": Property.from_freecad("new_template", {}, "Base"),
                 "Label": Property.from_freecad("Item", {}, "Base"),
             },
+        }
+        old_snapshot = snapshot_from_rows(
+            snapshot_id="old", document_name="Test", timestamp=datetime.now(), tree=[old_node]
         )
-        old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=[old_node])
-        new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=[new_node])
+        new_snapshot = snapshot_from_rows(
+            snapshot_id="new", document_name="Test", timestamp=datetime.now(), tree=[new_node]
+        )
 
         # TechDraw::DrawSVGTemplate excludes "Template", Part::Feature excludes "Label"
         by_type: dict[str, list[str]] = {
@@ -1581,32 +1728,36 @@ class TestTypeSpecificPropertyExclusions:
 
     def test_global_exclusions_still_applied(self) -> None:
         """Test that global exclusions are applied alongside type-specific ones."""
-        old_node = TreeNode(
-            id=1,
-            name="Feature",
-            type_id="Part::Feature",
-            label="Feature",
-            path="Feature",
-            after=None,
-            properties={
+        old_node = {
+            "id": 1,
+            "name": "Feature",
+            "type_id": "Part::Feature",
+            "label": "Feature",
+            "path": "Feature",
+            "after": None,
+            "properties": {
                 "TimeStamp": Property.from_freecad("2024-01-01", {}, "Base"),
                 "Label": Property.from_freecad("Feature", {}, "Base"),
             },
-        )
-        new_node = TreeNode(
-            id=1,
-            name="Feature",
-            type_id="Part::Feature",
-            label="Feature",
-            path="Feature",
-            after=None,
-            properties={
+        }
+        new_node = {
+            "id": 1,
+            "name": "Feature",
+            "type_id": "Part::Feature",
+            "label": "Feature",
+            "path": "Feature",
+            "after": None,
+            "properties": {
                 "TimeStamp": Property.from_freecad("2024-01-02", {}, "Base"),
                 "Label": Property.from_freecad("Feature", {}, "Base"),
             },
+        }
+        old_snapshot = snapshot_from_rows(
+            snapshot_id="old", document_name="Test", timestamp=datetime.now(), tree=[old_node]
         )
-        old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=[old_node])
-        new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=[new_node])
+        new_snapshot = snapshot_from_rows(
+            snapshot_id="new", document_name="Test", timestamp=datetime.now(), tree=[new_node]
+        )
 
         by_type: dict[str, list[str]] = {"Part::Feature": ["Label"]}
 
@@ -1618,20 +1769,22 @@ class TestTypeSpecificPropertyExclusions:
 
     def test_added_node_uses_new_type_exclusions(self) -> None:
         """Test that added nodes use their new type for property exclusion."""
-        old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=[])
-        new_node = TreeNode(
-            id=1,
-            name="Template",
-            type_id="TechDraw::DrawSVGTemplate",
-            label="Template",
-            path="Template",
-            after=None,
-            properties={
+        old_snapshot = snapshot_from_rows(snapshot_id="old", document_name="Test", timestamp=datetime.now(), tree=[])
+        new_node = {
+            "id": 1,
+            "name": "Template",
+            "type_id": "TechDraw::DrawSVGTemplate",
+            "label": "Template",
+            "path": "Template",
+            "after": None,
+            "properties": {
                 "Template": Property.from_freecad("template_data", {}, "Base"),
                 "Label": Property.from_freecad("MyTemplate", {}, "Base"),
             },
+        }
+        new_snapshot = snapshot_from_rows(
+            snapshot_id="new", document_name="Test", timestamp=datetime.now(), tree=[new_node]
         )
-        new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=[new_node])
 
         by_type: dict[str, list[str]] = {"TechDraw::DrawSVGTemplate": ["Template"]}
 
@@ -1646,20 +1799,22 @@ class TestTypeSpecificPropertyExclusions:
 
     def test_deleted_node_uses_old_type_exclusions(self) -> None:
         """Test that deleted nodes use their old type for property exclusion."""
-        old_node = TreeNode(
-            id=1,
-            name="Template",
-            type_id="TechDraw::DrawSVGTemplate",
-            label="Template",
-            path="Template",
-            after=None,
-            properties={
+        old_node = {
+            "id": 1,
+            "name": "Template",
+            "type_id": "TechDraw::DrawSVGTemplate",
+            "label": "Template",
+            "path": "Template",
+            "after": None,
+            "properties": {
                 "Template": Property.from_freecad("template_data", {}, "Base"),
                 "Label": Property.from_freecad("MyTemplate", {}, "Base"),
             },
+        }
+        old_snapshot = snapshot_from_rows(
+            snapshot_id="old", document_name="Test", timestamp=datetime.now(), tree=[old_node]
         )
-        old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=[old_node])
-        new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=[])
+        new_snapshot = snapshot_from_rows(snapshot_id="new", document_name="Test", timestamp=datetime.now(), tree=[])
 
         by_type: dict[str, list[str]] = {"TechDraw::DrawSVGTemplate": ["Template"]}
 
@@ -1673,32 +1828,36 @@ class TestTypeSpecificPropertyExclusions:
 
     def test_empty_by_type_ignores_type_specific_rules(self) -> None:
         """Test that empty by_type dict means no type-specific exclusions."""
-        old_node = TreeNode(
-            id=1,
-            name="Feature",
-            type_id="Part::Feature",
-            label="Feature",
-            path="Feature",
-            after=None,
-            properties={
+        old_node = {
+            "id": 1,
+            "name": "Feature",
+            "type_id": "Part::Feature",
+            "label": "Feature",
+            "path": "Feature",
+            "after": None,
+            "properties": {
                 "Template": Property.from_freecad("data", {}, "Base"),
                 "Label": Property.from_freecad("Feature", {}, "Base"),
             },
-        )
-        new_node = TreeNode(
-            id=1,
-            name="Feature",
-            type_id="Part::Feature",
-            label="Feature",
-            path="Feature",
-            after=None,
-            properties={
+        }
+        new_node = {
+            "id": 1,
+            "name": "Feature",
+            "type_id": "Part::Feature",
+            "label": "Feature",
+            "path": "Feature",
+            "after": None,
+            "properties": {
                 "Template": Property.from_freecad("different_data", {}, "Base"),
                 "Label": Property.from_freecad("Feature", {}, "Base"),
             },
+        }
+        old_snapshot = snapshot_from_rows(
+            snapshot_id="old", document_name="Test", timestamp=datetime.now(), tree=[old_node]
         )
-        old_snapshot = Snapshot(snapshot_id="old", document_name="Test", timestamp=datetime.now(), nodes=[old_node])
-        new_snapshot = Snapshot(snapshot_id="new", document_name="Test", timestamp=datetime.now(), nodes=[new_node])
+        new_snapshot = snapshot_from_rows(
+            snapshot_id="new", document_name="Test", timestamp=datetime.now(), tree=[new_node]
+        )
 
         by_type: dict[str, list[str]] = {}
 

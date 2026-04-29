@@ -5,13 +5,15 @@
 
 from datetime import datetime
 
-from freecad.diff_wb.domain import Property, Snapshot, TreeNode
+from freecad.diff_wb.domain import Snapshot, SnapshotObject, SnapshotOccurrence
 from freecad.diff_wb.domain.snapshots.repository import InMemorySnapshotRepository
 
 
-def _make_snapshot(name: str, nodes: list[TreeNode]) -> Snapshot:
+def _make_snapshot(name: str, objects: list[SnapshotObject], occurrences: list[SnapshotOccurrence]) -> Snapshot:
     """Helper to create a Snapshot with current timestamp."""
-    return Snapshot(snapshot_id="", document_name=name, timestamp=datetime.now(), nodes=nodes)
+    return Snapshot(
+        snapshot_id="", document_name=name, timestamp=datetime.now(), objects=objects, occurrences=occurrences
+    )
 
 
 class TestInMemorySnapshotRepository:
@@ -25,17 +27,16 @@ class TestInMemorySnapshotRepository:
     def test_add_snapshot_returns_snapshot_id(self) -> None:
         """Test that add_snapshot returns a unique snapshot_id."""
         store = InMemorySnapshotRepository()
-        nodes = [
-            TreeNode(
+        objects = [
+            SnapshotObject(
                 id=1,
                 name="TestObject",
                 type_id="PartDesign::Body",
-                label="Test Body",
-                path="TestObject",
                 properties={},
             )
         ]
-        snapshot = _make_snapshot("test_snapshot", nodes)
+        occurrences = [SnapshotOccurrence(path="TestObject", after=None)]
+        snapshot = _make_snapshot("test_snapshot", objects, occurrences)
         snapshot_id = store.add_snapshot(snapshot)
 
         assert snapshot_id is not None
@@ -44,39 +45,37 @@ class TestInMemorySnapshotRepository:
     def test_get_snapshot_returns_snapshot(self) -> None:
         """Test that get_snapshot returns the stored snapshot."""
         store = InMemorySnapshotRepository()
-        nodes = [
-            TreeNode(
+        objects = [
+            SnapshotObject(
                 id=2,
                 name="TestObject",
                 type_id="PartDesign::Body",
-                label="Test Body",
-                path="TestObject",
-                properties={"Label": Property.from_freecad("Test Body", {}, "Base")},
+                properties={},
             )
         ]
-        snapshot = _make_snapshot("test_snapshot_2", nodes)
+        occurrences = [SnapshotOccurrence(path="TestObject", after=None)]
+        snapshot = _make_snapshot("test_snapshot_2", objects, occurrences)
         snapshot_id = store.add_snapshot(snapshot)
 
         retrieved = store.get_snapshot(snapshot_id)
         assert retrieved is not None
         assert retrieved.document_name == "test_snapshot_2"
-        assert len(retrieved.nodes) == 1
-        assert retrieved.nodes[0].label == "Test Body"
+        assert len(retrieved.occurrences) == 1
+        assert retrieved.occurrences[0].path == "TestObject"
 
     def test_delete_snapshot_removes_snapshot(self) -> None:
         """Test that delete_snapshot removes the snapshot from the store."""
         store = InMemorySnapshotRepository()
-        nodes = [
-            TreeNode(
+        objects = [
+            SnapshotObject(
                 id=3,
                 name="TestObject",
                 type_id="PartDesign::Body",
-                label="Test Body",
-                path="TestObject",
                 properties={},
             )
         ]
-        snapshot = _make_snapshot("test_snapshot_3", nodes)
+        occurrences = [SnapshotOccurrence(path="TestObject", after=None)]
+        snapshot = _make_snapshot("test_snapshot_3", objects, occurrences)
         snapshot_id = store.add_snapshot(snapshot)
 
         store.delete_snapshot(snapshot_id)
@@ -87,17 +86,16 @@ class TestInMemorySnapshotRepository:
         """Test that list_snapshots returns all stored snapshots."""
         store = InMemorySnapshotRepository()
         for i in range(3):
-            nodes = [
-                TreeNode(
+            objects = [
+                SnapshotObject(
                     id=i + 1,
                     name=f"TestObject{i}",
                     type_id="PartDesign::Body",
-                    label=f"Test Body {i}",
-                    path=f"TestObject{i}",
                     properties={},
                 )
             ]
-            store.add_snapshot(_make_snapshot(f"test_snapshot_{i}", nodes))
+            occurrences = [SnapshotOccurrence(path=f"TestObject{i}", after=None)]
+            store.add_snapshot(_make_snapshot(f"test_snapshot_{i}", objects, occurrences))
 
         snapshots = store.list_snapshots()
         assert len(snapshots) == 3

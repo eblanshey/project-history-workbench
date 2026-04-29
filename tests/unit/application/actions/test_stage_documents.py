@@ -54,7 +54,8 @@ class TestStageDocumentsActionSnapshotYaml:
             snapshot_id="test-uuid-123",
             document_name="MyDocument",
             timestamp=None,  # type: ignore
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="path/to/mydoc.FCStd",
         )
 
@@ -87,7 +88,8 @@ class TestStageDocumentsActionStaging:
             snapshot_id="test-uuid-123",
             document_name="MyDocument",
             timestamp=None,  # type: ignore
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="path/to/mydoc.FCStd",
         )
 
@@ -119,14 +121,16 @@ class TestStageDocumentsActionStaging:
             snapshot_id="uuid-1",
             document_name="Doc1",
             timestamp=None,  # type: ignore
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="doc1.FCStd",
         )
         snapshot2 = Snapshot(
             snapshot_id="uuid-2",
             document_name="Doc2",
             timestamp=None,  # type: ignore
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="subdir/doc2.FCStd",
         )
 
@@ -165,7 +169,8 @@ class TestStageDocumentsActionStaging:
             snapshot_id="test-uuid-123",
             document_name="MyDocument",
             timestamp=None,  # type: ignore
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="path/to/mydoc.FCStd",
         )
 
@@ -197,7 +202,8 @@ class TestStageDocumentsActionSuccess:
             snapshot_id="test-uuid",
             document_name="MyDocument",
             timestamp=None,  # type: ignore
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="mydoc.FCStd",
         )
 
@@ -232,7 +238,8 @@ class TestStageDocumentsActionFailure:
             snapshot_id="test-uuid",
             document_name="MyDocument",
             timestamp=None,  # type: ignore
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="mydoc.FCStd",
         )
 
@@ -266,7 +273,8 @@ class TestStageDocumentsActionFailure:
             snapshot_id="test-uuid",
             document_name="MyDocument",
             timestamp=None,  # type: ignore
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="mydoc.FCStd",
         )
 
@@ -291,7 +299,8 @@ class TestStageDocumentsActionFailure:
             snapshot_id="test-uuid",
             document_name="MyDocument",
             timestamp=None,  # type: ignore
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="mydoc.FCStd",
         )
 
@@ -322,7 +331,8 @@ class TestStageDocumentsActionFailure:
             snapshot_id="test-uuid",
             document_name="MyDocument",
             timestamp=None,  # type: ignore
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="mydoc.FCStd",
         )
 
@@ -353,7 +363,8 @@ class TestStageDocumentsActionFailure:
             snapshot_id="test-uuid",
             document_name="MyDocument",
             timestamp=None,  # type: ignore
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="",  # Empty git_path
         )
 

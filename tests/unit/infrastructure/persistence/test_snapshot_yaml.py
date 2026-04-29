@@ -8,7 +8,7 @@ from pathlib import Path
 
 import yaml
 
-from freecad.diff_wb.domain import Property, Snapshot, TreeNode
+from freecad.diff_wb.domain import Property, Snapshot, SnapshotObject, SnapshotOccurrence
 from freecad.diff_wb.infrastructure.persistence import SnapshotYamlSerializer
 
 
@@ -17,40 +17,39 @@ class TestSnapshotYamlSerializer:
 
     def _create_sample_snapshot(self) -> Snapshot:
         """Create a sample snapshot for testing."""
-        nodes = [
-            TreeNode(
-                id=1,
-                name="Body",
-                type_id="PartDesign::Body",
-                label="Body",
-                path="Body",
-                after=None,
-            ),
-            TreeNode(
-                id=2,
-                name="Sketch",
-                type_id="Sketcher::SketchObject",
-                label="Sketch",
-                path="Body/Sketch",
-                after="Body",
-            ),
-            TreeNode(
-                id=3,
+        objects = [
+            SnapshotObject(name="Body", id=1, type_id="PartDesign::Body", properties={}),
+            SnapshotObject(name="Sketch", id=2, type_id="Sketcher::SketchObject", properties={}),
+            SnapshotObject(
                 name="Pad",
+                id=3,
                 type_id="PartDesign::Pad",
-                label="Pad",
-                path="Body/Pad",
-                after="Sketch",
                 properties={"Length": Property.from_freecad(10.0, {}, "Base")},
             ),
+        ]
+        occurrences = [
+            SnapshotOccurrence(path="Body", after=None),
+            SnapshotOccurrence(path="Body/Sketch", after="Body"),
+            SnapshotOccurrence(path="Body/Pad", after="Body/Sketch"),
         ]
         return Snapshot(
             snapshot_id="test-uuid-1234",
             document_name="TestDocument",
             timestamp=datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
-            nodes=nodes,
+            objects=objects,
+            occurrences=occurrences,
             git_path="",
         )
+
+    @staticmethod
+    def _occ(snapshot: Snapshot, path: str) -> SnapshotOccurrence | None:
+        return snapshot.find_occurrence(path)
+
+    @staticmethod
+    def _obj(snapshot: Snapshot, occ: SnapshotOccurrence | None) -> SnapshotObject | None:
+        if occ is None:
+            return None
+        return snapshot.find_object(occ.object_name)
 
     def test_serialize_snapshot_to_yaml_format(self) -> None:
         """Test: Serialize Snapshot to YAML format matching ProjectState.md spec."""
@@ -71,7 +70,7 @@ class TestSnapshotYamlSerializer:
             assert "objects" in data, "YAML should have objects field"
 
             # Verify version
-            assert data["v"] == 1, "Version should be 1"
+            assert data["v"] == 2, "Version should be 2"
 
             # Verify timestamp format (UTC ISO format)
             assert data["timestamp"] == "2024-01-15T10:30:00+00:00"
@@ -87,47 +86,39 @@ class TestSnapshotYamlSerializer:
             assert objects[0]["id"] == 1
             assert objects[0]["name"] == "Body"
             assert objects[0]["type_id"] == "PartDesign::Body"
-            assert objects[0]["path"] == "Body"
-            assert objects[0]["after"] is None
+            assert objects[0]["type_id"] == "PartDesign::Body"
 
             # Second object should be Sketch (id=2)
             assert objects[1]["id"] == 2
             assert objects[1]["name"] == "Sketch"
-            assert objects[1]["path"] == "Body/Sketch"
-            assert objects[1]["after"] == "Body"
+            assert objects[1]["type_id"] == "Sketcher::SketchObject"
 
             # Third object should be Pad (id=3)
             assert objects[2]["id"] == 3
             assert objects[2]["name"] == "Pad"
-            assert objects[2]["path"] == "Body/Pad"
-            assert objects[2]["after"] == "Sketch"
+            assert objects[2]["type_id"] == "PartDesign::Pad"
+
+            occurrences = data["occurrences"]
+            assert [occ["path"] for occ in occurrences] == ["Body", "Body/Pad", "Body/Sketch"]
+            assert occurrences[2]["after"] == "Body"
 
     def test_deserialize_yaml_to_snapshot(self) -> None:
         """Test: Deserialize YAML to Snapshot with flat node structure."""
-        yaml_content = """v: 1
+        yaml_content = """v: 2
 timestamp: 2024-01-15T10:30:00+00:00
 uid: test-uuid-1234
 objects:
 - id: 1
   name: Body
   type_id: PartDesign::Body
-  label: Body
-  path: Body
-  after: null
   properties: {}
 - id: 2
   name: Sketch
   type_id: Sketcher::SketchObject
-  label: Sketch
-  path: Body/Sketch
-  after: Body
   properties: {}
 - id: 3
   name: Pad
   type_id: PartDesign::Pad
-  label: Pad
-  path: Body/Pad
-  after: Sketch
   properties:
     Length:
       kind: Primitive
@@ -136,6 +127,16 @@ objects:
           type: FLOAT
           value: 10.0
       group: Base
+occurrences:
+- path: Body
+  object: Body
+  after: null
+- path: Body/Sketch
+  object: Sketch
+  after: null
+- path: Body/Pad
+  object: Pad
+  after: Body/Sketch
 """
         with tempfile.TemporaryDirectory() as tmpdir:
             yaml_path = Path(tmpdir) / "snapshot.yaml"
@@ -149,32 +150,38 @@ objects:
             assert snapshot.timestamp == datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
 
             # Verify flat node structure
-            assert len(snapshot.nodes) == 3, "Should have 3 nodes"
+            assert len(snapshot.occurrences) == 3, "Should have 3 occurrences"
 
             # Check first node (id=1)
-            node1 = snapshot.find_node_by_path("Body")
-            assert node1 is not None
-            assert node1.id == 1
-            assert node1.name == "Body"
-            assert node1.type_id == "PartDesign::Body"
-            assert node1.path == "Body"
-            assert node1.after is None
+            occ1 = self._occ(snapshot, "Body")
+            obj1 = self._obj(snapshot, occ1)
+            assert occ1 is not None
+            assert obj1 is not None
+            assert obj1.id == 1
+            assert obj1.name == "Body"
+            assert obj1.type_id == "PartDesign::Body"
+            assert occ1.path == "Body"
+            assert occ1.after is None
 
             # Check second node (id=2)
-            node2 = snapshot.find_node_by_path("Body/Sketch")
-            assert node2 is not None
-            assert node2.id == 2
-            assert node2.name == "Sketch"
-            assert node2.type_id == "Sketcher::SketchObject"
-            assert node2.after == "Body"
+            occ2 = self._occ(snapshot, "Body/Sketch")
+            obj2 = self._obj(snapshot, occ2)
+            assert occ2 is not None
+            assert obj2 is not None
+            assert obj2.id == 2
+            assert obj2.name == "Sketch"
+            assert obj2.type_id == "Sketcher::SketchObject"
+            assert occ2.after is None
 
             # Check third node (id=3)
-            node3 = snapshot.find_node_by_path("Body/Pad")
-            assert node3 is not None
-            assert node3.id == 3
-            assert node3.name == "Pad"
-            assert node3.type_id == "PartDesign::Pad"
-            assert node3.after == "Sketch"
+            occ3 = self._occ(snapshot, "Body/Pad")
+            obj3 = self._obj(snapshot, occ3)
+            assert occ3 is not None
+            assert obj3 is not None
+            assert obj3.id == 3
+            assert obj3.name == "Pad"
+            assert obj3.type_id == "PartDesign::Pad"
+            assert occ3.after == "Body/Sketch"
 
     def test_roundtrip_produces_identical_output(self) -> None:
         """Test: Round-trip (serialize → deserialize → serialize) produces identical output."""
@@ -201,38 +208,39 @@ objects:
 
     def test_loading_yaml_creates_correct_flat_node_structure(self) -> None:
         """Test: Loading YAML creates correct flat node structure."""
-        yaml_content = """v: 1
+        yaml_content = """v: 2
 timestamp: 2024-02-20T12:00:00+00:00
 uid: doc-uuid-5678
 objects:
 - id: 10
   name: Origin
   type_id: Part::Origin
-  label: Origin
-  path: Origin
-  after: null
   properties: {}
 - id: 20
   name: X_Axis
   type_id: Part::Line
-  label: X_Axis
-  path: Origin/X_Axis
-  after: Origin
   properties: {}
 - id: 21
   name: Y_Axis
   type_id: Part::Line
-  label: Y_Axis
-  path: Origin/Y_Axis
-  after: X_Axis
   properties: {}
 - id: 30
   name: Body
   type_id: PartDesign::Body
-  label: Body
-  path: Body
-  after: null
   properties: {}
+occurrences:
+- path: Origin
+  object: Origin
+  after: null
+- path: Origin/X_Axis
+  object: X_Axis
+  after: null
+- path: Origin/Y_Axis
+  object: Y_Axis
+  after: Origin/X_Axis
+- path: Body
+  object: Body
+  after: null
 """
         with tempfile.TemporaryDirectory() as tmpdir:
             yaml_path = Path(tmpdir) / "snapshot.yaml"
@@ -244,25 +252,25 @@ objects:
             assert snapshot.node_count == 4
 
             # Verify all nodes are accessible by path
-            assert snapshot.find_node_by_path("Origin") is not None
-            assert snapshot.find_node_by_path("Origin/X_Axis") is not None
-            assert snapshot.find_node_by_path("Origin/Y_Axis") is not None
-            assert snapshot.find_node_by_path("Body") is not None
+            assert snapshot.find_occurrence("Origin") is not None
+            assert snapshot.find_occurrence("Origin/X_Axis") is not None
+            assert snapshot.find_occurrence("Origin/Y_Axis") is not None
+            assert snapshot.find_occurrence("Body") is not None
 
             # Verify "after" field is correctly populated
-            origin_node = snapshot.find_node_by_path("Origin")
-            assert origin_node is not None
-            assert origin_node.after is None  # Root node
+            origin_occ = snapshot.find_occurrence("Origin")
+            assert origin_occ is not None
+            assert origin_occ.after is None  # Root node
 
-            x_axis = snapshot.find_node_by_path("Origin/X_Axis")
+            x_axis = snapshot.find_occurrence("Origin/X_Axis")
             assert x_axis is not None
-            assert x_axis.after == "Origin"  # First child of Origin
+            assert x_axis.after is None  # First child of Origin
 
-            y_axis = snapshot.find_node_by_path("Origin/Y_Axis")
+            y_axis = snapshot.find_occurrence("Origin/Y_Axis")
             assert y_axis is not None
-            assert y_axis.after == "X_Axis"  # Second child
+            assert y_axis.after == "Origin/X_Axis"  # Second child
 
-            body = snapshot.find_node_by_path("Body")
+            body = snapshot.find_occurrence("Body")
             assert body is not None
             assert body.after is None  # Different parent, first in its group
 
@@ -272,7 +280,8 @@ objects:
             snapshot_id="empty-uuid",
             document_name="EmptyDoc",
             timestamp=datetime(2024, 3, 1, tzinfo=UTC),
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="",
         )
 
@@ -286,10 +295,11 @@ objects:
 
     def test_deserialize_empty_snapshot(self) -> None:
         """Test: Deserialize snapshot with no objects."""
-        yaml_content = """v: 1
+        yaml_content = """v: 2
 timestamp: 2024-03-01T00:00:00+00:00
 uid: empty-uuid
 objects: []
+occurrences: []
 """
         with tempfile.TemporaryDirectory() as tmpdir:
             yaml_path = Path(tmpdir) / "snapshot.yaml"
@@ -302,18 +312,24 @@ objects: []
 
     def test_objects_sorted_by_id(self) -> None:
         """Test: Objects are stored sorted by integer id."""
-        # Create snapshot with nodes not in ID order
-        nodes = [
-            TreeNode(id=5, name="NodeE", type_id="TypeE", label="E", path="E", after=None),
-            TreeNode(id=1, name="NodeA", type_id="TypeA", label="A", path="A", after=None),
-            TreeNode(id=3, name="NodeC", type_id="TypeC", label="C", path="C", after=None),
-            TreeNode(id=2, name="NodeB", type_id="TypeB", label="B", path="B", after=None),
+        objects = [
+            SnapshotObject(id=5, name="NodeE", type_id="TypeE", properties={}),
+            SnapshotObject(id=1, name="NodeA", type_id="TypeA", properties={}),
+            SnapshotObject(id=3, name="NodeC", type_id="TypeC", properties={}),
+            SnapshotObject(id=2, name="NodeB", type_id="TypeB", properties={}),
+        ]
+        occurrences = [
+            SnapshotOccurrence(path="E", after=None),
+            SnapshotOccurrence(path="A", after=None),
+            SnapshotOccurrence(path="C", after=None),
+            SnapshotOccurrence(path="B", after=None),
         ]
         snapshot = Snapshot(
             snapshot_id="sort-test",
             document_name="SortTest",
             timestamp=datetime(2024, 1, 1, tzinfo=UTC),
-            nodes=nodes,
+            objects=objects,
+            occurrences=occurrences,
             git_path="",
         )
 
@@ -327,24 +343,26 @@ objects: []
 
     def test_yaml_path_field_for_text_diff_readability(self) -> None:
         """Test: Include path field (not parent) for human-readable text diffs."""
-        yaml_content = """v: 1
+        yaml_content = """v: 2
 timestamp: 2024-01-01T00:00:00+00:00
 uid: test-path-field
 objects:
 - id: 1
   name: Pad
   type_id: PartDesign::Pad
-  label: Pad
-  path: Body/Pad
-  after: Sketch
   properties: {}
+occurrences:
+- path: Body/Pad
+  object: Pad
+  after: null
 """
         with tempfile.TemporaryDirectory() as tmpdir:
             yaml_path = Path(tmpdir) / "snapshot.yaml"
             yaml_path.write_text(yaml_content)
 
             snapshot = SnapshotYamlSerializer.from_yaml_file(yaml_path)
-            node = snapshot.nodes[0]
+            node = snapshot.find_occurrence("Body/Pad")
+            assert node is not None
 
             # Verify path is stored (not parent)
             assert node.path == "Body/Pad"
@@ -362,10 +380,11 @@ class TestSnapshotYamlSerializerOverwrite:
 
             # Create initial YAML content with old data
             old_data = {
-                "v": 1,
+                "v": 2,
                 "timestamp": "2024-01-01T00:00:00+00:00",
                 "uid": "old-uuid-123",
                 "objects": [],
+                "occurrences": [],
             }
             yaml_path.write_text(yaml.dump(old_data))
 
@@ -378,7 +397,8 @@ class TestSnapshotYamlSerializerOverwrite:
                 snapshot_id="new-uuid-456",
                 document_name="TestDoc",
                 timestamp=datetime(2024, 6, 15, tzinfo=UTC),
-                nodes=[],
+                objects=[],
+                occurrences=[],
                 git_path="",
             )
             SnapshotYamlSerializer.to_yaml(new_snapshot, yaml_path)
@@ -399,22 +419,22 @@ class TestSnapshotYamlSerializerOverwrite:
                 snapshot_id="small-uuid",
                 document_name="SmallDoc",
                 timestamp=datetime(2024, 1, 1, tzinfo=UTC),
-                nodes=[],
+                objects=[],
+                occurrences=[],
                 git_path="",
             )
             SnapshotYamlSerializer.to_yaml(snapshot1, yaml_path)
             first_size = yaml_path.stat().st_size
 
             # Second serialization - larger snapshot with more nodes
-            nodes = [
-                TreeNode(id=i, name=f"Node{i}", type_id="Type", label=f"L{i}", path=f"P{i}", after=None)
-                for i in range(10)
-            ]
+            objects = [SnapshotObject(id=i, name=f"Node{i}", type_id="Type", properties={}) for i in range(10)]
+            occurrences = [SnapshotOccurrence(path=f"P{i}", after=None) for i in range(10)]
             snapshot2 = Snapshot(
                 snapshot_id="large-uuid",
                 document_name="LargeDoc",
                 timestamp=datetime(2024, 12, 31, tzinfo=UTC),
-                nodes=nodes,
+                objects=objects,
+                occurrences=occurrences,
                 git_path="",
             )
             SnapshotYamlSerializer.to_yaml(snapshot2, yaml_path)
@@ -435,22 +455,23 @@ class TestSnapshotYamlSerializerOverwrite:
             yaml_path = Path(tmpdir) / "snapshot.yaml"
 
             # Create YAML with complex nested properties
-            complex_yaml = """v: 1
+            complex_yaml = """v: 2
 timestamp: 2024-01-01T00:00:00+00:00
 uid: complex-old
 objects:
 - id: 999
   name: OldObject
   type_id: OldType
-  label: OldLabel
-  path: Old/Path
-  after: null
   properties:
     OldProp:
       type: STRING
       value: old_value
       expression: old_expr
       group: OldGroup
+occurrences:
+- path: Old/Path
+  object: OldObject
+  after: null
 """
             yaml_path.write_text(complex_yaml)
 
@@ -459,9 +480,8 @@ objects:
                 snapshot_id="simple-uuid",
                 document_name="SimpleDoc",
                 timestamp=datetime(2024, 6, 1, tzinfo=UTC),
-                nodes=[
-                    TreeNode(id=1, name="SimpleNode", type_id="SimpleType", label="Simple", path="Simple", after=None),
-                ],
+                objects=[SnapshotObject(id=1, name="SimpleNode", type_id="SimpleType", properties={})],
+                occurrences=[SnapshotOccurrence(path="Simple", after=None)],
                 git_path="",
             )
             SnapshotYamlSerializer.to_yaml(simple_snapshot, yaml_path)
@@ -481,26 +501,33 @@ objects:
 class TestSnapshotYamlSerializerFromYaml:
     """Tests for refactored from_yaml (string-based) and from_yaml_file methods."""
 
+    @staticmethod
+    def _obj(snapshot: Snapshot, occ: SnapshotOccurrence | None) -> SnapshotObject | None:
+        if occ is None:
+            return None
+        return snapshot.find_object(occ.object_name)
+
     def test_from_yaml_deserializes_from_string(self) -> None:
         """Test: from_yaml deserializes Snapshot from YAML string."""
-        yaml_content = """v: 1
+        yaml_content = """v: 2
 timestamp: 2024-01-15T10:30:00+00:00
 uid: test-uuid-string
 objects:
 - id: 1
   name: Body
   type_id: PartDesign::Body
-  label: Body
-  path: Body
-  after: null
   properties: {}
 - id: 2
   name: Sketch
   type_id: Sketcher::SketchObject
-  label: Sketch
-  path: Body/Sketch
-  after: Body
   properties: {}
+occurrences:
+- path: Body
+  object: Body
+  after: null
+- path: Body/Sketch
+  object: Sketch
+  after: null
 """
         snapshot = SnapshotYamlSerializer.from_yaml(yaml_content)
 
@@ -510,22 +537,26 @@ objects:
         assert snapshot.timestamp == datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
 
         # Verify nodes
-        assert len(snapshot.nodes) == 2
-        body_node = snapshot.find_node_by_path("Body")
-        assert body_node is not None
-        assert body_node.id == 1
-        assert body_node.name == "Body"
+        assert len(snapshot.occurrences) == 2
+        body_occ = snapshot.find_occurrence("Body")
+        body_obj = self._obj(snapshot, body_occ)
+        assert body_obj is not None
+        assert body_obj.id == 1
+        assert body_obj.name == "Body"
 
-        sketch_node = snapshot.find_node_by_path("Body/Sketch")
-        assert sketch_node is not None
-        assert sketch_node.id == 2
-        assert sketch_node.after == "Body"
+        sketch_occ = snapshot.find_occurrence("Body/Sketch")
+        sketch_obj = self._obj(snapshot, sketch_occ)
+        assert sketch_obj is not None
+        assert sketch_obj.id == 2
+        assert sketch_occ is not None
+        assert sketch_occ.after is None
 
     def test_from_yaml_handles_missing_timestamp(self) -> None:
         """Test: from_yaml uses current time when timestamp is missing."""
-        yaml_content = """v: 1
+        yaml_content = """v: 2
 uid: no-timestamp-uuid
 objects: []
+occurrences: []
 """
         snapshot = SnapshotYamlSerializer.from_yaml(yaml_content)
 
@@ -535,16 +566,13 @@ objects: []
 
     def test_from_yaml_file_calls_from_yaml_equivalently(self) -> None:
         """Test: from_yaml_file reads file and produces same result as from_yaml with content."""
-        yaml_content = """v: 1
+        yaml_content = """v: 2
 timestamp: 2024-02-20T14:00:00+00:00
 uid: file-test-uuid
 objects:
 - id: 5
   name: TestObject
   type_id: Part::Feature
-  label: Test
-  path: TestObject
-  after: null
   properties:
     Length:
       kind: Primitive
@@ -553,6 +581,10 @@ objects:
           type: FLOAT
           value: 42.5
       group: Base
+occurrences:
+- path: TestObject
+  object: TestObject
+  after: null
 """
         with tempfile.TemporaryDirectory() as tmpdir:
             yaml_path = Path(tmpdir) / "snapshot.yaml"
@@ -567,10 +599,12 @@ objects:
             # Both should produce equivalent snapshots
             assert snapshot_from_file.snapshot_id == snapshot_from_string.snapshot_id
             assert snapshot_from_file.timestamp == snapshot_from_string.timestamp
-            assert len(snapshot_from_file.nodes) == len(snapshot_from_string.nodes)
+            assert len(snapshot_from_file.occurrences) == len(snapshot_from_string.occurrences)
 
-            file_obj = snapshot_from_file.find_node_by_path("TestObject")
-            string_obj = snapshot_from_string.find_node_by_path("TestObject")
+            file_occ = snapshot_from_file.find_occurrence("TestObject")
+            string_occ = snapshot_from_string.find_occurrence("TestObject")
+            file_obj = snapshot_from_file.find_object(file_occ.object_name) if file_occ else None
+            string_obj = snapshot_from_string.find_object(string_occ.object_name) if string_occ else None
             assert file_obj is not None
             assert string_obj is not None
             assert file_obj.id == string_obj.id

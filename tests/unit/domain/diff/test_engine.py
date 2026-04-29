@@ -5,6 +5,7 @@
 
 import datetime
 import uuid
+from typing import Any
 
 from freecad.diff_wb.domain import Property
 from freecad.diff_wb.domain.diff import (
@@ -17,7 +18,43 @@ from freecad.diff_wb.domain.diff import (
 )
 from freecad.diff_wb.domain.diff.engine import DiffEngine
 from freecad.diff_wb.domain.snapshots import Snapshot
-from freecad.diff_wb.domain.tree.node import TreeNode
+from freecad.diff_wb.domain.snapshots.models import SnapshotObject, SnapshotOccurrence
+
+
+def snapshot_from_rows(
+    *,
+    snapshot_id: str,
+    document_name: str,
+    timestamp: datetime.datetime,
+    tree: list[dict[str, Any]] | None = None,
+    objects: list[SnapshotObject] | None = None,
+    occurrences: list[SnapshotOccurrence] | None = None,
+) -> Snapshot:
+    """Build normalized Snapshot from flat dict fixtures."""
+    if tree is not None:
+        objects = [
+            SnapshotObject(
+                name=str(n["name"]),
+                id=int(n["id"]),
+                type_id=str(n["type_id"]),
+                properties=n.get("properties", {}),  # type: ignore[arg-type]
+            )
+            for n in tree
+        ]
+        occurrences = [
+            SnapshotOccurrence(
+                path=str(n["path"]),
+                after=(str(n["after"]) if n["after"] is not None else None),
+            )
+            for n in tree
+        ]
+    return Snapshot(
+        snapshot_id=snapshot_id,
+        document_name=document_name,
+        timestamp=timestamp,
+        objects=objects or [],
+        occurrences=occurrences or [],
+    )
 
 
 class TestDiffState:
@@ -193,17 +230,19 @@ class TestDiffResult:
 
     def test_creation_with_snapshots(self) -> None:
         """Test DiffResult created with old_snapshot and new_snapshot parameters."""
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old-id",
             document_name="OldDoc",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
         )
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new-id",
             document_name="NewDoc",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
         )
         diff = DiffResult(old_snapshot=old_snapshot, new_snapshot=new_snapshot)
         assert diff.old_snapshot is old_snapshot
@@ -211,45 +250,50 @@ class TestDiffResult:
 
     def test_warnings_initialized_empty_by_default(self) -> None:
         """Test warnings list is initialized empty by default."""
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old-id",
             document_name="OldDoc",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
         )
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new-id",
             document_name="NewDoc",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
         )
         diff = DiffResult(old_snapshot=old_snapshot, new_snapshot=new_snapshot)
         assert diff.warnings == []
 
     def test_same_snapshot_instance_has_no_warning(self) -> None:
         """Test same snapshot instance for old/new does not trigger warning."""
-        snapshot = Snapshot(
+        snapshot = snapshot_from_rows(
             snapshot_id="same-id",
             document_name="SameDoc",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
         )
         diff = DiffResult(old_snapshot=snapshot, new_snapshot=snapshot)
         assert len(diff.warnings) == 0
 
     def test_warnings_can_contain_multiple_strings(self) -> None:
         """Test warnings can contain multiple strings."""
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old-id",
             document_name="OldDoc",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
         )
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new-id",
             document_name="NewDoc",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
         )
         diff = DiffResult(
             old_snapshot=old_snapshot,
@@ -262,17 +306,19 @@ class TestDiffResult:
 
     def test_has_changes_false(self) -> None:
         """Test has_changes when no changes."""
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old-id",
             document_name="OldDoc",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
         )
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new-id",
             document_name="NewDoc",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
         )
         diff = DiffResult(old_snapshot=old_snapshot, new_snapshot=new_snapshot)
         assert diff.has_changes is False
@@ -287,17 +333,19 @@ class TestDiffResult:
         node_diff = NodeDiff(path="Body/Pad", type_id="PartDesign::Pad", property_diffs=[prop_diff])
         hierarchy = DiffHierarchy()
         hierarchy._roots.append(node_diff)
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old-id",
             document_name="OldDoc",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
         )
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new-id",
             document_name="NewDoc",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
         )
         diff = DiffResult(old_snapshot=old_snapshot, new_snapshot=new_snapshot, hierarchy=hierarchy)
         assert diff.has_changes is True
@@ -320,17 +368,19 @@ class TestDiffResult:
 
         hierarchy = DiffHierarchy()
         hierarchy._roots.extend([parent, unchanged])
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id="old-id",
             document_name="OldDoc",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
         )
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id="new-id",
             document_name="NewDoc",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
         )
         diff = DiffResult(old_snapshot=old_snapshot, new_snapshot=new_snapshot, hierarchy=hierarchy)
 
@@ -345,17 +395,19 @@ class TestDiffEngineComputeDiff:
 
     def test_compute_diff_with_empty_snapshots(self) -> None:
         """Test compute_diff with empty snapshots returns empty result."""
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="old",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
         )
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="new",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
         )
 
         engine = DiffEngine()
@@ -368,26 +420,27 @@ class TestDiffEngineComputeDiff:
 
     def test_compute_diff_detect_added_node(self) -> None:
         """Test compute_diff detects added nodes with flat structure."""
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="old",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
         )
-        new_node = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-            properties={},
-        )
-        new_snapshot = Snapshot(
+        new_node = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+            "properties": {},
+        }
+        new_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="new",
             timestamp=datetime.datetime.now(),
-            nodes=[new_node],
+            tree=[new_node],
         )
 
         engine = DiffEngine()
@@ -399,26 +452,27 @@ class TestDiffEngineComputeDiff:
 
     def test_compute_diff_detect_deleted_node(self) -> None:
         """Test compute_diff detects deleted nodes with flat structure."""
-        old_node = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-            properties={},
-        )
-        old_snapshot = Snapshot(
+        old_node = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+            "properties": {},
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="old",
             timestamp=datetime.datetime.now(),
-            nodes=[old_node],
+            tree=[old_node],
         )
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="new",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
         )
 
         engine = DiffEngine()
@@ -430,35 +484,35 @@ class TestDiffEngineComputeDiff:
         """Test compute_diff detects modified nodes with flat structure."""
         from freecad.diff_wb.domain import Property
 
-        old_node = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-            properties={"Length": Property.from_freecad(10.0, {}, "Base")},
-        )
-        new_node = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-            properties={"Length": Property.from_freecad(20.0, {}, "Base")},
-        )
-        old_snapshot = Snapshot(
+        old_node = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+            "properties": {"Length": Property.from_freecad(10.0, {}, "Base")},
+        }
+        new_node = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+            "properties": {"Length": Property.from_freecad(20.0, {}, "Base")},
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="old",
             timestamp=datetime.datetime.now(),
-            nodes=[old_node],
+            tree=[old_node],
         )
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="new",
             timestamp=datetime.datetime.now(),
-            nodes=[new_node],
+            tree=[new_node],
         )
 
         engine = DiffEngine()
@@ -472,55 +526,55 @@ class TestDiffEngineComputeDiff:
     def test_compute_diff_with_nested_flat_nodes(self) -> None:
         """Test compute_diff with flat nested nodes structure."""
         # Old snapshot with parent and child
-        old_parent = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-            properties={},
-        )
-        old_child = TreeNode(
-            id=2,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-            properties={},
-        )
-        old_snapshot = Snapshot(
+        old_parent = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+            "properties": {},
+        }
+        old_child = {
+            "id": 2,
+            "name": "Pad",
+            "type_id": "PartDesign::Pad",
+            "label": "Pad",
+            "path": "Body/Pad",
+            "after": "Body",
+            "properties": {},
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="old",
             timestamp=datetime.datetime.now(),
-            nodes=[old_parent, old_child],
+            tree=[old_parent, old_child],
         )
 
         # New snapshot with parent and child (same structure)
-        new_parent = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-            properties={},
-        )
-        new_child = TreeNode(
-            id=2,
-            name="Pad",
-            type_id="PartDesign::Pad",
-            label="Pad",
-            path="Body/Pad",
-            after="Body",
-            properties={},
-        )
-        new_snapshot = Snapshot(
+        new_parent = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+            "properties": {},
+        }
+        new_child = {
+            "id": 2,
+            "name": "Pad",
+            "type_id": "PartDesign::Pad",
+            "label": "Pad",
+            "path": "Body/Pad",
+            "after": "Body",
+            "properties": {},
+        }
+        new_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="new",
             timestamp=datetime.datetime.now(),
-            nodes=[new_parent, new_child],
+            tree=[new_parent, new_child],
         )
 
         engine = DiffEngine()
@@ -545,26 +599,27 @@ class TestDiffEngineComputeDiff:
             def get_float_precision(self):
                 return 2
 
-        old_node = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-            properties={},
-        )
-        old_snapshot = Snapshot(
+        old_node = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+            "properties": {},
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="old",
             timestamp=datetime.datetime.now(),
-            nodes=[old_node],
+            tree=[old_node],
         )
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="new",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
         )
 
         engine = DiffEngine(settings_repo=MockSettingsRepo())
@@ -579,11 +634,11 @@ class TestDiffEngineComputeDiffWithNone:
 
     def test_compute_diff_with_none_old_snapshot(self) -> None:
         """Test compute_diff with None for old snapshot adds appropriate warning."""
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="TestDoc",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            tree=[],
         )
 
         engine = DiffEngine()
@@ -602,26 +657,26 @@ class TestDiffEngineComputeDiffWithSettings:
 
     def test_compute_diff_with_custom_excluded_types(self) -> None:
         """Test compute_diff with custom excluded types filters correctly."""
-        old_node = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-            properties={},
-        )
-        old_snapshot = Snapshot(
+        old_node = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+            "properties": {},
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="old",
             timestamp=datetime.datetime.now(),
-            nodes=[old_node],
+            tree=[old_node],
         )
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="new",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            tree=[],
         )
 
         # Use mock settings repo to exclude PartDesign::Body
@@ -648,42 +703,42 @@ class TestDiffEngineComputeDiffWithSettings:
         """Test compute_diff with custom excluded properties filters correctly."""
         from freecad.diff_wb.domain import Property
 
-        old_node = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-            properties={
+        old_node = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+            "properties": {
                 "Length": Property.from_freecad(10.0, {}, "Base"),
                 "Label": Property.from_freecad("Body", {}, "Base"),
             },
-        )
-        new_node = TreeNode(
-            id=1,
-            name="Body",
-            type_id="PartDesign::Body",
-            label="Body",
-            path="Body",
-            after=None,
-            properties={
+        }
+        new_node = {
+            "id": 1,
+            "name": "Body",
+            "type_id": "PartDesign::Body",
+            "label": "Body",
+            "path": "Body",
+            "after": None,
+            "properties": {
                 "Length": Property.from_freecad(20.0, {}, "Base"),
                 "Label": Property.from_freecad("Body", {}, "Base"),
             },
-        )
+        }
 
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="old",
             timestamp=datetime.datetime.now(),
-            nodes=[old_node],
+            tree=[old_node],
         )
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="new",
             timestamp=datetime.datetime.now(),
-            nodes=[new_node],
+            tree=[new_node],
         )
 
         # Use mock settings repo to exclude Length property
@@ -715,41 +770,41 @@ class TestDiffEngineTypeSpecificExclusions:
         """Test that engine passes type-specific exclusions from settings repo to comparator."""
         from freecad.diff_wb.domain import Property
 
-        old_node = TreeNode(
-            id=1,
-            name="Template",
-            type_id="TechDraw::DrawSVGTemplate",
-            label="Template",
-            path="Template",
-            after=None,
-            properties={
+        old_node = {
+            "id": 1,
+            "name": "Template",
+            "type_id": "TechDraw::DrawSVGTemplate",
+            "label": "Template",
+            "path": "Template",
+            "after": None,
+            "properties": {
                 "Template": Property.from_freecad("old_data", {}, "Base"),
                 "Label": Property.from_freecad("MyTemplate", {}, "Base"),
             },
-        )
-        new_node = TreeNode(
-            id=1,
-            name="Template",
-            type_id="TechDraw::DrawSVGTemplate",
-            label="MyTemplate",
-            path="Template",
-            after=None,
-            properties={
+        }
+        new_node = {
+            "id": 1,
+            "name": "Template",
+            "type_id": "TechDraw::DrawSVGTemplate",
+            "label": "MyTemplate",
+            "path": "Template",
+            "after": None,
+            "properties": {
                 "Template": Property.from_freecad("new_data", {}, "Base"),
                 "Label": Property.from_freecad("MyTemplate", {}, "Base"),
             },
-        )
-        old_snapshot = Snapshot(
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="old",
             timestamp=datetime.datetime.now(),
-            nodes=[old_node],
+            tree=[old_node],
         )
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="new",
             timestamp=datetime.datetime.now(),
-            nodes=[new_node],
+            tree=[new_node],
         )
 
         class MockSettingsRepo:
@@ -776,41 +831,41 @@ class TestDiffEngineTypeSpecificExclusions:
         """Test that engine does not apply type-specific exclusion for non-matching types."""
         from freecad.diff_wb.domain import Property
 
-        old_node = TreeNode(
-            id=1,
-            name="Feature",
-            type_id="Part::Feature",
-            label="Feature",
-            path="Feature",
-            after=None,
-            properties={
+        old_node = {
+            "id": 1,
+            "name": "Feature",
+            "type_id": "Part::Feature",
+            "label": "Feature",
+            "path": "Feature",
+            "after": None,
+            "properties": {
                 "Template": Property.from_freecad("data", {}, "Base"),
                 "Label": Property.from_freecad("Feature", {}, "Base"),
             },
-        )
-        new_node = TreeNode(
-            id=1,
-            name="Feature",
-            type_id="Part::Feature",
-            label="Feature",
-            path="Feature",
-            after=None,
-            properties={
+        }
+        new_node = {
+            "id": 1,
+            "name": "Feature",
+            "type_id": "Part::Feature",
+            "label": "Feature",
+            "path": "Feature",
+            "after": None,
+            "properties": {
                 "Template": Property.from_freecad("different_data", {}, "Base"),
                 "Label": Property.from_freecad("Feature", {}, "Base"),
             },
-        )
-        old_snapshot = Snapshot(
+        }
+        old_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="old",
             timestamp=datetime.datetime.now(),
-            nodes=[old_node],
+            tree=[old_node],
         )
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="new",
             timestamp=datetime.datetime.now(),
-            nodes=[new_node],
+            tree=[new_node],
         )
 
         class MockSettingsRepo:

@@ -61,7 +61,8 @@ def create_test_snapshot(name: str, git_path: str = "") -> Snapshot:
         snapshot_id="test-id",
         document_name=name,
         timestamp=datetime.now(),
-        nodes=[],
+        objects=[],
+        occurrences=[],
         git_path=git_path,
     )
 
@@ -125,7 +126,8 @@ class TestCreateDiffActionWithNoneOldSnapshot:
                         snapshot_id="different-id",
                         document_name=new.document_name + "_old",
                         timestamp=datetime.now(),
-                        nodes=[],
+                        objects=[],
+                        occurrences=[],
                         git_path=new.git_path,
                     )
                 return DiffResult(

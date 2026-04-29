@@ -16,12 +16,12 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from ...utils import Log
-from ..freecad_ports import DocumentLike, DocumentObjectLike, FreeCadPort
-from ..tree import Property, TreeNode
+from ..freecad_ports import DocumentLike, DocumentObjectLike
+from ..tree import Property
 
 
 if TYPE_CHECKING:
-    from .models import Snapshot
+    from .models import Snapshot, SnapshotOccurrence
 
 
 class GuiNotAvailableError(Exception):
@@ -461,76 +461,6 @@ def _extract_visible_properties(obj: object) -> dict[str, Property]:
     return properties
 
 
-def _build_tree_node(
-    obj: object,
-    port: FreeCadPort,
-    doc: DocumentLike,
-    parent_path: str,
-    children_map: dict[str, list[str]],
-    after: str | None,
-    all_nodes: list[TreeNode],
-) -> None:
-    """Build a TreeNode from a FreeCAD object.
-
-    Uses FreeCAD's GUI-level claimChildren() API to match the visual tree
-    structure shown in FreeCAD's tree view. claimChildren() returns only
-    direct children, so no recursive exclusion is needed.
-
-    Args:
-        obj: The FreeCAD object to convert
-        port: The FreeCadPort instance for object resolution
-        doc: The FreeCAD document
-        parent_path: The path of the parent node (for building full path)
-        children_map: Pre-built children map from _build_parent_map().
-                     Must be provided - built once in extract_tree() for efficiency.
-        after: The name of the preceding sibling, or None if first child/root
-        all_nodes: List to collect all nodes (modified in place)
-    """
-    # Get basic attributes
-    name = getattr(obj, "Name", None)
-    # Skip objects without Name attribute - they are invalid
-    if name is None:
-        Log.warning("Skipping object without Name attribute")
-        return
-
-    # Get the unique ID from the FreeCAD object
-    node_id: int = getattr(obj, "ID", 0)
-
-    type_id = getattr(obj, "TypeId", "")
-    label = getattr(obj, "Label", name)
-
-    # Build the full path
-    path = f"{parent_path}/{name}" if parent_path else name
-
-    # Extract only visible properties
-    properties: dict[str, Property] = {}
-    try:
-        properties = _extract_visible_properties(obj)
-    except Exception as e:
-        Log.exception(f"[EXTRACTOR] {name}: error extracting properties: {e}")
-
-    # Create the node with flat structure (no children)
-    node = TreeNode(
-        id=node_id,
-        name=name,
-        type_id=type_id,
-        label=label,
-        path=path,
-        after=after,
-        properties=properties,
-    )
-    all_nodes.append(node)
-
-    # Build children TreeNodes from the pre-built children map
-    child_names = children_map.get(name, [])
-    for i, child_name in enumerate(child_names):
-        child_obj = port.get_object(doc, child_name)
-        if child_obj is not None:
-            # Calculate 'after' for this child (first child has after=None)
-            child_after = child_names[i - 1] if i > 0 else None
-            _build_tree_node(child_obj, port, doc, path, children_map, child_after, all_nodes)
-
-
 def _build_parent_to_child_map(doc: DocumentLike, gui_doc: Any) -> dict[str, list[str]]:
     """Build the map from document objects using ViewProvider.claimChildren().
 
@@ -558,72 +488,63 @@ def _build_parent_to_child_map(doc: DocumentLike, gui_doc: Any) -> dict[str, lis
     return parent_to_child_map
 
 
-def _build_flat_node_list(
-    doc: DocumentLike,
-    child_to_parent_map: dict[str, str],
+def _build_occurrence_list_bfs(
+    child_to_parents_map: dict[str, set[str]],
     parent_to_child_map: dict[str, list[str]],
     name_to_obj_map: dict[str, DocumentObjectLike],
-) -> list[TreeNode]:
-    """Build the flat node list using BFS.
+) -> list[SnapshotOccurrence]:
+    """Build occurrence rows using BFS.
 
     Args:
-        doc: The FreeCAD document
-        child_to_parent_map: Map of child name to parent name
+        child_to_parents_map: Map of child name to parent names
         parent_to_child_map: Map of parent name to list of child names from claimChildren() (O(1) lookup)
         name_to_obj_map: Map of object name to object
 
     Returns:
-        List of TreeNode objects in BFS order
+        List of SnapshotOccurrence rows in BFS order.
     """
-    nodes: list[TreeNode] = []
-    queue: list[tuple[DocumentObjectLike, str, str | None]] = []
-    visited: set[str] = set()
+    from .models import SnapshotOccurrence
+
+    occurrences: list[SnapshotOccurrence] = []
+    # queue item: (object, occurrence path, previous sibling occurrence path, ancestor object names)
+    # `ancestors` prevents infinite loops when claimChildren() graph contains cycles.
+    queue: list[tuple[DocumentObjectLike, str, str | None, tuple[str, ...]]] = []
 
     # Find roots (objects not in parent_map) and add to queue
-    root_names: list[str] = [name for name in name_to_obj_map if name not in child_to_parent_map]
+    root_names: list[str] = [name for name in name_to_obj_map if name not in child_to_parents_map]
 
     # Add roots to queue with their "after" value
     for i, name in enumerate(root_names):
         obj = name_to_obj_map.get(name)
         if obj:
             after = root_names[i - 1] if i > 0 else None
-            queue.append((obj, name, after))
+            queue.append((obj, name, after, (name,)))
 
     # Process queue (BFS)
     while queue:
-        obj, path, after = queue.pop(0)
+        obj, path, after, ancestors = queue.pop(0)
         obj_name: str | None = getattr(obj, "Name", None)
         # Skip objects without Name attribute - they are invalid
-        if obj_name is None or obj_name in visited:
+        if obj_name is None:
             continue
-        visited.add(obj_name)
 
-        # Extract properties
-        properties = _extract_visible_properties(obj)
-
-        # Create node
-        node = TreeNode(
-            id=getattr(obj, "ID", 0),
-            name=obj_name,
-            type_id=getattr(obj, "TypeId", ""),
-            label=getattr(obj, "Label", obj_name),
-            path=path,
-            after=after,
-            properties=properties,
-        )
-        nodes.append(node)
+        occurrences.append(SnapshotOccurrence(path=path, after=after))
 
         # Get children using O(1) lookup from parent_to_child_map
         children_names = parent_to_child_map.get(obj_name, [])
-        for i, child_name in enumerate(children_names):
-            if child_name not in visited:
-                child_obj = name_to_obj_map.get(child_name)
-                if child_obj:
-                    child_path = f"{path}/{child_name}"
-                    child_after = children_names[i - 1] if i > 0 else None
-                    queue.append((child_obj, child_path, child_after))
+        previous_child_path: str | None = None
+        for child_name in children_names:
+            # Cycle guard: skip child if it already appears on current ancestry chain.
+            if child_name in ancestors:
+                continue
+            child_obj = name_to_obj_map.get(child_name)
+            if child_obj:
+                child_path = f"{path}/{child_name}"
+                child_after = previous_child_path
+                queue.append((child_obj, child_path, child_after, (*ancestors, child_name)))
+                previous_child_path = child_path
 
-    return nodes
+    return occurrences
 
 
 def _bool_attr(obj: DocumentObjectLike, attr_name: str) -> bool:
@@ -677,7 +598,7 @@ def _extract_tree_single_pass(
     """Extract tree using single-pass BFS algorithm.
 
     This replaces the multi-pass approach with a single BFS pass that builds
-    the flat node list directly. FreeCAD's claimChildren() returns only
+    occurrence rows directly. FreeCAD's claimChildren() returns only
     direct children, so no recursive exclusion is needed.
 
     Args:
@@ -687,24 +608,20 @@ def _extract_tree_single_pass(
         git_path: Relative path from git root to the document file
 
     Returns:
-        Snapshot containing the flat node list
+        Snapshot containing normalized objects and occurrence rows
     """
     from .models import Snapshot
 
     # Step 1: Build parent_to_child_map (parent -> direct children from claimChildren())
     parent_to_child_map = _build_parent_to_child_map(doc, gui_doc)
 
-    # Step 2: Build child_to_parent_map from parent_to_child_map
-    child_to_parent_map: dict[str, str] = {}
+    # Step 2: Build child_to_parents_map from parent_to_child_map
+    child_to_parents_map: dict[str, set[str]] = {}
     for parent_name, children in parent_to_child_map.items():
         for child_name in children:
-            if child_name not in child_to_parent_map:
-                child_to_parent_map[child_name] = parent_name
-            else:
-                Log.warning(
-                    f"[DEBUG] Duplicate child parent claim ignored for '{child_name}': "
-                    f"keeping '{child_to_parent_map[child_name]}', ignoring '{parent_name}'"
-                )
+            if child_name not in child_to_parents_map:
+                child_to_parents_map[child_name] = set()
+            child_to_parents_map[child_name].add(parent_name)
 
     # Step 3: Build name to object map for quick lookup
     name_to_obj: dict[str, DocumentObjectLike] = {}
@@ -713,14 +630,35 @@ def _extract_tree_single_pass(
         if name:
             name_to_obj[name] = obj
 
-    # Step 4: Single BFS pass to build flat node list
-    nodes = _build_flat_node_list(doc, child_to_parent_map, parent_to_child_map, name_to_obj)
+    # Step 4: Build unique object payloads once (name-keyed)
+    from .models import SnapshotObject
+
+    objects: list[SnapshotObject] = []
+    for obj in doc.Objects:
+        name = getattr(obj, "Name", None)
+        if not name:
+            continue
+        if name not in name_to_obj:
+            continue
+        properties = _extract_visible_properties(obj)
+        objects.append(
+            SnapshotObject(
+                name=name,
+                id=getattr(obj, "ID", 0),
+                type_id=getattr(obj, "TypeId", ""),
+                properties=properties,
+            )
+        )
+
+    # Step 5: Single BFS pass to build occurrences
+    occurrences = _build_occurrence_list_bfs(child_to_parents_map, parent_to_child_map, name_to_obj)
 
     return Snapshot(
         snapshot_id=str(uuid.uuid4()),
         document_name=document_name,
         timestamp=datetime.now(),
-        nodes=nodes,
+        objects=objects,
+        occurrences=occurrences,
         git_path=git_path,
     )
 
@@ -741,7 +679,7 @@ class SnapshotExtractor:
         """Extract the document tree structure from a FreeCAD document.
 
         This function traverses a FreeCAD document and converts it into
-        a Snapshot domain object containing TreeNode hierarchy. It uses FreeCAD's
+        a normalized Snapshot domain object containing object payloads and occurrences.
         GUI-level claimChildren() API to match the visual tree structure.
 
         Args:
@@ -773,6 +711,7 @@ class SnapshotExtractor:
             snapshot_id=str(uuid.uuid4()),
             document_name=document_name,
             timestamp=timestamp,
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path=git_path,
         )

@@ -19,17 +19,18 @@ class TestCreateDocumentSnapshotForCommitAction:
         """Test: Execute with commit=None returns snapshot from index."""
         # Given a GitService that returns YAML content from index
         mock_git_service = MagicMock(spec=GitService)
-        yaml_content = """v: 1
+        yaml_content = """v: 2
 timestamp: 2024-01-15T10:30:00+00:00
 uid: test-uuid-index
 objects:
 - id: 1
   name: Body
   type_id: PartDesign::Body
-  label: Body
-  path: Body
-  after: null
   properties: {}
+occurrences:
+- path: Body
+  object: Body
+  after: null
 """
         mock_git_service.get_file_contents.return_value = yaml_content
 
@@ -44,7 +45,7 @@ objects:
         assert result.data is not None
         assert isinstance(result.data, Snapshot)
         assert result.data.snapshot_id == "test-uuid-index"
-        assert len(result.data.nodes) == 1
+        assert len(result.data.occurrences) == 1
         assert result.data.git_path == "path/to/doc.FCStd"
         assert result.data.document_name == "doc.FCStd"
 

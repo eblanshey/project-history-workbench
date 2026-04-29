@@ -18,11 +18,12 @@ from __future__ import annotations
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TypedDict
 
 import pytest
 import yaml
 
-from freecad.diff_wb.domain import Property, Snapshot, TreeNode
+from freecad.diff_wb.domain import Property, Snapshot, SnapshotObject, SnapshotOccurrence
 from freecad.diff_wb.domain.tree.data_path import (
     ListData,
     PrimitiveData,
@@ -31,6 +32,54 @@ from freecad.diff_wb.domain.tree.data_path import (
     UnknownData,
 )
 from freecad.diff_wb.infrastructure.persistence import SnapshotYamlSerializer
+
+
+class _NodeFixture(TypedDict, total=False):
+    id: int
+    name: str
+    type_id: str
+    label: str
+    path: str
+    after: str | None
+    properties: dict[str, Property]
+
+
+def _snapshot_from_rows(nodes: list[_NodeFixture], snapshot_id: str, document_name: str = "") -> Snapshot:
+    """Build normalized snapshot test fixture from flat node rows."""
+    objects_by_name: dict[str, SnapshotObject] = {}
+    occurrences: list[SnapshotOccurrence] = []
+    for node in nodes:
+        name = str(node["name"])
+        objects_by_name.setdefault(
+            name,
+            SnapshotObject(
+                name=name,
+                id=int(node["id"]),
+                type_id=str(node["type_id"]),
+                properties=node.get("properties", {}),  # type: ignore[arg-type]
+            ),
+        )
+        occurrences.append(
+            SnapshotOccurrence(
+                path=str(node["path"]),
+                after=(str(node["after"]) if node["after"] is not None else None),
+            )
+        )
+    return Snapshot(
+        snapshot_id=snapshot_id,
+        document_name=document_name,
+        timestamp=datetime(2024, 1, 1, tzinfo=UTC),
+        objects=list(objects_by_name.values()),
+        occurrences=occurrences,
+    )
+
+
+def _first_object(snapshot: Snapshot) -> SnapshotObject:
+    assert snapshot.occurrences
+    occ = snapshot.occurrences[0]
+    obj = snapshot.find_object(occ.object_name)
+    assert obj is not None
+    return obj
 
 
 class TestSerializePropertiesEnvelope:
@@ -243,21 +292,16 @@ class TestSnapshotRoundTrip:
             "Count": Property.from_freecad(42, {}, group="Data"),
             "Ratio": Property.from_freecad(0.75, {}, group="Base"),
         }
-        node = TreeNode(
-            id=1,
-            name="TestPad",
-            type_id="PartDesign::Pad",
-            label="TestPad",
-            path="TestPad",
-            after=None,
-            properties=props,
-        )
-        snapshot = Snapshot(
-            snapshot_id="roundtrip-test",
-            document_name="RoundTripDoc",
-            timestamp=datetime(2024, 6, 15, tzinfo=UTC),
-            nodes=[node],
-        )
+        node = {
+            "id": 1,
+            "name": "TestPad",
+            "type_id": "PartDesign::Pad",
+            "label": "TestPad",
+            "path": "TestPad",
+            "after": None,
+            "properties": props,
+        }
+        snapshot = _snapshot_from_rows([node], snapshot_id="roundtrip-test", document_name="RoundTripDoc")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             yaml_path = Path(tmpdir) / "snapshot.yaml"
@@ -266,10 +310,10 @@ class TestSnapshotRoundTrip:
             restored = SnapshotYamlSerializer.from_yaml_file(yaml_path)
 
         # Verify structure
-        assert len(restored.nodes) == 1
-        restored_node = restored.nodes[0]
-        assert restored_node.id == 1
-        assert len(restored_node.properties) == len(props)
+        assert len(restored.occurrences) == 1
+        restored_obj = _first_object(restored)
+        assert restored_obj.id == 1
+        assert len(restored_obj.properties) == len(props)
 
     def test_roundtrip_preserves_primitive_values(self):
         """Primitive property values should survive round-trip unchanged."""
@@ -279,17 +323,23 @@ class TestSnapshotRoundTrip:
             "StrVal": Property.from_freecad("hello", {}, group="View"),
             "BoolVal": Property.from_freecad(False, {}, group="View"),
         }
-        node = TreeNode(id=1, name="Test", type_id="Test", label="Test", path="Test", after=None, properties=props)
-        snapshot = Snapshot(
-            snapshot_id="prim", document_name="", timestamp=datetime(2024, 1, 1, tzinfo=UTC), nodes=[node]
-        )
+        node = {
+            "id": 1,
+            "name": "Test",
+            "type_id": "Test",
+            "label": "Test",
+            "path": "Test",
+            "after": None,
+            "properties": props,
+        }
+        snapshot = _snapshot_from_rows([node], snapshot_id="prim")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             yaml_path = Path(tmpdir) / "s.yaml"
             SnapshotYamlSerializer.to_yaml(snapshot, yaml_path)
             restored = SnapshotYamlSerializer.from_yaml_file(yaml_path)
 
-        restored_props = restored.nodes[0].properties
+        restored_props = _first_object(restored).properties
         assert isinstance(restored_props["FloatVal"].value, PrimitiveData)
         assert restored_props["FloatVal"].value.paths["."].value == pytest.approx(3.14)
         assert restored_props["IntVal"].value.paths["."].value == 42
@@ -303,36 +353,48 @@ class TestSnapshotRoundTrip:
             "B": Property.from_freecad(2.0, {}, group="Data"),
             "C": Property.from_freecad(3.0, {}, group="View"),
         }
-        node = TreeNode(id=1, name="Test", type_id="Test", label="Test", path="Test", after=None, properties=props)
-        snapshot = Snapshot(
-            snapshot_id="grp", document_name="", timestamp=datetime(2024, 1, 1, tzinfo=UTC), nodes=[node]
-        )
+        node = {
+            "id": 1,
+            "name": "Test",
+            "type_id": "Test",
+            "label": "Test",
+            "path": "Test",
+            "after": None,
+            "properties": props,
+        }
+        snapshot = _snapshot_from_rows([node], snapshot_id="grp")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             yaml_path = Path(tmpdir) / "s.yaml"
             SnapshotYamlSerializer.to_yaml(snapshot, yaml_path)
             restored = SnapshotYamlSerializer.from_yaml_file(yaml_path)
 
-        assert restored.nodes[0].properties["A"].group == "Base"
-        assert restored.nodes[0].properties["B"].group == "Data"
-        assert restored.nodes[0].properties["C"].group == "View"
+        assert _first_object(restored).properties["A"].group == "Base"
+        assert _first_object(restored).properties["B"].group == "Data"
+        assert _first_object(restored).properties["C"].group == "View"
 
     def test_roundtrip_preserves_expression(self):
         """Expressions stored in path entries should survive round-trip."""
         props = {
             "Length": Property.from_freecad(10.0, {".": "5 mm"}, group="Base"),
         }
-        node = TreeNode(id=1, name="Test", type_id="Test", label="Test", path="Test", after=None, properties=props)
-        snapshot = Snapshot(
-            snapshot_id="expr", document_name="", timestamp=datetime(2024, 1, 1, tzinfo=UTC), nodes=[node]
-        )
+        node = {
+            "id": 1,
+            "name": "Test",
+            "type_id": "Test",
+            "label": "Test",
+            "path": "Test",
+            "after": None,
+            "properties": props,
+        }
+        snapshot = _snapshot_from_rows([node], snapshot_id="expr")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             yaml_path = Path(tmpdir) / "s.yaml"
             SnapshotYamlSerializer.to_yaml(snapshot, yaml_path)
             restored = SnapshotYamlSerializer.from_yaml_file(yaml_path)
 
-        restored_prop = restored.nodes[0].properties["Length"]
+        restored_prop = _first_object(restored).properties["Length"]
         assert isinstance(restored_prop.value, PrimitiveData)
         assert restored_prop.value.paths["."].expression == "5 mm"
 
@@ -345,17 +407,23 @@ class TestSnapshotRoundTrip:
 
         vec = Base.Vector(1.5, 2.5, 3.5)
         props = {"Position": Property.from_freecad(vec, {}, group="Base")}
-        node = TreeNode(id=1, name="Test", type_id="Test", label="Test", path="Test", after=None, properties=props)
-        snapshot = Snapshot(
-            snapshot_id="vec", document_name="", timestamp=datetime(2024, 1, 1, tzinfo=UTC), nodes=[node]
-        )
+        node = {
+            "id": 1,
+            "name": "Test",
+            "type_id": "Test",
+            "label": "Test",
+            "path": "Test",
+            "after": None,
+            "properties": props,
+        }
+        snapshot = _snapshot_from_rows([node], snapshot_id="vec")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             yaml_path = Path(tmpdir) / "s.yaml"
             SnapshotYamlSerializer.to_yaml(snapshot, yaml_path)
             restored = SnapshotYamlSerializer.from_yaml_file(yaml_path)
 
-        restored_prop = restored.nodes[0].properties["Position"]
+        restored_prop = _first_object(restored).properties["Position"]
         assert isinstance(restored_prop.value, VectorData)
         assert restored_prop.value.paths["x"].value == pytest.approx(1.5)
         assert restored_prop.value.paths["y"].value == pytest.approx(2.5)
@@ -370,17 +438,23 @@ class TestSnapshotRoundTrip:
 
         placement = Base.Placement(Base.Vector(1.0, 2.0, 3.0), Base.Rotation(0, 0, 1, 45))
         props = {"Placement": Property.from_freecad(placement, {}, group="Base")}
-        node = TreeNode(id=1, name="Test", type_id="Test", label="Test", path="Test", after=None, properties=props)
-        snapshot = Snapshot(
-            snapshot_id="plc", document_name="", timestamp=datetime(2024, 1, 1, tzinfo=UTC), nodes=[node]
-        )
+        node = {
+            "id": 1,
+            "name": "Test",
+            "type_id": "Test",
+            "label": "Test",
+            "path": "Test",
+            "after": None,
+            "properties": props,
+        }
+        snapshot = _snapshot_from_rows([node], snapshot_id="plc")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             yaml_path = Path(tmpdir) / "s.yaml"
             SnapshotYamlSerializer.to_yaml(snapshot, yaml_path)
             restored = SnapshotYamlSerializer.from_yaml_file(yaml_path)
 
-        restored_prop = restored.nodes[0].properties["Placement"]
+        restored_prop = _first_object(restored).properties["Placement"]
         assert isinstance(restored_prop.value, PlacementData)
         assert restored_prop.value.paths["Base.x"].value == pytest.approx(1.0)
         assert restored_prop.value.paths["Base.y"].value == pytest.approx(2.0)
@@ -395,17 +469,23 @@ class TestSnapshotRoundTrip:
 
         qty = Base.Quantity("10 mm")
         props = {"Amount": Property.from_freecad(qty, {}, group="Base")}
-        node = TreeNode(id=1, name="Test", type_id="Test", label="Test", path="Test", after=None, properties=props)
-        snapshot = Snapshot(
-            snapshot_id="qty", document_name="", timestamp=datetime(2024, 1, 1, tzinfo=UTC), nodes=[node]
-        )
+        node = {
+            "id": 1,
+            "name": "Test",
+            "type_id": "Test",
+            "label": "Test",
+            "path": "Test",
+            "after": None,
+            "properties": props,
+        }
+        snapshot = _snapshot_from_rows([node], snapshot_id="qty")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             yaml_path = Path(tmpdir) / "s.yaml"
             SnapshotYamlSerializer.to_yaml(snapshot, yaml_path)
             restored = SnapshotYamlSerializer.from_yaml_file(yaml_path)
 
-        restored_prop = restored.nodes[0].properties["Amount"]
+        restored_prop = _first_object(restored).properties["Amount"]
         assert isinstance(restored_prop.value, PrimitiveData)
         assert set(restored_prop.value.paths.keys()) == {"."}
         assert restored_prop.value.paths["."].type_ == PropertyPathType.QUANTITY
@@ -415,17 +495,23 @@ class TestSnapshotRoundTrip:
     def test_roundtrip_preserves_list(self):
         """List property values should survive round-trip with correct items."""
         props = {"Items": Property.from_freecad([1, 2, 3], {}, group="Base")}
-        node = TreeNode(id=1, name="Test", type_id="Test", label="Test", path="Test", after=None, properties=props)
-        snapshot = Snapshot(
-            snapshot_id="lst", document_name="", timestamp=datetime(2024, 1, 1, tzinfo=UTC), nodes=[node]
-        )
+        node = {
+            "id": 1,
+            "name": "Test",
+            "type_id": "Test",
+            "label": "Test",
+            "path": "Test",
+            "after": None,
+            "properties": props,
+        }
+        snapshot = _snapshot_from_rows([node], snapshot_id="lst")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             yaml_path = Path(tmpdir) / "s.yaml"
             SnapshotYamlSerializer.to_yaml(snapshot, yaml_path)
             restored = SnapshotYamlSerializer.from_yaml_file(yaml_path)
 
-        restored_prop = restored.nodes[0].properties["Items"]
+        restored_prop = _first_object(restored).properties["Items"]
         assert isinstance(restored_prop.value, ListData)
         assert len(restored_prop.value.items) == 3
         assert restored_prop.value.items[0].paths["."].value == 1
@@ -434,32 +520,44 @@ class TestSnapshotRoundTrip:
 
     def test_roundtrip_with_empty_properties(self):
         """A snapshot with empty properties should round-trip correctly."""
-        node = TreeNode(id=1, name="Empty", type_id="Test", label="Empty", path="Empty", after=None, properties={})
-        snapshot = Snapshot(
-            snapshot_id="empty", document_name="", timestamp=datetime(2024, 1, 1, tzinfo=UTC), nodes=[node]
-        )
+        node = {
+            "id": 1,
+            "name": "Empty",
+            "type_id": "Test",
+            "label": "Empty",
+            "path": "Empty",
+            "after": None,
+            "properties": {},
+        }
+        snapshot = _snapshot_from_rows([node], snapshot_id="empty")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             yaml_path = Path(tmpdir) / "s.yaml"
             SnapshotYamlSerializer.to_yaml(snapshot, yaml_path)
             restored = SnapshotYamlSerializer.from_yaml_file(yaml_path)
 
-        assert len(restored.nodes[0].properties) == 0
+        assert len(_first_object(restored).properties) == 0
 
     def test_roundtrip_with_unknown_property(self):
         """An unknown property should survive round-trip with freecad_type preserved."""
         props = {"Unknown": Property.from_freecad(object(), {}, group="Data")}
-        node = TreeNode(id=1, name="Test", type_id="Test", label="Test", path="Test", after=None, properties=props)
-        snapshot = Snapshot(
-            snapshot_id="unknown", document_name="", timestamp=datetime(2024, 1, 1, tzinfo=UTC), nodes=[node]
-        )
+        node = {
+            "id": 1,
+            "name": "Test",
+            "type_id": "Test",
+            "label": "Test",
+            "path": "Test",
+            "after": None,
+            "properties": props,
+        }
+        snapshot = _snapshot_from_rows([node], snapshot_id="unknown")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             yaml_path = Path(tmpdir) / "s.yaml"
             SnapshotYamlSerializer.to_yaml(snapshot, yaml_path)
             restored = SnapshotYamlSerializer.from_yaml_file(yaml_path)
 
-        restored_prop = restored.nodes[0].properties["Unknown"]
+        restored_prop = _first_object(restored).properties["Unknown"]
         assert isinstance(restored_prop.value, UnknownData)
         assert restored_prop.value.paths["."].freecad_type is not None
         assert restored_prop.value.paths["."].freecad_type == props["Unknown"].value.paths["."].freecad_type
@@ -467,10 +565,16 @@ class TestSnapshotRoundTrip:
     def test_yaml_output_format_matches_spec(self):
         """The YAML output should match the DataPath-based envelope spec."""
         props = {"Length": Property.from_freecad(10.0, {}, group="Base")}
-        node = TreeNode(id=1, name="Test", type_id="Test", label="Test", path="Test", after=None, properties=props)
-        snapshot = Snapshot(
-            snapshot_id="fmt", document_name="", timestamp=datetime(2024, 1, 1, tzinfo=UTC), nodes=[node]
-        )
+        node = {
+            "id": 1,
+            "name": "Test",
+            "type_id": "Test",
+            "label": "Test",
+            "path": "Test",
+            "after": None,
+            "properties": props,
+        }
+        snapshot = _snapshot_from_rows([node], snapshot_id="fmt")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             yaml_path = Path(tmpdir) / "s.yaml"
@@ -492,10 +596,16 @@ class TestSnapshotRoundTrip:
     def test_yaml_output_has_paths_not_value(self):
         """Serialized properties should use 'paths' key, not 'value' key."""
         props = {"Length": Property.from_freecad(10.0, {}, group="Base")}
-        node = TreeNode(id=1, name="Test", type_id="Test", label="Test", path="Test", after=None, properties=props)
-        snapshot = Snapshot(
-            snapshot_id="paths", document_name="", timestamp=datetime(2024, 1, 1, tzinfo=UTC), nodes=[node]
-        )
+        node = {
+            "id": 1,
+            "name": "Test",
+            "type_id": "Test",
+            "label": "Test",
+            "path": "Test",
+            "after": None,
+            "properties": props,
+        }
+        snapshot = _snapshot_from_rows([node], snapshot_id="paths")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             yaml_path = Path(tmpdir) / "s.yaml"
@@ -509,51 +619,44 @@ class TestSnapshotRoundTrip:
     def test_multiple_nodes_with_different_property_types(self):
         """A snapshot with multiple nodes having different property types should round-trip."""
         nodes = [
-            TreeNode(
-                id=1,
-                name="Pad",
-                type_id="PartDesign::Pad",
-                label="Pad",
-                path="Pad",
-                after=None,
-                properties={
+            {
+                "id": 1,
+                "name": "Pad",
+                "type_id": "PartDesign::Pad",
+                "label": "Pad",
+                "path": "Pad",
+                "after": None,
+                "properties": {
                     "Length": Property.from_freecad(10.0, {}, group="Base"),
                     "Enabled": Property.from_freecad(True, {}, group="View"),
                 },
-            ),
-            TreeNode(
-                id=2,
-                name="Sketch",
-                type_id="Sketcher::SketchObject",
-                label="Sketch",
-                path="Sketch",
-                after="Pad",
-                properties={
+            },
+            {
+                "id": 2,
+                "name": "Sketch",
+                "type_id": "Sketcher::SketchObject",
+                "label": "Sketch",
+                "path": "Sketch",
+                "after": "Pad",
+                "properties": {
                     "Name": Property.from_freecad("MySketch", {}, group="Data"),
                     "Count": Property.from_freecad(5, {}, group="Data"),
                 },
-            ),
+            },
         ]
-        snapshot = Snapshot(
-            snapshot_id="multi",
-            document_name="MultiDoc",
-            timestamp=datetime(2024, 1, 1, tzinfo=UTC),
-            nodes=nodes,
-        )
+        snapshot = _snapshot_from_rows(nodes, snapshot_id="multi", document_name="MultiDoc")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             yaml_path = Path(tmpdir) / "s.yaml"
             SnapshotYamlSerializer.to_yaml(snapshot, yaml_path)
             restored = SnapshotYamlSerializer.from_yaml_file(yaml_path)
 
-        assert len(restored.nodes) == 2
-        # Verify Pad node
-        pad_node = restored.nodes[0]
-        assert pad_node.name == "Pad"
-        assert "Length" in pad_node.properties
-        assert "Enabled" in pad_node.properties
-        # Verify Sketch node
-        sketch_node = restored.nodes[1]
-        assert sketch_node.name == "Sketch"
-        assert "Name" in sketch_node.properties
-        assert "Count" in sketch_node.properties
+        assert len(restored.occurrences) == 2
+        pad_obj = restored.find_object("Pad")
+        sketch_obj = restored.find_object("Sketch")
+        assert pad_obj is not None
+        assert sketch_obj is not None
+        assert "Length" in pad_obj.properties
+        assert "Enabled" in pad_obj.properties
+        assert "Name" in sketch_obj.properties
+        assert "Count" in sketch_obj.properties

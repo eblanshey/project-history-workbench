@@ -7,10 +7,25 @@ from unittest.mock import MagicMock
 import pytest
 
 from freecad.diff_wb.application.actions.commands import TakeSnapshotAction
-from freecad.diff_wb.domain.snapshots.models import Snapshot
+from freecad.diff_wb.domain.snapshots.models import Snapshot, SnapshotObject, SnapshotOccurrence
 from freecad.diff_wb.domain.snapshots.repository import InMemorySnapshotRepository
-from freecad.diff_wb.domain.tree.node import TreeNode
 from tests.fakes.fake_freecad_port import FakeFreeCadPort
+
+
+def _snapshot_from_parts(
+    document_name: str,
+    objects: list[SnapshotObject],
+    occurrences: list[SnapshotOccurrence],
+) -> Snapshot:
+    """Build normalized snapshot fixture from objects and occurrences."""
+    return Snapshot(
+        snapshot_id="",
+        document_name=document_name,
+        timestamp=datetime.datetime.now(),
+        objects=objects,
+        occurrences=occurrences,
+        git_path="",
+    )
 
 
 class TestTakeSnapshotAction:
@@ -28,7 +43,8 @@ class TestTakeSnapshotAction:
             snapshot_id="",
             document_name="TestDocument",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="",
         )
 
@@ -111,7 +127,8 @@ class TestTakeSnapshotAction:
             snapshot_id="",
             document_name="TestDocument",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="",
         )
         extractor = MagicMock(extract_tree=MagicMock(return_value=mock_snapshot))
@@ -143,7 +160,8 @@ class TestTakeSnapshotAction:
             snapshot_id="",
             document_name="TestDocument",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="",
         )
         extractor = MagicMock(extract_tree=MagicMock(return_value=mock_snapshot))
@@ -176,7 +194,8 @@ class TestTakeSnapshotAction:
             snapshot_id="",
             document_name="TestDocument",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="",
         )
         extractor = MagicMock(extract_tree=MagicMock(return_value=mock_snapshot))
@@ -250,7 +269,8 @@ class TestTakeSnapshotAction:
             snapshot_id="",
             document_name="TestDocument",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="",
         )
         extractor = MagicMock(extract_tree=MagicMock(return_value=mock_snapshot))
@@ -285,7 +305,8 @@ class TestTakeSnapshotAction:
             snapshot_id="",
             document_name="TestDocument",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="",
         )
         extractor = MagicMock(extract_tree=MagicMock(return_value=mock_snapshot))
@@ -311,22 +332,10 @@ class TestTakeSnapshotAction:
         freecad_port = FakeFreeCadPort(active_document=doc)
         repo = InMemorySnapshotRepository()
 
-        mock_snapshot = Snapshot(
-            snapshot_id="",
-            document_name="TestDocument",
-            timestamp=datetime.datetime.now(),
-            nodes=[
-                TreeNode(
-                    id=1,
-                    name="TestObject",
-                    type_id="Part::Feature",
-                    label="TestObject",
-                    path="TestObject",
-                    after=None,
-                    properties={},
-                )
-            ],
-            git_path="",
+        mock_snapshot = _snapshot_from_parts(
+            "TestDocument",
+            [SnapshotObject(name="TestObject", id=1, type_id="Part::Feature", properties={})],
+            [SnapshotOccurrence(path="TestObject", after=None)],
         )
         extractor = MagicMock(extract_tree=MagicMock(return_value=mock_snapshot))
 
@@ -359,7 +368,8 @@ class TestTakeSnapshotAction:
             snapshot_id="",
             document_name="TestDocument",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="",
         )
         extractor = MagicMock(extract_tree=MagicMock(return_value=mock_snapshot))
@@ -394,7 +404,8 @@ class TestTakeSnapshotAction:
             snapshot_id="",
             document_name="TestDocument",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="",
         )
         extractor = MagicMock(extract_tree=MagicMock(return_value=mock_snapshot))
@@ -430,7 +441,8 @@ class TestTakeSnapshotAction:
             snapshot_id="",
             document_name="MyPart",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="",
         )
         extractor = MagicMock(extract_tree=MagicMock(return_value=mock_snapshot))
@@ -473,7 +485,8 @@ class TestTakeSnapshotAction:
             snapshot_id="",
             document_name="fallback",
             timestamp=datetime.datetime.now(),
-            nodes=[],
+            objects=[],
+            occurrences=[],
             git_path="",
         )
         extractor = MagicMock(extract_tree=MagicMock(return_value=mock_snapshot))

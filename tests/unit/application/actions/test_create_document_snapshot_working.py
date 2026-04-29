@@ -103,7 +103,7 @@ class TestCreateDocumentSnapshotForWorkingTreeActionSuccess:
         assert result.is_success is True
         assert result.data is not None
         assert result.data.document_name == "MyDocument"
-        assert isinstance(result.data.nodes, list)
+        assert isinstance(result.data.occurrences, list)
 
 
 class TestCreateDocumentSnapshotForWorkingTreeActionFailure:

@@ -4,6 +4,7 @@
 # and expression handling.
 """Unit tests for SnapshotExtractor."""
 
+from typing import TypedDict
 from unittest.mock import MagicMock, patch
 
 from freecad.diff_wb.domain.freecad_ports import DocumentObjectLike
@@ -14,6 +15,17 @@ from freecad.diff_wb.domain.snapshots.gui_extractor import (
     _is_property_hidden,
 )
 from freecad.diff_wb.domain.snapshots.models import Snapshot
+from freecad.diff_wb.domain.tree.property import Property
+
+
+class _ProjectedNode(TypedDict):
+    id: int
+    name: str
+    type_id: str
+    label: str
+    path: str
+    after: str | None
+    properties: dict[str, Property]
 
 
 class MockViewProvider:
@@ -34,6 +46,28 @@ class MockViewProvider:
     def claimChildren(self):
         """Return claimed children."""
         return object.__getattribute__(self, "_claimed_children")
+
+
+def _nodes(snapshot: Snapshot) -> list[_ProjectedNode]:
+    """Project normalized snapshot to flat dict rows for assertions."""
+    object_by_name = {obj.name: obj for obj in snapshot.objects}
+    result: list[_ProjectedNode] = []
+    for occ in snapshot.occurrences:
+        obj = object_by_name.get(occ.object_name)
+        if obj is None:
+            continue
+        result.append(
+            {
+                "id": obj.id,
+                "name": obj.name,
+                "type_id": obj.type_id,
+                "label": obj.name,
+                "path": occ.path,
+                "after": occ.after,
+                "properties": obj.properties,
+            }
+        )
+    return result
 
 
 class MockFreeCADObject(DocumentObjectLike):
@@ -251,7 +285,7 @@ class TestSnapshotExtractor:
 
         assert isinstance(result, Snapshot)
         assert result.document_name == "EmptyDocument"
-        assert result.nodes == []
+        assert _nodes(result) == []
 
     def test_extract_tree_with_root_object(self) -> None:
         """Test extraction with a single root object."""
@@ -278,9 +312,10 @@ class TestSnapshotExtractor:
 
         assert isinstance(result, Snapshot)
         assert result.document_name == "TestDoc"
-        assert len(result.nodes) == 1
-        assert result.nodes[0].name == "Body"
-        assert result.nodes[0].type_id == "PartDesign::Body"
+        nodes = _nodes(result)
+        assert len(nodes) == 1
+        assert nodes[0]["name"] == "Body"
+        assert nodes[0]["type_id"] == "PartDesign::Body"
 
     def test_extract_tree_with_nested_children_via_group(self) -> None:
         """Test extraction with nested child objects via ViewProvider.claimChildren()."""
@@ -336,13 +371,14 @@ class TestSnapshotExtractor:
             result = extractor.extract_tree(mock_doc)
 
         # In flat structure, both nodes should be in the nodes list
-        assert len(result.nodes) == 2
-        names = {node.name for node in result.nodes}
+        nodes = _nodes(result)
+        assert len(nodes) == 2
+        names = {node["name"] for node in nodes}
         assert "Body" in names
         assert "Sketch" in names
         # Find the Sketch node and verify its path
-        sketch_node = next(node for node in result.nodes if node.name == "Sketch")
-        assert sketch_node.path == "Body/Sketch"
+        sketch_node = next(node for node in nodes if node["name"] == "Sketch")
+        assert sketch_node["path"] == "Body/Sketch"
 
     def test_extract_tree_with_unnamed_document(self) -> None:
         """Test extraction from a document without a Name attribute."""
@@ -359,7 +395,7 @@ class TestSnapshotExtractor:
         # Should return a Snapshot with default "Unnamed" document name for empty string
         assert isinstance(result, Snapshot)
         assert result.document_name == ""
-        assert result.nodes == []
+        assert _nodes(result) == []
 
     def test_extract_tree_property_extraction(self) -> None:
         """Test that properties are correctly extracted."""
@@ -385,11 +421,12 @@ class TestSnapshotExtractor:
             mock_init_gui.return_value = None
             result = extractor.extract_tree(mock_doc)
 
-        assert len(result.nodes) == 1
-        node = result.nodes[0]
+        nodes = _nodes(result)
+        assert len(nodes) == 1
+        node = nodes[0]
         # Properties should be extracted (with non-empty groups)
-        assert "Label" in node.properties
-        assert "Length" in node.properties
+        assert "Label" in node["properties"]
+        assert "Length" in node["properties"]
 
     def test_extract_tree_captures_expressions(self) -> None:
         """Test that expressions are correctly captured from ExpressionEngine."""
@@ -417,11 +454,12 @@ class TestSnapshotExtractor:
             mock_init_gui.return_value = None
             result = extractor.extract_tree(mock_doc)
 
-        assert len(result.nodes) == 1
-        node = result.nodes[0]
+        nodes = _nodes(result)
+        assert len(nodes) == 1
+        node = nodes[0]
         # Length property should have expression stored in DataPath
-        assert "Length" in node.properties
-        length_prop = node.properties["Length"]
+        assert "Length" in node["properties"]
+        length_prop = node["properties"]["Length"]
         # The expression is stored in the PropertyPathValue within PrimitiveData
         from freecad.diff_wb.domain.tree.data_path import PrimitiveData
 
@@ -500,16 +538,17 @@ class TestSnapshotExtractor:
             result = extractor.extract_tree(mock_doc)
 
         # In flat structure, all nodes should be in the nodes list
-        assert len(result.nodes) == 3  # Part + Body + VarSet
-        names = {node.name for node in result.nodes}
+        nodes = _nodes(result)
+        assert len(nodes) == 3  # Part + Body + VarSet
+        names = {node["name"] for node in nodes}
         assert "Part" in names
         assert "Body" in names
         assert "VarSet" in names
 
         # Verify VarSet path
-        varset_node = next(node for node in result.nodes if node.name == "VarSet")
-        assert varset_node.type_id == "App::VarSet"
-        assert varset_node.path == "Part/VarSet"
+        varset_node = next(node for node in nodes if node["name"] == "VarSet")
+        assert varset_node["type_id"] == "App::VarSet"
+        assert varset_node["path"] == "Part/VarSet"
 
     def test_extract_tree_handles_nested_hierarchy(self) -> None:
         """Test nested hierarchy: Part -> Body -> Sketch.
@@ -580,18 +619,19 @@ class TestSnapshotExtractor:
             result = extractor.extract_tree(mock_doc)
 
         # In flat structure, all 3 nodes should be in the list
-        assert len(result.nodes) == 3  # Part + Body + Sketch
-        names = {node.name for node in result.nodes}
+        nodes = _nodes(result)
+        assert len(nodes) == 3  # Part + Body + Sketch
+        names = {node["name"] for node in nodes}
         assert "Part" in names
         assert "Body" in names
         assert "Sketch" in names
 
         # Verify paths
-        body_node = next(node for node in result.nodes if node.name == "Body")
-        assert body_node.path == "Part/Body"
+        body_node = next(node for node in nodes if node["name"] == "Body")
+        assert body_node["path"] == "Part/Body"
 
-        sketch_node = next(node for node in result.nodes if node.name == "Sketch")
-        assert sketch_node.path == "Part/Body/Sketch"
+        sketch_node = next(node for node in nodes if node["name"] == "Sketch")
+        assert sketch_node["path"] == "Part/Body/Sketch"
 
     def test_extract_tree_handles_origin_features(self) -> None:
         """Test that ViewProvider.claimChildren() correctly identifies origin children.
@@ -661,8 +701,9 @@ class TestSnapshotExtractor:
             result = extractor.extract_tree(mock_doc)
 
         # In flat structure, all 3 nodes should be in the list
-        assert len(result.nodes) == 3  # Origin + X_Axis + XY_Plane
-        names = {node.name for node in result.nodes}
+        nodes = _nodes(result)
+        assert len(nodes) == 3  # Origin + X_Axis + XY_Plane
+        names = {node["name"] for node in nodes}
         assert "Origin" in names
         assert "X_Axis" in names
         assert "XY_Plane" in names
@@ -707,17 +748,18 @@ class TestSnapshotExtractor:
             mock_init_gui.return_value = None
             result = extractor.extract_tree(mock_doc)
 
-        assert len(result.nodes) == 1
-        node = result.nodes[0]
+        nodes = _nodes(result)
+        assert len(nodes) == 1
+        node = nodes[0]
 
         # Visible properties should be present
-        assert "Label" in node.properties
-        assert "Length" in node.properties
+        assert "Label" in node["properties"]
+        assert "Length" in node["properties"]
 
         # Hidden properties should be filtered out
-        assert "BaseFeature" not in node.properties
-        assert "ExpressionEngine" not in node.properties
-        assert "Visibility" not in node.properties
+        assert "BaseFeature" not in node["properties"]
+        assert "ExpressionEngine" not in node["properties"]
+        assert "Visibility" not in node["properties"]
 
     def test_extract_tree_properties_with_empty_group_are_visible(self) -> None:
         """Test that properties with empty group ARE visible.
@@ -760,16 +802,17 @@ class TestSnapshotExtractor:
             mock_init_gui.return_value = None
             result = extractor.extract_tree(mock_doc)
 
-        assert len(result.nodes) == 1
-        node = result.nodes[0]
+        nodes = _nodes(result)
+        assert len(nodes) == 1
+        node = nodes[0]
 
         # All properties should be present (including those with empty groups)
-        assert "Label" in node.properties
-        assert "Length" in node.properties
-        assert "Shape" in node.properties
-        assert "SuppressedShape" in node.properties
-        assert "AddSubShape" in node.properties
-        assert "ShapeMaterial" in node.properties
+        assert "Label" in node["properties"]
+        assert "Length" in node["properties"]
+        assert "Shape" in node["properties"]
+        assert "SuppressedShape" in node["properties"]
+        assert "AddSubShape" in node["properties"]
+        assert "ShapeMaterial" in node["properties"]
 
     def test_extract_tree_filters_combined_hidden_conditions(self) -> None:
         """Test filtering with both editor mode and property status conditions."""
@@ -808,18 +851,19 @@ class TestSnapshotExtractor:
             mock_init_gui.return_value = None
             result = extractor.extract_tree(mock_doc)
 
-        assert len(result.nodes) == 1
-        node = result.nodes[0]
+        nodes = _nodes(result)
+        assert len(nodes) == 1
+        node = nodes[0]
 
         # Visible: Label, Length, Shape (empty group is visible now)
         # Hidden: Visibility, Placement, _ElementMapVersion (hidden by editor mode)
-        assert "Label" in node.properties
-        assert "Length" in node.properties
-        assert "Shape" in node.properties, "Shape with empty group should be visible"
-        assert "Visibility" not in node.properties
-        assert "Placement" not in node.properties
-        assert "_ElementMapVersion" not in node.properties
-        assert len(node.properties) == 3
+        assert "Label" in node["properties"]
+        assert "Length" in node["properties"]
+        assert "Shape" in node["properties"], "Shape with empty group should be visible"
+        assert "Visibility" not in node["properties"]
+        assert "Placement" not in node["properties"]
+        assert "_ElementMapVersion" not in node["properties"]
+        assert len(node["properties"]) == 3
 
     def test_extract_tree_includes_properties_with_non_empty_group(self) -> None:
         """Test that properties with non-empty groups are included."""
@@ -854,15 +898,16 @@ class TestSnapshotExtractor:
             mock_init_gui.return_value = None
             result = extractor.extract_tree(mock_doc)
 
-        assert len(result.nodes) == 1
-        node = result.nodes[0]
+        nodes = _nodes(result)
+        assert len(nodes) == 1
+        node = nodes[0]
 
         # All properties with non-empty groups should be present
-        assert "Label" in node.properties
-        assert "Length" in node.properties
-        assert "Type" in node.properties
-        assert "TaperAngle" in node.properties
-        assert "Refine" in node.properties
+        assert "Label" in node["properties"]
+        assert "Length" in node["properties"]
+        assert "Type" in node["properties"]
+        assert "TaperAngle" in node["properties"]
+        assert "Refine" in node["properties"]
 
     def test_extract_tree_viewprovider_returns_string_names(self) -> None:
         """Test when ViewProvider.claimChildren() returns string names.
@@ -920,8 +965,9 @@ class TestSnapshotExtractor:
             result = extractor.extract_tree(mock_doc)
 
         # In flat structure, both nodes should be in the list
-        assert len(result.nodes) == 2
-        names = {node.name for node in result.nodes}
+        nodes = _nodes(result)
+        assert len(nodes) == 2
+        names = {node["name"] for node in nodes}
         assert "Body" in names
         assert "Sketch" in names
 
@@ -1005,8 +1051,9 @@ class TestSnapshotExtractor:
             result = extractor.extract_tree(mock_doc)
 
         # Should still return the object even though claimChildren() failed
-        assert len(result.nodes) == 1
-        assert result.nodes[0].name == "Body"
+        nodes = _nodes(result)
+        assert len(nodes) == 1
+        assert nodes[0]["name"] == "Body"
 
     def test_extract_tree_handles_circular_claims(self) -> None:
         """Test that circular claims (A claims B, B claims A) don't cause infinite loops.
@@ -1106,12 +1153,13 @@ class TestSnapshotExtractor:
             mock_init_gui.return_value = mock_gui_doc
             result = extractor.extract_tree(mock_doc)
 
-        assert len(result.nodes) == 2
-        link_node = next(node for node in result.nodes if node.name == "LinkToPart")
-        origin_node = next(node for node in result.nodes if node.name == "Origin")
-        assert link_node.path == "LinkToPart"
+        nodes = _nodes(result)
+        assert len(nodes) == 2
+        link_node = next(node for node in nodes if node["name"] == "LinkToPart")
+        origin_node = next(node for node in nodes if node["name"] == "Origin")
+        assert link_node["path"] == "LinkToPart"
         # Origin is root because Link claimChildren expansion was skipped.
-        assert origin_node.path == "Origin"
+        assert origin_node["path"] == "Origin"
 
     def test_extract_tree_keeps_claimed_children_for_assembly_link(self) -> None:
         """Test Assembly::AssemblyLink still expands claimed children."""
@@ -1145,9 +1193,10 @@ class TestSnapshotExtractor:
             mock_init_gui.return_value = mock_gui_doc
             result = extractor.extract_tree(mock_doc)
 
-        assert len(result.nodes) == 2
-        child_node = next(node for node in result.nodes if node.name == "LocalComp")
-        assert child_node.path == "SubAsm/LocalComp"
+        nodes = _nodes(result)
+        assert len(nodes) == 2
+        child_node = next(node for node in nodes if node["name"] == "LocalComp")
+        assert child_node["path"] == "SubAsm/LocalComp"
 
     def test_extract_tree_filters_objects_without_name(self) -> None:
         """Test that objects without Name attribute are filtered out.
@@ -1194,8 +1243,9 @@ class TestSnapshotExtractor:
             result = extractor.extract_tree(mock_doc)
 
         # Only the valid object should be in the result
-        assert len(result.nodes) == 1
-        assert result.nodes[0].name == "Body"
+        nodes = _nodes(result)
+        assert len(nodes) == 1
+        assert nodes[0]["name"] == "Body"
 
 
 class TestIsPropertyHidden:

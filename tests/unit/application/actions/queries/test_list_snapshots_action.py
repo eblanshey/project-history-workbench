@@ -5,9 +5,26 @@ import datetime
 import pytest
 
 from freecad.diff_wb.application.actions.queries import ListSnapshotsAction
-from freecad.diff_wb.domain.snapshots.models import Snapshot
+from freecad.diff_wb.domain.snapshots.models import Snapshot, SnapshotObject, SnapshotOccurrence
 from freecad.diff_wb.domain.snapshots.repository import InMemorySnapshotRepository
-from freecad.diff_wb.domain.tree.node import TreeNode
+
+
+def snapshot_from_parts(
+    *,
+    snapshot_id: str,
+    document_name: str,
+    timestamp: datetime.datetime,
+    objects: list[SnapshotObject],
+    occurrences: list[SnapshotOccurrence],
+) -> Snapshot:
+    """Build normalized Snapshot from objects and occurrences."""
+    return Snapshot(
+        snapshot_id=snapshot_id,
+        document_name=document_name,
+        timestamp=timestamp,
+        objects=objects,
+        occurrences=occurrences,
+    )
 
 
 class TestListSnapshotsAction:
@@ -18,27 +35,19 @@ class TestListSnapshotsAction:
         # Arrange
         repo = InMemorySnapshotRepository()
 
-        mock_snapshot1 = Snapshot(
+        mock_snapshot1 = snapshot_from_parts(
             snapshot_id="",  # Will be assigned by repository
             document_name="Document1",
             timestamp=datetime.datetime(2024, 1, 1, 10, 0),
-            nodes=[
-                TreeNode(
-                    id=1,
-                    name="Object1",
-                    type_id="Part::Feature",
-                    label="Object1",
-                    path="Object1",
-                    after=None,
-                    properties={},
-                )
-            ],
+            objects=[SnapshotObject(name="Object1", id=1, type_id="Part::Feature", properties={})],
+            occurrences=[SnapshotOccurrence(path="Object1", after=None)],
         )
-        mock_snapshot2 = Snapshot(
+        mock_snapshot2 = snapshot_from_parts(
             snapshot_id="",  # Will be assigned by repository
             document_name="Document2",
             timestamp=datetime.datetime(2024, 1, 2, 11, 0),
-            nodes=[],
+            objects=[],
+            occurrences=[],
         )
         repo.add_snapshot(mock_snapshot1)
         repo.add_snapshot(mock_snapshot2)
@@ -69,29 +78,17 @@ class TestListSnapshotsAction:
         # Arrange
         repo = InMemorySnapshotRepository()
 
-        mock_snapshot = Snapshot(
+        mock_snapshot = snapshot_from_parts(
             snapshot_id="",  # Will be assigned by repository
             document_name="TestDocument",
             timestamp=datetime.datetime(2024, 1, 1, 10, 0),
-            nodes=[
-                TreeNode(
-                    id=1,
-                    name="Object1",
-                    type_id="Part::Feature",
-                    label="Object1",
-                    path="Object1",
-                    after=None,
-                    properties={},
-                ),
-                TreeNode(
-                    id=2,
-                    name="Child1",
-                    type_id="Part::Feature",
-                    label="Child1",
-                    path="Object1/Child1",
-                    after="Object1",
-                    properties={},
-                ),
+            objects=[
+                SnapshotObject(name="Object1", id=1, type_id="Part::Feature", properties={}),
+                SnapshotObject(name="Child1", id=2, type_id="Part::Feature", properties={}),
+            ],
+            occurrences=[
+                SnapshotOccurrence(path="Object1", after=None),
+                SnapshotOccurrence(path="Object1/Child1", after="Object1"),
             ],
         )
         snapshot_id = repo.add_snapshot(mock_snapshot)
@@ -120,7 +117,8 @@ class TestListSnapshotsAction:
                 snapshot_id="",  # Will be assigned by repository
                 document_name="Doc1",
                 timestamp=datetime.datetime.now(),
-                nodes=[],
+                objects=[],
+                occurrences=[],
             )
         )
         repo.add_snapshot(
@@ -128,7 +126,8 @@ class TestListSnapshotsAction:
                 snapshot_id="",  # Will be assigned by repository
                 document_name="Doc2",
                 timestamp=datetime.datetime.now(),
-                nodes=[],
+                objects=[],
+                occurrences=[],
             )
         )
 

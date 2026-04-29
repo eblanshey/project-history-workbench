@@ -6,14 +6,63 @@ These tests verify the complete compare snapshots workflow using real domain ser
 See AGENTS.md in this directory for more information about application action testing.
 """
 
+from typing import TypedDict
+
 from freecad.diff_wb.application.actions.commands.compare_snapshots import CompareSnapshotsAction
 from freecad.diff_wb.domain.diff.engine import DiffEngine
 from freecad.diff_wb.domain.diff.models import DiffState
 from freecad.diff_wb.domain.settings.models import Settings
 from freecad.diff_wb.domain.settings.repository import SettingsRepository
-from freecad.diff_wb.domain.snapshots.models import Snapshot
+from freecad.diff_wb.domain.snapshots.models import Snapshot, SnapshotObject, SnapshotOccurrence
 from freecad.diff_wb.domain.snapshots.repository import InMemorySnapshotRepository
-from freecad.diff_wb.domain.tree.node import TreeNode
+
+
+class _NodeFixture(TypedDict, total=False):
+    id: int
+    name: str
+    type_id: str
+    label: str
+    path: str
+    after: str | None
+    properties: dict[str, object]
+
+
+def snapshot_from_rows(
+    *,
+    snapshot_id: str,
+    document_name: str,
+    timestamp,
+    tree: list[_NodeFixture] | None = None,
+    objects: list[SnapshotObject] | None = None,
+    occurrences: list[SnapshotOccurrence] | None = None,
+    git_path: str = "",
+) -> Snapshot:
+    """Build normalized snapshot from flat dict fixtures."""
+    if tree is not None:
+        objects = [
+            SnapshotObject(
+                name=str(n["name"]),
+                id=int(n["id"]),
+                type_id=str(n["type_id"]),
+                properties=n.get("properties", {}),  # type: ignore[arg-type]
+            )
+            for n in tree
+        ]
+        occurrences = [
+            SnapshotOccurrence(
+                path=str(n["path"]),
+                after=(str(n["after"]) if n["after"] is not None else None),
+            )
+            for n in tree
+        ]
+    return Snapshot(
+        snapshot_id=snapshot_id,
+        document_name=document_name,
+        timestamp=timestamp,
+        objects=objects or [],
+        occurrences=occurrences or [],
+        git_path=git_path,
+    )
 
 
 class FakeSettingsRepository(SettingsRepository):
@@ -68,40 +117,40 @@ class TestCompareSnapshotsAction:
         from freecad.diff_wb.domain.tree.property import Property
 
         # Create and add old snapshot with a Label property
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id="",
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
-            nodes=[
-                TreeNode(
-                    id=1,
-                    name="Part",
-                    type_id="Part::Feature",
-                    label="OldPart",
-                    path="Part",
-                    after=None,
-                    properties={"Label": Property.from_freecad("OldPart", {}, "Base")},
-                )
+            tree=[
+                {
+                    "id": 1,
+                    "name": "Part",
+                    "type_id": "Part::Feature",
+                    "label": "OldPart",
+                    "path": "Part",
+                    "after": None,
+                    "properties": {"Label": Property.from_freecad("OldPart", {}, "Base")},
+                }
             ],
             git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
 
         # Create and add new snapshot with a changed Label property
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id="",
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
-            nodes=[
-                TreeNode(
-                    id=1,
-                    name="Part",
-                    type_id="Part::Feature",
-                    label="NewPart",
-                    path="Part",
-                    after=None,
-                    properties={"Label": Property.from_freecad("NewPart", {}, "Base")},
-                )
+            tree=[
+                {
+                    "id": 1,
+                    "name": "Part",
+                    "type_id": "Part::Feature",
+                    "label": "NewPart",
+                    "path": "Part",
+                    "after": None,
+                    "properties": {"Label": Property.from_freecad("NewPart", {}, "Base")},
+                }
             ],
             git_path="",
         )
@@ -143,11 +192,11 @@ class TestCompareSnapshotsAction:
         diff_engine = DiffEngine(settings_repo=settings_repo)
 
         # Add only a new snapshot (no old one)
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id="",
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
-            nodes=[],
+            tree=[],
             git_path="",
         )
         snapshot_repo.add_snapshot(new_snapshot)
@@ -174,11 +223,11 @@ class TestCompareSnapshotsAction:
         diff_engine = DiffEngine(settings_repo=settings_repo)
 
         # Add only old snapshot
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id="",
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
-            nodes=[],
+            tree=[],
             git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
@@ -205,20 +254,20 @@ class TestCompareSnapshotsAction:
         diff_engine = DiffEngine(settings_repo=settings_repo)
 
         # Create and add empty snapshots
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id="",
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
-            nodes=[],
+            tree=[],
             git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
 
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id="",
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
-            nodes=[],
+            tree=[],
             git_path="",
         )
         new_id = snapshot_repo.add_snapshot(new_snapshot)
@@ -252,39 +301,39 @@ class TestCompareSnapshotsAction:
         diff_engine = DiffEngine(settings_repo=settings_repo)
 
         # Create snapshots with nodes that should be excluded
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id="",
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
-            nodes=[
-                TreeNode(
-                    id=1,
-                    name="Origin",
-                    type_id="App::Origin",  # Should be excluded
-                    label="Origin",
-                    path="Origin",
-                    after=None,
-                    properties={},
-                )
+            tree=[
+                {
+                    "id": 1,
+                    "name": "Origin",
+                    "type_id": "App::Origin",  # Should be excluded
+                    "label": "Origin",
+                    "path": "Origin",
+                    "after": None,
+                    "properties": {},
+                }
             ],
             git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
 
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id="",
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
-            nodes=[
-                TreeNode(
-                    id=1,
-                    name="Origin",
-                    type_id="App::Origin",  # Should be excluded
-                    label="Origin",
-                    path="Origin",
-                    after=None,
-                    properties={},
-                )
+            tree=[
+                {
+                    "id": 1,
+                    "name": "Origin",
+                    "type_id": "App::Origin",  # Should be excluded
+                    "label": "Origin",
+                    "path": "Origin",
+                    "after": None,
+                    "properties": {},
+                }
             ],
             git_path="",
         )
@@ -314,49 +363,49 @@ class TestCompareSnapshotsAction:
         diff_engine = DiffEngine(settings_repo=settings_repo)
 
         # Old snapshot has one node
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id="",
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
-            nodes=[
-                TreeNode(
-                    id=1,
-                    name="ExistingPart",
-                    type_id="Part::Feature",
-                    label="ExistingPart",
-                    path="ExistingPart",
-                    after=None,
-                    properties={},
-                )
+            tree=[
+                {
+                    "id": 1,
+                    "name": "ExistingPart",
+                    "type_id": "Part::Feature",
+                    "label": "ExistingPart",
+                    "path": "ExistingPart",
+                    "after": None,
+                    "properties": {},
+                }
             ],
             git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
 
         # New snapshot has an additional node
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id="",
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
-            nodes=[
-                TreeNode(
-                    id=1,
-                    name="ExistingPart",
-                    type_id="Part::Feature",
-                    label="ExistingPart",
-                    path="ExistingPart",
-                    after=None,
-                    properties={},
-                ),
-                TreeNode(
-                    id=2,
-                    name="NewPart",
-                    type_id="Part::Feature",
-                    label="NewPart",
-                    path="NewPart",
-                    after="ExistingPart",
-                    properties={},
-                ),
+            tree=[
+                {
+                    "id": 1,
+                    "name": "ExistingPart",
+                    "type_id": "Part::Feature",
+                    "label": "ExistingPart",
+                    "path": "ExistingPart",
+                    "after": None,
+                    "properties": {},
+                },
+                {
+                    "id": 2,
+                    "name": "NewPart",
+                    "type_id": "Part::Feature",
+                    "label": "NewPart",
+                    "path": "NewPart",
+                    "after": "ExistingPart",
+                    "properties": {},
+                },
             ],
             git_path="",
         )
@@ -387,49 +436,49 @@ class TestCompareSnapshotsAction:
         diff_engine = DiffEngine(settings_repo=settings_repo)
 
         # Old snapshot has one node
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id="",
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
-            nodes=[
-                TreeNode(
-                    id=1,
-                    name="ExistingPart",
-                    type_id="Part::Feature",
-                    label="ExistingPart",
-                    path="ExistingPart",
-                    after=None,
-                    properties={},
-                ),
-                TreeNode(
-                    id=2,
-                    name="DeletedPart",
-                    type_id="Part::Feature",
-                    label="DeletedPart",
-                    path="DeletedPart",
-                    after="ExistingPart",
-                    properties={},
-                ),
+            tree=[
+                {
+                    "id": 1,
+                    "name": "ExistingPart",
+                    "type_id": "Part::Feature",
+                    "label": "ExistingPart",
+                    "path": "ExistingPart",
+                    "after": None,
+                    "properties": {},
+                },
+                {
+                    "id": 2,
+                    "name": "DeletedPart",
+                    "type_id": "Part::Feature",
+                    "label": "DeletedPart",
+                    "path": "DeletedPart",
+                    "after": "ExistingPart",
+                    "properties": {},
+                },
             ],
             git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
 
         # New snapshot has one less node (DeletedPart removed)
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id="",
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
-            nodes=[
-                TreeNode(
-                    id=1,
-                    name="ExistingPart",
-                    type_id="Part::Feature",
-                    label="ExistingPart",
-                    path="ExistingPart",
-                    after=None,
-                    properties={},
-                ),
+            tree=[
+                {
+                    "id": 1,
+                    "name": "ExistingPart",
+                    "type_id": "Part::Feature",
+                    "label": "ExistingPart",
+                    "path": "ExistingPart",
+                    "after": None,
+                    "properties": {},
+                },
             ],
             git_path="",
         )
@@ -462,82 +511,82 @@ class TestCompareSnapshotsAction:
         from freecad.diff_wb.domain.tree.property import Property
 
         # Old snapshot
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id="",
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
-            nodes=[
+            tree=[
                 # This node will be unchanged
-                TreeNode(
-                    id=1,
-                    name="UnchangedPart",
-                    type_id="Part::Feature",
-                    label="UnchangedPart",
-                    path="UnchangedPart",
-                    after=None,
-                    properties={"Label": Property.from_freecad("UnchangedPart", {}, "Base")},
-                ),
+                {
+                    "id": 1,
+                    "name": "UnchangedPart",
+                    "type_id": "Part::Feature",
+                    "label": "UnchangedPart",
+                    "path": "UnchangedPart",
+                    "after": None,
+                    "properties": {"Label": Property.from_freecad("UnchangedPart", {}, "Base")},
+                },
                 # This node will be modified (Label changed)
-                TreeNode(
-                    id=2,
-                    name="ModifiedPart",
-                    type_id="Part::Feature",
-                    label="ModifiedPart",
-                    path="ModifiedPart",
-                    after="UnchangedPart",
-                    properties={"Label": Property.from_freecad("ModifiedPart", {}, "Base")},
-                ),
+                {
+                    "id": 2,
+                    "name": "ModifiedPart",
+                    "type_id": "Part::Feature",
+                    "label": "ModifiedPart",
+                    "path": "ModifiedPart",
+                    "after": "UnchangedPart",
+                    "properties": {"Label": Property.from_freecad("ModifiedPart", {}, "Base")},
+                },
                 # This node will be deleted
-                TreeNode(
-                    id=3,
-                    name="DeletedPart",
-                    type_id="Part::Feature",
-                    label="DeletedPart",
-                    path="DeletedPart",
-                    after="ModifiedPart",
-                    properties={},
-                ),
+                {
+                    "id": 3,
+                    "name": "DeletedPart",
+                    "type_id": "Part::Feature",
+                    "label": "DeletedPart",
+                    "path": "DeletedPart",
+                    "after": "ModifiedPart",
+                    "properties": {},
+                },
             ],
             git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
 
         # New snapshot
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id="",
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
-            nodes=[
+            tree=[
                 # Unchanged
-                TreeNode(
-                    id=1,
-                    name="UnchangedPart",
-                    type_id="Part::Feature",
-                    label="UnchangedPart",
-                    path="UnchangedPart",
-                    after=None,
-                    properties={"Label": Property.from_freecad("UnchangedPart", {}, "Base")},
-                ),
+                {
+                    "id": 1,
+                    "name": "UnchangedPart",
+                    "type_id": "Part::Feature",
+                    "label": "UnchangedPart",
+                    "path": "UnchangedPart",
+                    "after": None,
+                    "properties": {"Label": Property.from_freecad("UnchangedPart", {}, "Base")},
+                },
                 # Modified - Label changed
-                TreeNode(
-                    id=2,
-                    name="ModifiedPart",
-                    type_id="Part::Feature",
-                    label="NewLabel",
-                    path="ModifiedPart",
-                    after="UnchangedPart",
-                    properties={"Label": Property.from_freecad("NewLabel", {}, "Base")},
-                ),
+                {
+                    "id": 2,
+                    "name": "ModifiedPart",
+                    "type_id": "Part::Feature",
+                    "label": "NewLabel",
+                    "path": "ModifiedPart",
+                    "after": "UnchangedPart",
+                    "properties": {"Label": Property.from_freecad("NewLabel", {}, "Base")},
+                },
                 # Added - new node
-                TreeNode(
-                    id=4,
-                    name="AddedPart",
-                    type_id="Part::Feature",
-                    label="AddedPart",
-                    path="AddedPart",
-                    after="ModifiedPart",
-                    properties={},
-                ),
+                {
+                    "id": 4,
+                    "name": "AddedPart",
+                    "type_id": "Part::Feature",
+                    "label": "AddedPart",
+                    "path": "AddedPart",
+                    "after": "ModifiedPart",
+                    "properties": {},
+                },
             ],
             git_path="",
         )
@@ -581,79 +630,79 @@ class TestCompareSnapshotsAction:
         from freecad.diff_wb.domain.tree.property import Property
 
         # Old snapshot with child nodes (flat structure)
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id="",
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
-            nodes=[
-                TreeNode(
-                    id=1,
-                    name="Body",
-                    type_id="PartDesign::Body",
-                    label="Body",
-                    path="Body",
-                    after=None,
-                    properties={"Label": Property.from_freecad("Body", {}, "Base")},
-                ),
-                TreeNode(
-                    id=2,
-                    name="Pad",
-                    type_id="PartDesign::Pad",
-                    label="Pad",
-                    path="Body/Pad",
-                    after=None,
-                    properties={"Label": Property.from_freecad("Pad", {}, "Base")},
-                ),
-                TreeNode(
-                    id=3,
-                    name="Pocket",
-                    type_id="PartDesign::Pocket",
-                    label="Pocket",
-                    path="Body/Pocket",
-                    after="Pad",
-                    properties={"Label": Property.from_freecad("Pocket", {}, "Base")},
-                ),
+            tree=[
+                {
+                    "id": 1,
+                    "name": "Body",
+                    "type_id": "PartDesign::Body",
+                    "label": "Body",
+                    "path": "Body",
+                    "after": None,
+                    "properties": {"Label": Property.from_freecad("Body", {}, "Base")},
+                },
+                {
+                    "id": 2,
+                    "name": "Pad",
+                    "type_id": "PartDesign::Pad",
+                    "label": "Pad",
+                    "path": "Body/Pad",
+                    "after": None,
+                    "properties": {"Label": Property.from_freecad("Pad", {}, "Base")},
+                },
+                {
+                    "id": 3,
+                    "name": "Pocket",
+                    "type_id": "PartDesign::Pocket",
+                    "label": "Pocket",
+                    "path": "Body/Pocket",
+                    "after": "Pad",
+                    "properties": {"Label": Property.from_freecad("Pocket", {}, "Base")},
+                },
             ],
             git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
 
         # New snapshot with changes in children (flat structure)
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id="",
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
-            nodes=[
-                TreeNode(
-                    id=1,
-                    name="Body",
-                    type_id="PartDesign::Body",
-                    label="Body",
-                    path="Body",
-                    after=None,
-                    properties={"Label": Property.from_freecad("Body", {}, "Base")},
-                ),
+            tree=[
+                {
+                    "id": 1,
+                    "name": "Body",
+                    "type_id": "PartDesign::Body",
+                    "label": "Body",
+                    "path": "Body",
+                    "after": None,
+                    "properties": {"Label": Property.from_freecad("Body", {}, "Base")},
+                },
                 # Pad modified - Label changed
-                TreeNode(
-                    id=2,
-                    name="Pad",
-                    type_id="PartDesign::Pad",
-                    label="NewPad",
-                    path="Body/Pad",
-                    after=None,
-                    properties={"Label": Property.from_freecad("NewPad", {}, "Base")},
-                ),
+                {
+                    "id": 2,
+                    "name": "Pad",
+                    "type_id": "PartDesign::Pad",
+                    "label": "NewPad",
+                    "path": "Body/Pad",
+                    "after": None,
+                    "properties": {"Label": Property.from_freecad("NewPad", {}, "Base")},
+                },
                 # Pocket deleted (not present in new snapshot)
                 # Added: Fillet child
-                TreeNode(
-                    id=4,
-                    name="Fillet",
-                    type_id="PartDesign::Fillet",
-                    label="Fillet",
-                    path="Body/Fillet",
-                    after="Pad",
-                    properties={"Label": Property.from_freecad("Fillet", {}, "Base")},
-                ),
+                {
+                    "id": 4,
+                    "name": "Fillet",
+                    "type_id": "PartDesign::Fillet",
+                    "label": "Fillet",
+                    "path": "Body/Fillet",
+                    "after": "Pad",
+                    "properties": {"Label": Property.from_freecad("Fillet", {}, "Base")},
+                },
             ],
             git_path="",
         )
@@ -707,48 +756,48 @@ class TestCompareSnapshotsAction:
         from freecad.diff_wb.domain.tree.property import Property
 
         # Old snapshot with various property types
-        old_snapshot = Snapshot(
+        old_snapshot = snapshot_from_rows(
             snapshot_id="",
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
-            nodes=[
-                TreeNode(
-                    id=1,
-                    name="Part",
-                    type_id="Part::Feature",
-                    label="Part",
-                    path="Part",
-                    after=None,
-                    properties={
+            tree=[
+                {
+                    "id": 1,
+                    "name": "Part",
+                    "type_id": "Part::Feature",
+                    "label": "Part",
+                    "path": "Part",
+                    "after": None,
+                    "properties": {
                         "Label": Property.from_freecad("OldLabel", {}, "Base"),
                         "Length": Property.from_freecad(10.0, {}, "Base"),
                         "Width": Property.from_freecad(5.0, {}, "Base"),
                     },
-                ),
+                },
             ],
             git_path="",
         )
         old_id = snapshot_repo.add_snapshot(old_snapshot)
 
         # New snapshot with changed property values
-        new_snapshot = Snapshot(
+        new_snapshot = snapshot_from_rows(
             snapshot_id="",
             document_name="TestDoc",
             timestamp=__import__("datetime").datetime.now(),
-            nodes=[
-                TreeNode(
-                    id=1,
-                    name="Part",
-                    type_id="Part::Feature",
-                    label="Part",
-                    path="Part",
-                    after=None,
-                    properties={
+            tree=[
+                {
+                    "id": 1,
+                    "name": "Part",
+                    "type_id": "Part::Feature",
+                    "label": "Part",
+                    "path": "Part",
+                    "after": None,
+                    "properties": {
                         "Label": Property.from_freecad("NewLabel", {}, "Base"),
                         "Length": Property.from_freecad(20.0, {}, "Base"),
                         "Width": Property.from_freecad(5.0, {}, "Base"),  # Unchanged
                     },
-                ),
+                },
             ],
             git_path="",
         )

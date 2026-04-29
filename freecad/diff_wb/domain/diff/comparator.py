@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
-# File responsibility: Efficient tree comparison algorithms using path-based indexing
-# for O(n+m) performance. Compares two document snapshots and produces a hierarchical
-# structure of NodeDiff objects representing added, deleted, and modified nodes.
+# File responsibility: Efficient snapshot occurrence comparison using normalized
+# object/occurrence structures. Compares two document snapshots and produces a
+# hierarchical structure of NodeDiff objects representing added, deleted, and modified nodes.
 #
 # The module contains two main classes:
 # - TreeComparator: Compares tree structures using path-based indexing
@@ -10,11 +10,25 @@
 """Tree and property comparison algorithms."""
 
 from collections import deque
+from dataclasses import dataclass
 
 from ..snapshots import Snapshot
-from ..tree.node import TreeNode
+from ..snapshots.models import SnapshotObject
 from ..tree.property import Property
 from .models import DiffHierarchy, DiffResult, DiffState, NodeDiff, PropertyDiff
+
+
+@dataclass(frozen=True)
+class _OccurrenceRow:
+    """Internal comparison row materialized from object+occurrence."""
+
+    id: int
+    name: str
+    type_id: str
+    label: str
+    path: str
+    after: str | None
+    properties: dict[str, Property]
 
 
 def _effective_exclusions(
@@ -50,17 +64,17 @@ def _effective_exclusions(
 
 
 class TreeComparator:
-    """Compares two tree structures using ID-based comparison.
+    """Compares two normalized snapshot occurrence structures.
 
     This class provides instance methods for comparing tree snapshots efficiently
-    using ID-based indexing to achieve O(n+m) performance. The flat node structure
-    contains id, path, and after fields for move/reorder detection.
+    using path-based indexing to achieve O(n+m) performance. Internal rows contain
+    object payload joined with occurrence path/ordering metadata.
 
     The algorithm:
     1. Sort both snapshots by path length (parents first)
-    2. Build ID index for new snapshot (by ID)
-    3. Process old nodes to create deleted/modified diffs
-    4. Process new nodes to create added diffs
+    2. Build path index for old/new occurrences
+    3. Process old occurrences to create deleted/modified diffs
+    4. Process new occurrences to create added diffs
     5. Build DiffHierarchy using add_node()
     6. Reorder roots and siblings using node ``after`` links
     7. Return DiffResult with DiffHierarchy and counts
@@ -107,18 +121,18 @@ class TreeComparator:
         parent_path = "/".join(parent_parts)
         return "/" + parent_path if has_leading_slash else parent_path
 
-    def _sort_nodes_by_path_length(self, nodes: list[TreeNode]) -> list[TreeNode]:
-        """Sort nodes by path length (shortest first - parents before children).
+    def _sort_rows_by_path_depth(self, rows: list[_OccurrenceRow]) -> list[_OccurrenceRow]:
+        """Sort occurrence rows by path depth (parents before children).
 
         This ensures parents are processed before children for proper exclusion logic.
 
         Args:
-            nodes: List of TreeNode objects to sort
+            rows: List of occurrence rows to sort
 
         Returns:
-            List of nodes sorted by path depth (shallowest first)
+            List of rows sorted by path depth (shallowest first)
         """
-        return sorted(nodes, key=lambda n: (n.path.count("/") if n.path else 0, n.path))
+        return sorted(rows, key=lambda row: (row.path.count("/") if row.path else 0, row.path))
 
     def _node_name_from_path(self, path: str) -> str:
         """Extract node name from path using final segment."""
@@ -133,9 +147,11 @@ class TreeComparator:
         Nodes present in the new snapshot (UNCHANGED/MODIFIED/ADDED) are ordered
         by ``new_after``. Deleted nodes are ordered by ``old_after``.
         """
-        if node_diff.new_path is not None:
-            return node_diff.new_after
-        return node_diff.old_after
+        after = node_diff.new_after if node_diff.new_path is not None else node_diff.old_after
+        if after is None:
+            return None
+        # after may be stored as occurrence path; ordering graph is sibling-name keyed.
+        return self._node_name_from_path(after)
 
     def _order_nodes_by_after(self, nodes: list[NodeDiff]) -> list[NodeDiff]:
         """Order sibling nodes using ``after`` links in linear time.
@@ -259,13 +275,13 @@ class TreeComparator:
             if node_diff.children:
                 self._order_hierarchy_by_after(node_diff.children)
 
-    def _is_node_excluded(
-        self, node: TreeNode, excluded_types_set: set[str], paths_excluded: set[str]
+    def _is_row_excluded(
+        self, row: _OccurrenceRow, excluded_types_set: set[str], paths_excluded: set[str]
     ) -> tuple[bool, str]:
-        """Check if a node should be excluded based on type or parent path.
+        """Check if an occurrence row should be excluded by type or parent path.
 
         Args:
-            node: The tree node to check
+            row: The occurrence row to check
             excluded_types_set: Set of type IDs to exclude
             paths_excluded: Set of paths that are excluded
 
@@ -273,93 +289,176 @@ class TreeComparator:
             Tuple of (is_excluded, path_to_exclude)
         """
         # Check if node type is excluded
-        if node.type_id in excluded_types_set:
-            return True, node.path
+        if row.type_id in excluded_types_set:
+            return True, row.path
 
         # Check if parent path is excluded
-        parent_path = self._get_parent_path(node.path)
+        parent_path = self._get_parent_path(row.path)
         if parent_path and parent_path in paths_excluded:
-            return True, node.path
+            return True, row.path
 
         return False, ""
 
-    def _compare_nodes_by_id(
+    def _compare_node_pair(
         self,
-        node_id: int,
-        old_index: dict[int, TreeNode],
-        new_index: dict[int, TreeNode],
+        old_row: _OccurrenceRow,
+        new_row: _OccurrenceRow,
         excluded_properties: list[str],
         excluded_properties_by_type: dict[str, list[str]] | None = None,
         precision: int | None = None,
     ) -> NodeDiff:
-        """Compare two nodes at the same ID and produce a NodeDiff.
-
-        This function compares the properties of two nodes using the property_diff
-        module and determines if they have been modified. If no properties differ
-        (after filtering excluded properties), returns an UNCHANGED NodeDiff.
-
-        The NodeDiff includes old_path, new_path, old_after, new_after fields
-        for future move/reorder detection.
-
-        Args:
-            node_id: The node ID to compare
-            old_index: ID index for the old snapshot
-            new_index: ID index for the new snapshot
-            excluded_properties: List of property names to exclude from comparison
-            excluded_properties_by_type: Dict mapping type IDs to excluded properties
-
-        Returns:
-            NodeDiff with MODIFIED state if properties differ, UNCHANGED otherwise
-        """
-        old_node = old_index.get(node_id)
-        new_node = new_index.get(node_id)
-
-        # Both nodes should exist for common IDs (called from compare_snapshots)
-        if old_node is None or new_node is None:
-            raise ValueError(f"Cannot compare nodes by ID: one or both not found for ID {node_id}")
-
-        # Compute effective exclusions using union of old and new type rules
+        """Compare one old/new occurrence node pair directly."""
         if excluded_properties_by_type is None:
             excluded_properties_by_type = {}
         effective = _effective_exclusions(
             excluded_properties,
             excluded_properties_by_type,
-            old_node.type_id,
-            new_node.type_id,
+            old_row.type_id,
+            new_row.type_id,
         )
-
-        # Use property comparator to compare properties with exclusion filtering
         property_diffs = self._property_comparator.compare_properties(
-            old_node.properties,
-            new_node.properties,
+            old_row.properties,
+            new_row.properties,
             list(effective),
             precision=precision,
         )
-
-        # Return NodeDiff - state will be auto-calculated in __post_init__
-        # Include old_path, new_path, old_after, new_after for move/reorder detection
         return NodeDiff(
-            path=new_node.path,
-            type_id=new_node.type_id,
-            label=new_node.label,
+            path=new_row.path,
+            type_id=new_row.type_id,
+            label=new_row.label,
             property_diffs=property_diffs,
-            children=[],  # Will be populated hierarchically later
-            old_path=old_node.path,
-            new_path=new_node.path,
-            old_after=old_node.after,
-            new_after=new_node.after,
+            children=[],
+            old_path=old_row.path,
+            new_path=new_row.path,
+            old_after=old_row.after,
+            new_after=new_row.after,
             precision=self._precision,
         )
 
+    def _label_for_object(self, obj: SnapshotObject) -> str:
+        """Return object label from properties when present, else fallback name."""
+        label_prop = obj.properties.get("Label")
+        if label_prop is None:
+            return obj.name
+        paths = getattr(label_prop.value, "paths", None)
+        if not isinstance(paths, dict):
+            return obj.name
+        root = paths.get(".")
+        if root is None:
+            return obj.name
+        value = getattr(root, "value", None)
+        return str(value) if value is not None else obj.name
+
+    def _materialize_occurrence_rows(self, snapshot: Snapshot) -> list[_OccurrenceRow]:
+        """Join normalized snapshot objects/occurrences into comparison rows."""
+        object_by_name = {obj.name: obj for obj in snapshot.objects}
+        rows: list[_OccurrenceRow] = []
+        for occ in snapshot.occurrences:
+            obj = object_by_name.get(occ.object_name)
+            if obj is not None:
+                rows.append(
+                    _OccurrenceRow(
+                        id=obj.id,
+                        name=obj.name,
+                        type_id=obj.type_id,
+                        label=self._label_for_object(obj),
+                        path=occ.path,
+                        after=occ.after,
+                        properties=obj.properties,
+                    )
+                )
+        return rows
+
+    def _collect_old_pass_diffs(
+        self,
+        sorted_old_rows: list[_OccurrenceRow],
+        new_by_path: dict[str, _OccurrenceRow],
+        excluded_types_set: set[str],
+        excluded_properties: list[str],
+        excluded_properties_by_type: dict[str, list[str]],
+        precision: int,
+    ) -> tuple[list[NodeDiff], int, int]:
+        """Create deleted/modified diffs scanning old snapshot rows."""
+        diffs: list[NodeDiff] = []
+        deleted_count = 0
+        modified_count = 0
+        paths_excluded: set[str] = set()
+
+        for old_row in sorted_old_rows:
+            is_excluded, path_to_exclude = self._is_row_excluded(old_row, excluded_types_set, paths_excluded)
+            if is_excluded:
+                paths_excluded.add(path_to_exclude)
+                continue
+
+            new_row = new_by_path.get(old_row.path)
+            if new_row is None:
+                diffs.append(
+                    self._create_deleted_node_diff(
+                        old_row,
+                        excluded_properties,
+                        excluded_properties_by_type,
+                        precision,
+                    )
+                )
+                deleted_count += 1
+                continue
+
+            node_diff = self._compare_node_pair(
+                old_row,
+                new_row,
+                excluded_properties,
+                excluded_properties_by_type,
+                precision,
+            )
+            if node_diff.state == DiffState.MODIFIED:
+                modified_count += 1
+            diffs.append(node_diff)
+
+        return diffs, deleted_count, modified_count
+
+    def _collect_added_diffs(
+        self,
+        sorted_new_rows: list[_OccurrenceRow],
+        old_by_path: dict[str, _OccurrenceRow],
+        excluded_types_set: set[str],
+        excluded_properties: list[str],
+        excluded_properties_by_type: dict[str, list[str]],
+        precision: int,
+    ) -> tuple[list[NodeDiff], int]:
+        """Create added diffs scanning new snapshot rows."""
+        diffs: list[NodeDiff] = []
+        added_count = 0
+        # Independent exclusion domain for new-snapshot pass.
+        paths_excluded: set[str] = set()
+
+        for new_row in sorted_new_rows:
+            if new_row.path in old_by_path:
+                continue
+            is_excluded, path_to_exclude = self._is_row_excluded(new_row, excluded_types_set, paths_excluded)
+            if is_excluded:
+                paths_excluded.add(path_to_exclude)
+                continue
+
+            diffs.append(
+                self._create_added_node_diff(
+                    new_row,
+                    excluded_properties,
+                    excluded_properties_by_type,
+                    precision,
+                )
+            )
+            added_count += 1
+
+        return diffs, added_count
+
     def _create_added_node_diff(
         self,
-        node_id: int,
-        node: TreeNode,
+        row: _OccurrenceRow,
         excluded_properties: list[str],
         excluded_properties_by_type: dict[str, list[str]] | None = None,
         precision: int | None = None,
     ) -> NodeDiff:
-        """Create a NodeDiff for an added node (ID-based).
+        """Create a NodeDiff for an added occurrence row.
 
         This is called for nodes that exist only in the new snapshot (not in old).
         The entire node is considered ADDED, regardless of its properties.
@@ -368,8 +467,7 @@ class TreeComparator:
         in the old snapshot.
 
         Args:
-            node_id: The node ID (for ID-based indexing)
-            node: The TreeNode from the new snapshot
+            row: The occurrence row from the new snapshot
             excluded_properties: List of property names to exclude from comparison
             excluded_properties_by_type: Dict mapping type IDs to excluded properties
 
@@ -379,40 +477,39 @@ class TreeComparator:
         # For added nodes, use global + new type exclusions
         if excluded_properties_by_type is None:
             excluded_properties_by_type = {}
-        effective = _effective_exclusions(excluded_properties, excluded_properties_by_type, None, node.type_id)
+        effective = _effective_exclusions(excluded_properties, excluded_properties_by_type, None, row.type_id)
 
         # For added nodes, all properties are "added" (old_value=None)
         property_diffs = self._property_comparator.compare_properties(
             {},
-            node.properties,
+            row.properties,
             list(effective),
             precision=precision,
         )
 
-        # For added nodes: old_path=None, new_path=node.path, old_after=None, new_after=node.after
+        # For added rows: old_path=None, new_path=row.path, old_after=None, new_after=row.after
         return NodeDiff(
-            path=node.path,
-            type_id=node.type_id,
-            label=node.label,
+            path=row.path,
+            type_id=row.type_id,
+            label=row.label,
             property_diffs=property_diffs,
             children=[],  # Will be populated hierarchically later
             old_path=None,
-            new_path=node.path,
+            new_path=row.path,
             old_after=None,
-            new_after=node.after,
+            new_after=row.after,
             precision=self._precision,
             _force_state=DiffState.ADDED,
         )
 
     def _create_deleted_node_diff(
         self,
-        node_id: int,
-        node: TreeNode,
+        row: _OccurrenceRow,
         excluded_properties: list[str],
         excluded_properties_by_type: dict[str, list[str]] | None = None,
         precision: int | None = None,
     ) -> NodeDiff:
-        """Create a NodeDiff for a deleted node (ID-based).
+        """Create a NodeDiff for a deleted occurrence row.
 
         This is called for nodes that exist only in the old snapshot (not in new).
         The entire node is considered DELETED, regardless of its properties.
@@ -421,8 +518,7 @@ class TreeComparator:
         exist in the new snapshot.
 
         Args:
-            node_id: The node ID (for ID-based indexing)
-            node: The TreeNode from the old snapshot
+            row: The occurrence row from the old snapshot
             excluded_properties: List of property names to exclude from comparison
             excluded_properties_by_type: Dict mapping type IDs to excluded properties
 
@@ -432,144 +528,30 @@ class TreeComparator:
         # For deleted nodes, use global + old type exclusions
         if excluded_properties_by_type is None:
             excluded_properties_by_type = {}
-        effective = _effective_exclusions(excluded_properties, excluded_properties_by_type, node.type_id, None)
+        effective = _effective_exclusions(excluded_properties, excluded_properties_by_type, row.type_id, None)
 
         # For deleted nodes, all properties are "deleted" (new_value=None)
         property_diffs = self._property_comparator.compare_properties(
-            node.properties,
+            row.properties,
             {},
             list(effective),
             precision=precision,
         )
 
-        # For deleted nodes: old_path=node.path, new_path=None, old_after=node.after, new_after=None
+        # For deleted rows: old_path=row.path, new_path=None, old_after=row.after, new_after=None
         return NodeDiff(
-            path=node.path,
-            type_id=node.type_id,
-            label=node.label,
+            path=row.path,
+            type_id=row.type_id,
+            label=row.label,
             property_diffs=property_diffs,
             children=[],  # Will be populated hierarchically later
-            old_path=node.path,
+            old_path=row.path,
             new_path=None,
-            old_after=node.after,
+            old_after=row.after,
             new_after=None,
             precision=self._precision,
             _force_state=DiffState.DELETED,
         )
-
-    def _process_old_nodes(
-        self,
-        sorted_old_nodes: list[TreeNode],
-        id_index_new: dict[int, TreeNode],
-        excluded_types_set: set[str],
-        excluded_properties: list[str],
-        excluded_properties_by_type: dict[str, list[str]],
-        precision: int,
-    ) -> tuple[list[NodeDiff], set[int], set[str], int, int]:
-        """Process old nodes to create diffs for deleted and modified nodes.
-
-        Args:
-            sorted_old_nodes: Old nodes sorted by path length
-            id_index_new: ID index for new snapshot
-            excluded_types_set: Set of type IDs to exclude
-            excluded_properties: List of property names to exclude
-            excluded_properties_by_type: Dict mapping type IDs to excluded properties
-
-        Returns:
-            Tuple of (node_diffs, old_node_ids, paths_excluded, deleted_count, modified_count)
-        """
-        node_diffs: list[NodeDiff] = []
-        old_node_ids: set[int] = set()
-        paths_excluded: set[str] = set()
-        deleted_count = 0
-        modified_count = 0
-
-        for old_node in sorted_old_nodes:
-            old_node_ids.add(old_node.id)
-
-            # Check exclusions
-            is_excluded, path_to_exclude = self._is_node_excluded(old_node, excluded_types_set, paths_excluded)
-            if is_excluded:
-                paths_excluded.add(path_to_exclude)
-                continue
-
-            # Get matching new node by ID
-            new_node = id_index_new.get(old_node.id)
-
-            # Create node diff
-            node_diff: NodeDiff
-            if new_node is None:
-                node_diff = self._create_deleted_node_diff(
-                    old_node.id,
-                    old_node,
-                    excluded_properties,
-                    excluded_properties_by_type,
-                    precision,
-                )
-                deleted_count += 1
-            else:
-                node_diff = self._compare_nodes_by_id(
-                    old_node.id,
-                    {old_node.id: old_node},
-                    id_index_new,
-                    excluded_properties,
-                    excluded_properties_by_type,
-                    precision,
-                )
-                if node_diff.state == DiffState.MODIFIED:
-                    modified_count += 1
-
-            node_diffs.append(node_diff)
-
-        return node_diffs, old_node_ids, paths_excluded, deleted_count, modified_count
-
-    def _process_new_nodes(
-        self,
-        sorted_new_nodes: list[TreeNode],
-        old_node_ids: set[int],
-        excluded_types_set: set[str],
-        excluded_properties: list[str],
-        excluded_properties_by_type: dict[str, list[str]],
-        precision: int,
-    ) -> tuple[list[NodeDiff], int]:
-        """Process new nodes to create diffs for added nodes.
-
-        Args:
-            sorted_new_nodes: New nodes sorted by path length
-            old_node_ids: Set of IDs from old snapshot
-            excluded_types_set: Set of type IDs to exclude
-            excluded_properties: List of property names to exclude
-            excluded_properties_by_type: Dict mapping type IDs to excluded properties
-
-        Returns:
-            Tuple of (added_node_diffs, added_count)
-        """
-        added_node_ids = {node.id for node in sorted_new_nodes} - old_node_ids
-        added_node_diffs: list[NodeDiff] = []
-        added_count = 0
-        paths_excluded: set[str] = set()
-
-        for new_node in sorted_new_nodes:
-            if new_node.id not in added_node_ids:
-                continue
-
-            # Check exclusions
-            is_excluded, path_to_exclude = self._is_node_excluded(new_node, excluded_types_set, paths_excluded)
-            if is_excluded:
-                paths_excluded.add(path_to_exclude)
-                continue
-
-            node_diff = self._create_added_node_diff(
-                new_node.id,
-                new_node,
-                excluded_properties,
-                excluded_properties_by_type,
-                precision,
-            )
-            added_count += 1
-            added_node_diffs.append(node_diff)
-
-        return added_node_diffs, added_count
 
     def compare_snapshots(
         self,
@@ -580,13 +562,13 @@ class TreeComparator:
         excluded_properties_by_type: dict[str, list[str]] | None = None,
         precision: int = 2,
     ) -> DiffResult:
-        """Compare two snapshots using ID-based comparison and produce a DiffResult.
+        """Compare two snapshots using occurrence-path comparison and produce DiffResult.
 
         This is the main entry point for tree comparison using the optimized algorithm:
         1. Sort both snapshots by path length (parents first)
-        2. Build ID index for new snapshot (by ID)
-        3. Process old nodes to create deleted/modified diffs
-        4. Process new nodes to create added diffs
+        2. Build path indexes for old/new occurrence rows
+        3. Process old rows to create deleted/modified diffs
+        4. Process new rows to create added diffs
         5. Build DiffHierarchy using add_node()
         6. Reorder roots and siblings using node ``after`` links
         7. Return DiffResult with DiffHierarchy and counts
@@ -611,38 +593,32 @@ class TreeComparator:
 
         self._precision = precision
 
-        # Extract nodes from snapshots
-        old_nodes = old_snapshot.nodes
-        new_nodes = new_snapshot.nodes
+        old_rows = self._materialize_occurrence_rows(old_snapshot)
+        new_rows = self._materialize_occurrence_rows(new_snapshot)
 
-        # Prepare data structures
         excluded_types_set = set(excluded_types)
-        sorted_old_nodes = self._sort_nodes_by_path_length(old_nodes)
-        sorted_new_nodes = self._sort_nodes_by_path_length(new_nodes)
-        id_index_new: dict[int, TreeNode] = {node.id: node for node in new_nodes}
+        sorted_old_rows = self._sort_rows_by_path_depth(old_rows)
+        sorted_new_rows = self._sort_rows_by_path_depth(new_rows)
+        new_by_path: dict[str, _OccurrenceRow] = {row.path: row for row in new_rows}
+        old_by_path: dict[str, _OccurrenceRow] = {row.path: row for row in old_rows}
 
-        # Process old nodes for deleted and modified diffs
-        old_node_diffs, old_node_ids, _, deleted_count, modified_count = self._process_old_nodes(
-            sorted_old_nodes,
-            id_index_new,
+        old_diffs, deleted_count, modified_count = self._collect_old_pass_diffs(
+            sorted_old_rows,
+            new_by_path,
             excluded_types_set,
             excluded_properties,
             excluded_properties_by_type,
             precision,
         )
-
-        # Process new nodes for added diffs
-        added_node_diffs, added_count = self._process_new_nodes(
-            sorted_new_nodes,
-            old_node_ids,
+        added_diffs, added_count = self._collect_added_diffs(
+            sorted_new_rows,
+            old_by_path,
             excluded_types_set,
             excluded_properties,
             excluded_properties_by_type,
             precision,
         )
-
-        # Combine all node diffs
-        all_node_diffs = old_node_diffs + added_node_diffs
+        all_node_diffs = old_diffs + added_diffs
 
         # Build DiffHierarchy
         hierarchy = DiffHierarchy()

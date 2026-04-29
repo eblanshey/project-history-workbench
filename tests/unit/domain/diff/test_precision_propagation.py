@@ -16,13 +16,28 @@ from freecad.diff_wb.domain.diff.models import (
     _path_values_equal,
 )
 from freecad.diff_wb.domain.snapshots import Snapshot
+from freecad.diff_wb.domain.snapshots.models import SnapshotObject, SnapshotOccurrence
 from freecad.diff_wb.domain.tree.data_path import (
     PrimitiveData,
     PropertyPathType,
     PropertyPathValue,
 )
-from freecad.diff_wb.domain.tree.node import TreeNode
 from freecad.diff_wb.domain.tree.property import Property
+
+
+def _snapshot_from_parts(
+    snapshot_id: str,
+    document_name: str,
+    objects: list[SnapshotObject],
+    occurrences: list[SnapshotOccurrence],
+) -> Snapshot:
+    return Snapshot(
+        snapshot_id=snapshot_id,
+        document_name=document_name,
+        timestamp=__import__("datetime").datetime.now(),
+        objects=objects,
+        occurrences=occurrences,
+    )
 
 
 class TestPrecisionPropagationPropertyPathEqual:
@@ -258,42 +273,41 @@ class TestPrecisionPropagationDiffEngine:
 
         # Create snapshots with nodes that have float properties at the precision boundary
         # Value 1.567 vs 1.569 - equal at precision 2, different at precision 3
-        old_node = TreeNode(
-            id=1,
-            name="TestNode",
-            path="TestNode",
-            type_id="Part::Feature",
-            label="Test Node",
-            properties={
-                "Value": Property(
-                    value=PrimitiveData(paths={".": PropertyPathValue(PropertyPathType.FLOAT, 1.567)}),
-                    group="Test",
+        old_snapshot = _snapshot_from_parts(
+            "test-id-1",
+            "Test",
+            objects=[
+                SnapshotObject(
+                    name="TestNode",
+                    id=1,
+                    type_id="Part::Feature",
+                    properties={
+                        "Value": Property(
+                            value=PrimitiveData(paths={".": PropertyPathValue(PropertyPathType.FLOAT, 1.567)}),
+                            group="Test",
+                        )
+                    },
                 )
-            },
-            after=None,
+            ],
+            occurrences=[SnapshotOccurrence(path="TestNode", after=None)],
         )
-        new_node = TreeNode(
-            id=1,
-            name="TestNode",
-            path="TestNode",
-            type_id="Part::Feature",
-            label="Test Node",
-            properties={
-                "Value": Property(
-                    value=PrimitiveData(paths={".": PropertyPathValue(PropertyPathType.FLOAT, 1.569)}),
-                    group="Test",
+        new_snapshot = _snapshot_from_parts(
+            "test-id-2",
+            "Test",
+            objects=[
+                SnapshotObject(
+                    name="TestNode",
+                    id=1,
+                    type_id="Part::Feature",
+                    properties={
+                        "Value": Property(
+                            value=PrimitiveData(paths={".": PropertyPathValue(PropertyPathType.FLOAT, 1.569)}),
+                            group="Test",
+                        )
+                    },
                 )
-            },
-            after=None,
-        )
-
-        from datetime import datetime
-
-        old_snapshot = Snapshot(
-            snapshot_id="test-id-1", document_name="Test", timestamp=datetime.now(), nodes=[old_node]
-        )
-        new_snapshot = Snapshot(
-            snapshot_id="test-id-2", document_name="Test", timestamp=datetime.now(), nodes=[new_node]
+            ],
+            occurrences=[SnapshotOccurrence(path="TestNode", after=None)],
         )
 
         # Compute diff with default precision (2)
@@ -326,42 +340,41 @@ class TestPrecisionPropagationDiffEngine:
         settings_repo.get_float_precision.return_value = 0  # Only integer part
 
         # Create snapshots with float values that differ only in decimal part
-        old_node = TreeNode(
-            id=1,
-            name="TestNode",
-            path="TestNode",
-            type_id="Part::Feature",
-            label="Test Node",
-            properties={
-                "Value": Property(
-                    value=PrimitiveData(paths={".": PropertyPathValue(PropertyPathType.FLOAT, 3.4)}),
-                    group="Test",
+        old_snapshot = _snapshot_from_parts(
+            "test-id-3",
+            "Test",
+            objects=[
+                SnapshotObject(
+                    name="TestNode",
+                    id=1,
+                    type_id="Part::Feature",
+                    properties={
+                        "Value": Property(
+                            value=PrimitiveData(paths={".": PropertyPathValue(PropertyPathType.FLOAT, 3.4)}),
+                            group="Test",
+                        )
+                    },
                 )
-            },
-            after=None,
+            ],
+            occurrences=[SnapshotOccurrence(path="TestNode", after=None)],
         )
-        new_node = TreeNode(
-            id=1,
-            name="TestNode",
-            path="TestNode",
-            type_id="Part::Feature",
-            label="Test Node",
-            properties={
-                "Value": Property(
-                    value=PrimitiveData(paths={".": PropertyPathValue(PropertyPathType.FLOAT, 3.2)}),
-                    group="Test",
+        new_snapshot = _snapshot_from_parts(
+            "test-id-4",
+            "Test",
+            objects=[
+                SnapshotObject(
+                    name="TestNode",
+                    id=1,
+                    type_id="Part::Feature",
+                    properties={
+                        "Value": Property(
+                            value=PrimitiveData(paths={".": PropertyPathValue(PropertyPathType.FLOAT, 3.2)}),
+                            group="Test",
+                        )
+                    },
                 )
-            },
-            after=None,
-        )
-
-        from datetime import datetime
-
-        old_snapshot = Snapshot(
-            snapshot_id="test-id-3", document_name="Test", timestamp=datetime.now(), nodes=[old_node]
-        )
-        new_snapshot = Snapshot(
-            snapshot_id="test-id-4", document_name="Test", timestamp=datetime.now(), nodes=[new_node]
+            ],
+            occurrences=[SnapshotOccurrence(path="TestNode", after=None)],
         )
 
         # Compute diff with precision=0
