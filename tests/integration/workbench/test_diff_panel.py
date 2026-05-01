@@ -53,7 +53,7 @@ class TestDiffPanelView:
 
         Verifies presence of:
         - SnapshotView methods: show_success, show_error, show_loading
-        - DiffView methods: show_diff_tree, show_summary
+        - DiffView methods: show_doc_diff, show_summary
         """
         # SnapshotView protocol methods
         assert hasattr(panel, "show_success")
@@ -61,19 +61,19 @@ class TestDiffPanelView:
         assert hasattr(panel, "show_loading")
 
         # DiffView protocol methods
-        assert hasattr(panel, "show_diff_tree")
+        assert hasattr(panel, "show_doc_diff")
         assert hasattr(panel, "show_summary")
 
         # Verify they're callable
         assert callable(panel.show_success)
         assert callable(panel.show_error)
         assert callable(panel.show_loading)
-        assert callable(panel.show_diff_tree)
+        assert callable(panel.show_doc_diff)
         assert callable(panel.show_summary)
 
         # Test that methods can be called without errors (they're stubs in Phase 8)
         panel.show_success("test_snapshot")
         panel.show_error("test error")
         panel.show_loading("loading...")
-        panel.show_diff_tree([])
+        panel.show_doc_diff([])
         panel.show_summary(0)

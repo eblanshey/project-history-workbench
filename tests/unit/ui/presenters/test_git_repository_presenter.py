@@ -50,6 +50,7 @@ def presenter(
         find_git_repo_action=mock_find_action,
         get_commits_action=mock_get_commits_action,
         ui_state=mock_ui_state,
+        clear_doc_diffs=MagicMock(),
     )
 
 
@@ -137,6 +138,7 @@ class TestGitRepositoryPresenter:
             find_git_repo_action=mock_find_action,
             get_commits_action=mock_get_commits_action,
             ui_state=mock_ui_state,
+            clear_doc_diffs=MagicMock(),
         )
 
         # Assert
@@ -226,6 +228,7 @@ class TestGitRepositoryPresenter:
             find_git_repo_action=mock_find_action,
             get_commits_action=mock_get_commits_action,
             ui_state=mock_ui_state,
+            clear_doc_diffs=MagicMock(),
         )
 
         # Assert

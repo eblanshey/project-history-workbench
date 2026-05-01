@@ -500,19 +500,21 @@ class DiffPresenter:
 ```
 
 **Implementation pattern:**
+
 ```python
 def present_diff(self, diff_result: DiffResult) -> None:
     """Transform domain DiffResult into presentation models, then call view methods."""
     # Transform domain objects to presentation models
     nodes = [self._format_node(node) for node in diff_result.node_diffs]
-    
+
     # Call view methods to trigger UI rendering
-    self._view.show_diff_tree(nodes)
+    self._view.show_doc_diff(nodes)
     self._view.show_summary(
         added=diff_result.summary.added_nodes,
         deleted=diff_result.summary.deleted_nodes,
         modified=diff_result.summary.modified_nodes,
     )
+
 
 def _format_node(self, node_diff: NodeDiff) -> NodePresentation:
     """Transform domain NodeDiff to presentation model."""

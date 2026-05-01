@@ -751,7 +751,7 @@ Tree widget displays multiple top-level items (one per document)
   def present_diffs(self, diff_results: list[DiffResult]) -> None:
       """Transform multiple DiffResults into presentation models and display."""
       if not diff_results:
-          self._view.show_diff_trees([])
+          self._view.show_doc_diffs([])
           return
 
       presentations = []
@@ -766,7 +766,7 @@ Tree widget displays multiple top-level items (one per document)
               warnings=warnings,
           ))
 
-      self._view.show_diff_trees(presentations)
+      self._view.show_doc_diffs(presentations)
 
       # Show summary from first document (for now)
       first = diff_results[0]

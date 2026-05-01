@@ -30,18 +30,18 @@ class FakeDiffView:
         """Capture loading call instead of showing UI."""
         self._record_call("show_loading")
 
-    def show_diff_tree(self, nodes: list[NodePresentation], git_path: str = "") -> None:
+    def show_doc_diff(self, nodes: list[NodePresentation], git_path: str = "") -> None:
         """Capture diff tree call instead of showing UI."""
-        self._record_call("show_diff_tree", nodes=nodes, git_path=git_path)
+        self._record_call("show_doc_diff", nodes=nodes, git_path=git_path)
 
-    def show_diff_trees(self, diff_trees: list[DiffTreePresentation]) -> None:
+    def show_doc_diffs(self, diff_trees: list[DiffTreePresentation]) -> None:
         """Capture multiple diff trees call instead of showing UI.
 
         Args:
             diff_trees: List of DiffTreePresentation objects to display.
                        Each represents a diff tree for one document.
         """
-        self._record_call("show_diff_trees", diff_trees=diff_trees)
+        self._record_call("show_doc_diffs", diff_trees=diff_trees)
 
     def show_summary(self, changed_docs: int) -> None:
         """Capture summary call instead of showing UI."""
@@ -51,9 +51,17 @@ class FakeDiffView:
         """Capture error call instead of showing UI."""
         self._record_call("show_error", message=message)
 
-    def show_properties(self, properties: list[PropertyPresentation]) -> None:
+    def show_property_diff(self, properties: list[PropertyPresentation]) -> None:
         """Capture properties call instead of showing UI."""
-        self._record_call("show_properties", properties=properties)
+        self._record_call("show_property_diff", properties=properties)
+
+    def clear_property_diff(self) -> None:
+        """Capture property-diff clear call."""
+        self._record_call("clear_property_diff")
+
+    def clear_doc_diffs(self) -> None:
+        """Capture document-diff clear call."""
+        self._record_call("clear_doc_diffs")
 
     def show_repository(self, repo: GitRepository | None) -> None:
         """Capture repository display call instead of showing UI."""

@@ -44,7 +44,7 @@ class DiffView(Protocol):
         Use DIFF_LOADING_MESSAGE from translation_strings.py for the message.
         """
 
-    def show_diff_tree(self, nodes: list[NodePresentation], git_path: str = "") -> None:
+    def show_doc_diff(self, nodes: list[NodePresentation], git_path: str = "") -> None:
         """Display the diff tree.
 
         Args:
@@ -68,7 +68,7 @@ class DiffView(Protocol):
             error_message: The error message to display.
         """
 
-    def show_properties(self, properties: list[PropertyPresentation]) -> None:
+    def show_property_diff(self, properties: list[PropertyPresentation]) -> None:
         """Display property diffs in the properties column.
 
         Args:
@@ -76,6 +76,15 @@ class DiffView(Protocol):
                        Each row shows: Property Name | Old Value → New Value
                        Color coding: green=added, red=deleted, blue=modified
                        Expression changes appear as separate rows after their value row.
+        """
+
+    def clear_property_diff(self) -> None:
+        """Clear property diff panel content."""
+
+    def clear_doc_diffs(self) -> None:
+        """Clear document diff tree and related controls.
+
+        This method must also clear the property diff panel.
         """
 
     def show_repository(self, repo: GitRepository | None) -> None:
@@ -101,7 +110,7 @@ class DiffView(Protocol):
             callback: A callable that receives HistorySelection with item_kind and commit_hash
         """
 
-    def show_diff_trees(self, diffs: list[DiffTreePresentation]) -> None:
+    def show_doc_diffs(self, diffs: list[DiffTreePresentation]) -> None:
         """Display multiple diff trees (one per document).
 
         Args:

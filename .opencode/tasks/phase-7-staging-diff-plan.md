@@ -732,7 +732,7 @@ def _on_staging_selected(self) -> None:
     staged_paths = staged_result.data or []
     if not staged_paths:
         # No staged files - clear the view
-        self._view.show_diff_trees([])
+        self._view.show_doc_diffs([])
         return
 
     all_diff_results: list[DiffResult] = []
@@ -799,7 +799,7 @@ def present_diffs(self, diff_results: list[DiffResult], dirty_paths: set[str] | 
     missing_snapshot_paths = missing_snapshot_paths or []
 
     if not diff_results and not missing_snapshot_paths:
-        self._view.show_diff_trees([])
+        self._view.show_doc_diffs([])
         return
 
     presentations = []
@@ -835,7 +835,7 @@ def present_diffs(self, diff_results: list[DiffResult], dirty_paths: set[str] | 
     # Sort all presentations alphanumerically by git_path
     presentations.sort(key=lambda p: p.git_path)
 
-    self._view.show_diff_trees(presentations)
+    self._view.show_doc_diffs(presentations)
     ...
 ```
 

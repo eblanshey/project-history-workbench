@@ -2,7 +2,7 @@
 """File responsibility: Unit tests for DiffView protocol methods.
 
 These tests verify that the FakeDiffView correctly implements the DiffView
-protocol methods including show_diff_trees for multi-document display.
+protocol methods including show_doc_diffs for multi-document display.
 """
 
 from unittest.mock import MagicMock
@@ -105,10 +105,10 @@ class TestFakeDiffViewSetRefreshCallback:
 
 
 class TestFakeDiffViewShowDiffTrees:
-    """Tests for FakeDiffView.show_diff_trees() method."""
+    """Tests for FakeDiffView.show_doc_diffs() method."""
 
-    def test_show_diff_trees_accepts_list_of_diff_tree_presentation(self) -> None:
-        """show_diff_trees() accepts list[DiffTreePresentation] parameter."""
+    def test_show_doc_diffs_accepts_list_of_diff_tree_presentation(self) -> None:
+        """show_doc_diffs() accepts list[DiffTreePresentation] parameter."""
         # Arrange
         fake_view = FakeDiffView()
         diff_trees = [
@@ -128,17 +128,17 @@ class TestFakeDiffViewShowDiffTrees:
         ]
 
         # Act
-        fake_view.show_diff_trees(diff_trees)
+        fake_view.show_doc_diffs(diff_trees)
 
         # Assert
         calls = fake_view.get_calls()
         assert len(calls) == 1
-        assert calls[0]["method"] == "show_diff_trees"
+        assert calls[0]["method"] == "show_doc_diffs"
         assert len(calls[0]["diff_trees"]) == 1
         assert calls[0]["diff_trees"][0].git_path == "test/document.FCStd"
 
-    def test_show_diff_trees_with_multiple_documents(self) -> None:
-        """show_diff_trees() handles multiple diff trees correctly."""
+    def test_show_doc_diffs_with_multiple_documents(self) -> None:
+        """show_doc_diffs() handles multiple diff trees correctly."""
         # Arrange
         fake_view = FakeDiffView()
         diff_trees = [
@@ -155,26 +155,26 @@ class TestFakeDiffViewShowDiffTrees:
         ]
 
         # Act
-        fake_view.show_diff_trees(diff_trees)
+        fake_view.show_doc_diffs(diff_trees)
 
         # Assert
         calls = fake_view.get_calls()
         assert len(calls) == 1
-        assert calls[0]["method"] == "show_diff_trees"
+        assert calls[0]["method"] == "show_doc_diffs"
         assert len(calls[0]["diff_trees"]) == 2
         assert calls[0]["diff_trees"][0].git_path == "doc1.FCStd"
         assert calls[0]["diff_trees"][1].git_path == "doc2.FCStd"
 
-    def test_show_diff_trees_with_empty_list(self) -> None:
-        """show_diff_trees() handles empty list without errors."""
+    def test_show_doc_diffs_with_empty_list(self) -> None:
+        """show_doc_diffs() handles empty list without errors."""
         # Arrange
         fake_view = FakeDiffView()
 
         # Act
-        fake_view.show_diff_trees([])
+        fake_view.show_doc_diffs([])
 
         # Assert
         calls = fake_view.get_calls()
         assert len(calls) == 1
-        assert calls[0]["method"] == "show_diff_trees"
+        assert calls[0]["method"] == "show_doc_diffs"
         assert calls[0]["diff_trees"] == []

@@ -77,6 +77,7 @@ def compose_and_register_ui(container: ApplicationContainer) -> DiffPanelView:
         find_git_repo_action=container.find_active_git_repository_action,
         get_commits_action=container.get_commits_action,
         ui_state=ui_state,
+        clear_doc_diffs=diff_presenter.clear_doc_diff,
     )
     ui_registry.register_git_repository_presenter(git_repo_presenter)
     # Trigger git repository detection on workbench activation

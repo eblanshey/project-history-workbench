@@ -56,14 +56,14 @@ This is a pure UI/presenter fix that can be tested with existing unit tests and 
        """
        # Guard: No diff results stored
        if not self._diff_results_by_path:
-           self._view.show_properties([])
+           self._view.show_property_diff([])
            return
        
        # Look up the correct DiffResult for this document
        diff_result = self._diff_results_by_path.get(git_path)
        if diff_result is None:
            Log.debug(f"[PRESENTER] No DiffResult found for git_path: {git_path}")
-           self._view.show_properties([])
+           self._view.show_property_diff([])
            return
        
        # Find NodeDiff by path within this document's hierarchy
@@ -72,13 +72,13 @@ This is a pure UI/presenter fix that can be tested with existing unit tests and 
        # If not found, clear properties
        if node_diff is None:
            Log.debug(f"[PRESENTER] NodeDiff not found for path: {node_path} in document {git_path}")
-           self._view.show_properties([])
+           self._view.show_property_diff([])
            return
        
        # Transform and display property diffs
        properties = self._transform_property_diffs(node_diff)
        Log.debug(f"[PRESENTER] Transformed to {len(properties)} PropertyPresentation")
-       self._view.show_properties(properties)
+       self._view.show_property_diff(properties)
    ```
 
 2. **Update `diff_panel_view.py` - Store git_path and add callback wiring:**

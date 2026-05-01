@@ -2,6 +2,8 @@
 # File responsibility: Presents git repository information and manages commit loading in the UI.
 """Git repository presenter for UI layer."""
 
+from collections.abc import Callable
+
 from freecad.diff_wb.application.actions.find_active_git_repository import (
     FindActiveGitRepositoryAction,
 )
@@ -34,6 +36,7 @@ class GitRepositoryPresenter:
         find_git_repo_action: FindActiveGitRepositoryAction,
         get_commits_action: GetCommitsAction,
         ui_state: UIState,
+        clear_doc_diffs: Callable[[], None],
     ) -> None:
         """Initialize the presenter with required dependencies.
 
@@ -47,6 +50,7 @@ class GitRepositoryPresenter:
         self._find_git_repo_action = find_git_repo_action
         self._get_commits_action = get_commits_action
         self._ui_state = ui_state
+        self._clear_doc_diffs = clear_doc_diffs
         self._view.set_refresh_callback(self.on_refresh_clicked)
 
     def on_workbench_activated(self) -> None:
@@ -90,8 +94,7 @@ class GitRepositoryPresenter:
             self._ui_state.git_repository = None
             self._view.show_repository(None)
             self._view.show_commits([])
-            self._view.show_diff_trees([])
-            self._view.show_properties([])
+            self._clear_doc_diffs()
             Log.info(f"Git detection failed: {result.message}")
 
     def _load_commits(self, repo: GitRepository) -> None:
@@ -104,15 +107,10 @@ class GitRepositoryPresenter:
 
         if result.is_success:
             commits = result.data
-            # Clear diff displays before reloading commits to prevent stale data
-            # from previous selections remaining visible
-            self._view.show_diff_trees([])
-            self._view.show_properties([])
+            self._clear_doc_diffs()
             self._view.show_commits(commits)
         else:
-            # Clear diff displays even on failure
-            self._view.show_diff_trees([])
-            self._view.show_properties([])
+            self._clear_doc_diffs()
             # Show empty list on failure
             self._view.show_commits([])
             Log.warning(f"Failed to load commits: {result.message}")

@@ -381,7 +381,7 @@ class TestDiffPresenterOnCommitSelected:
 
         # Assert - only a single diff row is presented
         calls = fake_view.get_calls()
-        present_diffs_call = next((c for c in calls if c["method"] == "show_diff_trees"), None)
+        present_diffs_call = next((c for c in calls if c["method"] == "show_doc_diffs"), None)
         assert present_diffs_call is not None
         presentations = present_diffs_call["diff_trees"]
         assert len(presentations) == 1
@@ -475,7 +475,7 @@ class TestDiffPresenterOnCommitSelected:
         assert presenter._diff_results_by_path["doc.FCStd"] is mock_diff_result
 
     def test_on_commit_selected_no_changes_logs_info(self) -> None:
-        """When no FCStd files changed, logs info and shows empty diff trees."""
+        """When no FCStd files changed, logs info and clears doc diffs."""
         fake_view, presenter, mock_get_paths = _create_test_presenter()
 
         mock_repo = GitRepository(name="test-repo", absolute_path="/test/path")
@@ -490,11 +490,10 @@ class TestDiffPresenterOnCommitSelected:
         # Act
         presenter._on_commit_selected("abc123")
 
-        # Assert - show_diff_trees called with empty list
+        # Assert - clear_doc_diffs called
         calls = fake_view.get_calls()
-        show_trees_call = next((c for c in calls if c["method"] == "show_diff_trees"), None)
-        assert show_trees_call is not None
-        assert show_trees_call["diff_trees"] == []
+        clear_call = next((c for c in calls if c["method"] == "clear_doc_diffs"), None)
+        assert clear_call is not None
 
 
 class TestDiffPresenterComputeCommitDiffs:

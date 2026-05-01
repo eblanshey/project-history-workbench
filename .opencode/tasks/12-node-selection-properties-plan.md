@@ -218,20 +218,21 @@ def on_node_selected(self, path: str) -> None:
     """
     # Guard: No diff result stored
     if not hasattr(self, '_diff_result') or self._diff_result is None:
-        self._view.show_properties([])
+        self._view.show_property_diff([])
         return
-    
+
     # Find NodeDiff by path
     node_diff = self._find_node_diff_by_path(path, self._diff_result.node_diffs)
-    
+
     # If not found, clear properties
     if node_diff is None:
-        self._view.show_properties([])
+        self._view.show_property_diff([])
         return
-    
+
     # Transform property diffs to presentations
     properties = self._transform_property_diffs(node_diff)
-    self._view.show_properties(properties)
+    self._view.show_property_diff(properties)
+
 
 def _find_node_diff_by_path(self, path: str, node_diffs: list[NodeDiff]) -> NodeDiff | None:
     """Recursively find NodeDiff by path."""
@@ -245,6 +246,7 @@ def _find_node_diff_by_path(self, path: str, node_diffs: list[NodeDiff]) -> Node
                 return found
     return None
 
+
 def _transform_property_diffs(self, node_diff: NodeDiff) -> list[PropertyPresentation]:
     """Transform domain PropertyDiff to presentation format.
     
@@ -257,16 +259,16 @@ def _transform_property_diffs(self, node_diff: NodeDiff) -> list[PropertyPresent
         List of PropertyPresentation for UI display
     """
     presentations = []
-    
+
     for prop_diff in node_diff.property_diffs:
         # Skip unchanged properties
         if prop_diff.state == DiffState.UNCHANGED:
             continue
-        
+
         # Format display strings
         old_display = self._format_property_value(prop_diff.old_value)
         new_display = self._format_property_value(prop_diff.new_value)
-        
+
         # Create main property row
         presentations.append(PropertyPresentation(
             name=prop_diff.property_name,
@@ -274,31 +276,32 @@ def _transform_property_diffs(self, node_diff: NodeDiff) -> list[PropertyPresent
             new_display=new_display,
             state=prop_diff.state.name,
         ))
-        
+
         # Handle expression as separate row
         old_expr = getattr(prop_diff.old_value, 'expression', None) if prop_diff.old_value else None
         new_expr = getattr(prop_diff.new_value, 'expression', None) if prop_diff.new_value else None
-        
+
         if old_expr or new_expr:
             # Expression changed - add second row
             old_expr_display = f"+{old_expr}" if old_expr else "(none)"
             new_expr_display = f"+{new_expr}" if new_expr else "(none)"
-            
+
             # Determine expression state
             expr_state = "MODIFIED"
             if old_expr and not new_expr:
                 expr_state = "DELETED"
             elif not old_expr and new_expr:
                 expr_state = "ADDED"
-            
+
             presentations.append(PropertyPresentation(
                 name=f"{prop_diff.property_name} (expr)",
                 old_display=old_expr_display,
                 new_display=new_expr_display,
                 state=expr_state,
             ))
-    
+
     return presentations
+
 
 def _format_property_value(self, prop: Property | None) -> str:
     """Format property value for display.

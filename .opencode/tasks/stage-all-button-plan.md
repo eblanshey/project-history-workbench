@@ -86,12 +86,12 @@ def set_stage_all_callback(self, callback: Callable[[], None]) -> None:
 def present_diffs(self, diff_results, dirty_paths=None, missing_snapshot_paths=None):
     # ... existing logic ...
 
-    self._view.show_diff_trees(presentations)
+    self._view.show_doc_diffs(presentations)
 
     # Stage All button: only visible during Working Tree selection
     is_working_tree = (
-        self._view._current_selection is not None
-        and self._view._current_selection.item_kind == "WORKING_TREE"
+            self._view._current_selection is not None
+            and self._view._current_selection.item_kind == "WORKING_TREE"
     )
     if is_working_tree:
         # Enable if any presentation has stage_button_enabled

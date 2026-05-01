@@ -135,6 +135,7 @@ def show_diff_trees(self, diffs: list[DiffTreePresentation]) -> None:
 ```
 
 Code snippet (presenter assertion-oriented behavior):
+
 ```python
 # freecad/diff_wb/ui/presenters/diff_presenter.py
 for result in all_diff_results:
@@ -143,10 +144,12 @@ for result in all_diff_results:
         self._diff_results_by_path[key] = result
 
 ...
+
+
 def on_node_selected(self, git_path: str, node_path: str) -> None:
     diff_result = self._diff_results_by_path.get(git_path)
     if diff_result is None:
-        self._view.show_properties([])
+        self._view.show_property_diff([])
         return
     node_diff = diff_result.hierarchy.find_by_path(node_path)
     ...

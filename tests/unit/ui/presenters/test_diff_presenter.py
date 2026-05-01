@@ -62,7 +62,7 @@ class TestDiffPresenterGitPath:
     """Tests for DiffPresenter git_path display functionality."""
 
     def test_present_diff_passes_git_path_to_view(self) -> None:
-        """Passes git_path from new_snapshot to show_diff_tree."""
+        """Passes git_path from new_snapshot to show_doc_diff."""
         # Arrange
         fake_view, presenter = _create_test_presenter()
         hierarchy = DiffHierarchy()
@@ -86,9 +86,9 @@ class TestDiffPresenterGitPath:
         presenter.present_diff(diff_result)
 
         # Assert - calls: set_history_selection_callback (constructor),
-        # set_stage_all_callback (constructor), show_diff_tree
+        # set_stage_all_callback (constructor), show_doc_diff
         calls = fake_view.get_calls()
-        assert calls[2]["method"] == "show_diff_tree"
+        assert calls[2]["method"] == "show_doc_diff"
         assert calls[2]["git_path"] == "path/to/doc.FCStd"
 
     def test_present_diff_uses_document_name_when_git_path_empty(self) -> None:
@@ -116,9 +116,9 @@ class TestDiffPresenterGitPath:
         presenter.present_diff(diff_result)
 
         # Assert - calls: set_history_selection_callback (constructor),
-        # set_stage_all_callback (constructor), show_diff_tree
+        # set_stage_all_callback (constructor), show_doc_diff
         calls = fake_view.get_calls()
-        assert calls[2]["method"] == "show_diff_tree"
+        assert calls[2]["method"] == "show_doc_diff"
         assert calls[2]["git_path"] == "MyDocument"
 
 
@@ -126,7 +126,7 @@ class TestDiffPresenter:
     """Tests for DiffPresenter."""
 
     def test_present_diff_calls_view_methods(self) -> None:
-        """Calls set_history_selection_callback in constructor, then show_diff_tree and show_summary."""
+        """Calls set_history_selection_callback in constructor, then show_doc_diff and show_summary."""
         # Arrange
         fake_view, presenter = _create_test_presenter()
         # Create a node with no property changes so it's UNCHANGED
@@ -142,11 +142,11 @@ class TestDiffPresenter:
         presenter.present_diff(diff_result)
 
         # Assert - 4 calls: set_history_selection_callback (constructor),
-        # set_stage_all_callback (constructor), show_diff_tree, show_summary
+        # set_stage_all_callback (constructor), show_doc_diff, show_summary
         assert fake_view.get_call_count() == 4
         calls = fake_view.get_calls()
         assert calls[0]["method"] == "set_history_selection_callback"
-        assert calls[2]["method"] == "show_diff_tree"
+        assert calls[2]["method"] == "show_doc_diff"
         assert calls[3]["method"] == "show_summary"
 
     def test_formats_node_diffs_correctly(self) -> None:
@@ -170,7 +170,7 @@ class TestDiffPresenter:
         presenter.present_diff(diff_result)
 
         # Assert - calls: set_history_selection_callback (constructor),
-        # set_stage_all_callback (constructor), show_diff_tree
+        # set_stage_all_callback (constructor), show_doc_diff
         calls = fake_view.get_calls()
         nodes = calls[2]["nodes"]
         assert len(nodes) == 1
@@ -205,7 +205,7 @@ class TestDiffPresenter:
         presenter.present_diff(diff_result)
 
         # Assert - calls: set_history_selection_callback (constructor),
-        # set_stage_all_callback (constructor), show_diff_tree
+        # set_stage_all_callback (constructor), show_doc_diff
         calls = fake_view.get_calls()
         nodes = calls[2]["nodes"]
         presentation = nodes[0]
@@ -226,9 +226,9 @@ class TestDiffPresenter:
         presenter.present_diff(diff_result)
 
         # Assert - calls: set_history_selection_callback (constructor),
-        # set_stage_all_callback (constructor), show_diff_tree, show_summary
+        # set_stage_all_callback (constructor), show_doc_diff, show_summary
         calls = fake_view.get_calls()
-        assert calls[2]["method"] == "show_diff_tree"
+        assert calls[2]["method"] == "show_doc_diff"
         assert calls[2]["nodes"] == []
         assert calls[3]["method"] == "show_summary"
         assert calls[3]["changed_docs"] == 0
@@ -270,7 +270,7 @@ class TestDiffPresenter:
         presenter.present_diff(diff_result)
 
         # Assert - calls: set_history_selection_callback (constructor),
-        # set_stage_all_callback (constructor), show_diff_tree, show_summary
+        # set_stage_all_callback (constructor), show_doc_diff, show_summary
         calls = fake_view.get_calls()
         summary_call = calls[3]
         assert summary_call["changed_docs"] == 1
@@ -314,7 +314,7 @@ class TestDiffPresenterFormatsChildren:
         presenter.present_diff(diff_result)
 
         # Assert - calls: set_history_selection_callback (constructor),
-        # set_stage_all_callback (constructor), show_diff_tree
+        # set_stage_all_callback (constructor), show_doc_diff
         calls = fake_view.get_calls()
         presentations = calls[2]["nodes"]
         assert len(presentations) == 1
@@ -368,7 +368,7 @@ class TestDiffPresenterFormatsChildren:
         presenter.present_diff(diff_result)
 
         # Assert - calls: set_history_selection_callback (constructor),
-        # set_stage_all_callback (constructor), show_diff_tree
+        # set_stage_all_callback (constructor), show_doc_diff
         calls = fake_view.get_calls()
         presentations = calls[2]["nodes"]
 
@@ -425,7 +425,7 @@ class TestDiffPresenterFormatsChildren:
         presenter.present_diff(diff_result)
 
         # Assert - calls: set_history_selection_callback (constructor),
-        # set_stage_all_callback (constructor), show_diff_tree
+        # set_stage_all_callback (constructor), show_doc_diff
         calls = fake_view.get_calls()
         presentations = calls[2]["nodes"]
         assert len(presentations) == 1
@@ -471,10 +471,10 @@ class TestTransformPropertyDiffsWithChildren:
 
         # Assert
         calls = fake_view.get_calls()
-        # Find show_properties call
+        # Find show_property_diff call
         show_props_call = None
         for call in calls:
-            if call["method"] == "show_properties":
+            if call["method"] == "show_property_diff":
                 show_props_call = call
                 break
 
@@ -523,10 +523,10 @@ class TestTransformPropertyDiffsWithChildren:
 
         # Assert
         calls = fake_view.get_calls()
-        # Find show_properties call
+        # Find show_property_diff call
         show_props_call = None
         for call in calls:
-            if call["method"] == "show_properties":
+            if call["method"] == "show_property_diff":
                 show_props_call = call
                 break
 
@@ -578,10 +578,10 @@ class TestTransformPropertyDiffsWithChildren:
 
         # Assert
         calls = fake_view.get_calls()
-        # Find show_properties call
+        # Find show_property_diff call
         show_props_call = None
         for call in calls:
-            if call["method"] == "show_properties":
+            if call["method"] == "show_property_diff":
                 show_props_call = call
                 break
 
@@ -626,10 +626,10 @@ class TestTransformPropertyDiffsWithChildren:
 
         # Assert
         calls = fake_view.get_calls()
-        # Find the show_properties call
+        # Find the show_property_diff call
         show_props_call = None
         for call in calls:
-            if call["method"] == "show_properties":
+            if call["method"] == "show_property_diff":
                 show_props_call = call
                 break
 
@@ -760,7 +760,7 @@ class TestDiffPresenterPresentDiffs:
 
         # Assert
         calls = fake_view.get_calls()
-        show_trees_call = next((c for c in calls if c["method"] == "show_diff_trees"), None)
+        show_trees_call = next((c for c in calls if c["method"] == "show_doc_diffs"), None)
         assert show_trees_call is not None
         presentations = show_trees_call["diff_trees"]
         assert len(presentations) == 1
@@ -776,9 +776,8 @@ class TestDiffPresenterPresentDiffs:
 
         # Assert
         calls = fake_view.get_calls()
-        show_trees_call = next((c for c in calls if c["method"] == "show_diff_trees"), None)
-        assert show_trees_call is not None
-        assert show_trees_call["diff_trees"] == []
+        clear_call = next((c for c in calls if c["method"] == "clear_doc_diffs"), None)
+        assert clear_call is not None
 
     def test_present_diffs_counts_changed_documents(self) -> None:
         """present_diffs() shows number of documents with changes."""
@@ -1075,9 +1074,9 @@ class TestDiffPresenterWorkingTreeOrchestration:
         # Act
         presenter._on_working_tree_selected()
 
-        # Assert - show_diff_trees should be called with 2 presentations
+        # Assert - show_doc_diffs should be called with 2 presentations
         calls = fake_view.get_calls()
-        show_trees_call = next((c for c in calls if c["method"] == "show_diff_trees"), None)
+        show_trees_call = next((c for c in calls if c["method"] == "show_doc_diffs"), None)
         assert show_trees_call is not None
         assert len(show_trees_call["diff_trees"]) == 2
 
@@ -1109,16 +1108,8 @@ class TestDiffPresenterWorkingTreeOrchestration:
         assert presenter._diff_results_by_path == {}
 
         calls = fake_view.get_calls()
-        show_trees_call = next((c for c in calls if c["method"] == "show_diff_trees"), None)
-        assert show_trees_call is not None
-        assert show_trees_call["diff_trees"] == []
-
-        visible_call = next(
-            (c for c in calls if c["method"] == "set_stage_all_button_visible"),
-            None,
-        )
-        assert visible_call is not None
-        assert visible_call["visible"] is False
+        clear_call = next((c for c in calls if c["method"] == "clear_doc_diffs"), None)
+        assert clear_call is not None
 
 
 class TestDiffPresenterPresentDiffsDirtyPaths:
@@ -1147,7 +1138,7 @@ class TestDiffPresenterPresentDiffsDirtyPaths:
 
         # Assert
         calls = fake_view.get_calls()
-        show_trees_call = next((c for c in calls if c["method"] == "show_diff_trees"), None)
+        show_trees_call = next((c for c in calls if c["method"] == "show_doc_diffs"), None)
         assert show_trees_call is not None
         presentations = show_trees_call["diff_trees"]
         assert len(presentations) == 1
@@ -1455,7 +1446,7 @@ class TestDiffPresenterStageAllClicked:
         presenter._stage_documents.execute.assert_called_once_with(mock_repo, [snapshot_with_changes])
 
     def test_on_stage_all_clicked_refreshes_view_on_success(self) -> None:
-        """Refreshes the working tree view after successful staging."""
+        """Clears current diffs, then refreshes working tree after staging."""
         fake_view, presenter = _create_test_presenter()
 
         # Setup mock repo
@@ -1493,6 +1484,8 @@ class TestDiffPresenterStageAllClicked:
             presenter.on_stage_all_clicked()
 
             # Assert
+            clear_call = next((c for c in fake_view.get_calls() if c["method"] == "clear_doc_diffs"), None)
+            assert clear_call is not None
             mock_refresh.assert_called_once()
 
     def test_on_stage_all_clicked_failure_logs_warning(self) -> None:
@@ -1893,16 +1886,8 @@ class TestDiffPresenterStageAllButtonEdgeCasesNoDiff:
         assert presenter._diff_results_by_path == {}
 
         calls = fake_view.get_calls()
-        show_trees_call = next((c for c in calls if c["method"] == "show_diff_trees"), None)
-        assert show_trees_call is not None
-        assert show_trees_call["diff_trees"] == []
-
-        visible_call = next(
-            (c for c in calls if c["method"] == "set_stage_all_button_visible"),
-            None,
-        )
-        assert visible_call is not None
-        assert visible_call["visible"] is False
+        clear_call = next((c for c in calls if c["method"] == "clear_doc_diffs"), None)
+        assert clear_call is not None
 
 
 class TestDiffPresenterStagingSelection:
@@ -1985,7 +1970,7 @@ class TestDiffPresenterStagingSelection:
         presenter._on_staging_selected()
         presenter.on_node_selected("a.FCStd", "Body")
 
-        prop_calls = [c for c in fake_view.get_calls() if c["method"] == "show_properties"]
+        prop_calls = [c for c in fake_view.get_calls() if c["method"] == "show_property_diff"]
         assert prop_calls
         assert len(prop_calls[-1]["properties"]) == 1
 
@@ -2017,9 +2002,8 @@ class TestDiffPresenterStagingSelection:
         presenter._on_staging_selected()
         presenter.on_node_selected("a.FCStd", "Body")
 
-        prop_calls = [c for c in fake_view.get_calls() if c["method"] == "show_properties"]
-        assert prop_calls
-        assert prop_calls[-1]["properties"] == []
+        clear_calls = [c for c in fake_view.get_calls() if c["method"] == "clear_property_diff"]
+        assert clear_calls
 
 
 class TestDiffPresenterStageAllButtonEdgeCases:
@@ -2037,12 +2021,8 @@ class TestDiffPresenterStageAllButtonEdgeCases:
 
         # Assert
         calls = fake_view.get_calls()
-        visible_call = next(
-            (c for c in calls if c["method"] == "set_stage_all_button_visible"),
-            None,
-        )
-        assert visible_call is not None
-        assert visible_call["visible"] is False
+        clear_call = next((c for c in calls if c["method"] == "clear_doc_diffs"), None)
+        assert clear_call is not None
 
     def test_on_staging_selected_no_staged_files_hides_stage_all_button(self) -> None:
         """Selecting Staging with no staged files hides the Stage All button."""
@@ -2106,16 +2086,8 @@ class TestDiffPresenterStageAllButtonEdgeCases:
         assert presenter._diff_results_by_path == {}
 
         calls = fake_view.get_calls()
-        show_trees_call = next((c for c in calls if c["method"] == "show_diff_trees"), None)
-        assert show_trees_call is not None
-        assert show_trees_call["diff_trees"] == []
-
-        visible_call = next(
-            (c for c in calls if c["method"] == "set_stage_all_button_visible"),
-            None,
-        )
-        assert visible_call is not None
-        assert visible_call["visible"] is False
+        clear_call = next((c for c in calls if c["method"] == "clear_doc_diffs"), None)
+        assert clear_call is not None
 
 
 class TestDiffPresenterRuntimePrecision:
@@ -2164,7 +2136,7 @@ class TestDiffPresenterRuntimePrecision:
 
         # Assert - check that format uses 4 decimal places
         calls = fake_view.get_calls()
-        show_props_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        show_props_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert show_props_call is not None
 
         properties = show_props_call["properties"]
@@ -2256,7 +2228,7 @@ class TestDiffPresenterFormatFloatsWithPrecision:
 
         # Assert - check precision=5 formatting
         calls = fake_view.get_calls()
-        show_props_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        show_props_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert show_props_call is not None
 
         properties = show_props_call["properties"]

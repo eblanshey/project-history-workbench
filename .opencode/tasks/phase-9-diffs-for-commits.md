@@ -208,6 +208,7 @@ def _compute_commit_diffs(
   - Call `present_diffs(diff_results, missing_snapshot_paths=missing_paths)`
 
 **Code snippet — _on_commit_selected implementation:**
+
 ```python
 def _on_commit_selected(self, commit_hash: str) -> None:
     """Handle commit item selection.
@@ -234,7 +235,7 @@ def _on_commit_selected(self, commit_hash: str) -> None:
         self.present_diffs(all_diff_results, set(), missing_paths)
     else:
         Log.info(f"No FCStd files changed in commit {commit_hash}")
-        self._view.show_diff_trees([])
+        self._view.show_doc_diffs([])
 ```
 
 - [x] Update `composer.py` to pass `get_committed_file_paths_action` to `DiffPresenter`

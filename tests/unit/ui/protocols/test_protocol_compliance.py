@@ -67,20 +67,20 @@ class TestDiffViewProtocolCompliance:
                 f"show_loading parameter '{param.name}' has no default, but protocol allows calling with no arguments"
             )
 
-    def test_show_diff_tree_accepts_list(self) -> None:
-        """show_diff_tree must accept list parameter."""
+    def test_show_doc_diff_accepts_list(self) -> None:
+        """show_doc_diff must accept list parameter."""
         import inspect
 
         from freecad.diff_wb.ui.views.diff_panel_view import DiffPanelView
 
-        sig = inspect.signature(DiffPanelView.show_diff_tree)
+        sig = inspect.signature(DiffPanelView.show_doc_diff)
         params = list(sig.parameters.values())
 
         # Remove 'self' if present
         if params and params[0].name == "self":
             params = params[1:]
 
-        assert len(params) >= 1, "show_diff_tree missing 'nodes' parameter"
+        assert len(params) >= 1, "show_doc_diff missing 'nodes' parameter"
         assert params[0].name == "nodes", f"Expected 'nodes' parameter, got '{params[0].name}'"
 
     def test_show_summary_accepts_changed_docs_integer(self) -> None:
@@ -178,10 +178,10 @@ class TestProtocolValidationUtility:
             def show_loading(self) -> None:
                 pass
 
-            def show_diff_tree(self, nodes: list[Any], git_path: str = "") -> None:
+            def show_doc_diff(self, nodes: list[Any], git_path: str = "") -> None:
                 pass
 
-            def show_diff_trees(self, diffs: list[Any]) -> None:
+            def show_doc_diffs(self, diffs: list[Any]) -> None:
                 pass
 
             def show_summary(self, changed_docs: int) -> None:
@@ -190,7 +190,13 @@ class TestProtocolValidationUtility:
             def show_error(self, message: str) -> None:
                 pass
 
-            def show_properties(self, properties: list[Any]) -> None:
+            def show_property_diff(self, properties: list[Any]) -> None:
+                pass
+
+            def clear_property_diff(self) -> None:
+                pass
+
+            def clear_doc_diffs(self) -> None:
                 pass
 
             def show_repository(self, repo: object | None) -> None:

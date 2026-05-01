@@ -69,7 +69,7 @@ class TestDiffPresenterPropertyHandling:
     """Tests for DiffPresenter property handling methods."""
 
     def test_on_node_selected_with_valid_path_calls_view(self) -> None:
-        """When path is valid, view.show_properties() is called with PropertyPresentation list."""
+        """When path is valid, view.show_property_diff() is called with PropertyPresentation list."""
         # Arrange
         fake_view, presenter = _create_test_presenter()
 
@@ -97,9 +97,9 @@ class TestDiffPresenterPropertyHandling:
 
         # Assert
         calls = fake_view.get_calls()
-        # Verify show_properties was called
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
-        assert prop_call is not None, "show_properties should be called"
+        # Verify show_property_diff was called
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
+        assert prop_call is not None, "show_property_diff should be called"
         properties = prop_call["properties"]
         assert len(properties) == 1
         # Verify the property presentation has correct fields
@@ -132,10 +132,8 @@ class TestDiffPresenterPropertyHandling:
 
         # Assert
         calls = fake_view.get_calls()
-        # Verify show_properties was called with empty list
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
-        assert prop_call is not None, "show_properties should be called"
-        assert prop_call["properties"] == []
+        clear_call = next((c for c in calls if c["method"] == "clear_property_diff"), None)
+        assert clear_call is not None, "clear_property_diff should be called"
 
     def test_on_node_selected_with_no_diff_result_clears_properties(self) -> None:
         """When no diff computed, clears properties."""
@@ -148,10 +146,8 @@ class TestDiffPresenterPropertyHandling:
 
         # Assert
         calls = fake_view.get_calls()
-        # Verify show_properties was called with empty list
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
-        assert prop_call is not None, "show_properties should be called"
-        assert prop_call["properties"] == []
+        clear_call = next((c for c in calls if c["method"] == "clear_property_diff"), None)
+        assert clear_call is not None, "clear_property_diff should be called"
 
     def test_expression_nested_under_path_row(self) -> None:
         """Expression rows are nested under path rows, not flat siblings.
@@ -186,7 +182,7 @@ class TestDiffPresenterPropertyHandling:
 
         # Assert
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
 
         properties = prop_call["properties"]
@@ -240,7 +236,7 @@ class TestDiffPresenterPropertyHandling:
 
         # Assert
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
 
         properties = prop_call["properties"]
@@ -287,7 +283,7 @@ class TestDiffPresenterPropertyHandling:
 
         # Assert
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
 
         properties = prop_call["properties"]
@@ -328,7 +324,7 @@ class TestDiffPresenterPropertyHandling:
 
         # Assert
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
 
         properties = prop_call["properties"]
@@ -388,7 +384,7 @@ class TestDiffPresenterPropertyHandling:
 
         # Assert
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
         properties = prop_call["properties"]
         assert len(properties) == 1
@@ -418,7 +414,7 @@ class TestDiffPresenterPropertyHandling:
 
         # Assert
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
         assert prop_call["properties"] == []
 
@@ -461,7 +457,7 @@ class TestPropertyValueTypeExtraction:
 
         # Assert
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
 
         properties = prop_call["properties"]
@@ -504,7 +500,7 @@ class TestPropertyValueTypeExtraction:
 
         # Assert
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
 
         properties = prop_call["properties"]
@@ -556,7 +552,7 @@ class TestPropertyValueTypeExtraction:
 
         # Assert
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
 
         properties = prop_call["properties"]
@@ -611,7 +607,7 @@ class TestPropertyValueTypeExtraction:
 
         # Assert
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
 
         properties = prop_call["properties"]
@@ -652,7 +648,7 @@ class TestPropertyValueTypeExtraction:
 
         # Assert
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
 
         properties = prop_call["properties"]
@@ -693,7 +689,7 @@ class TestPropertyValueTypeExtraction:
 
         # Assert
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
 
         properties = prop_call["properties"]
@@ -732,7 +728,7 @@ class TestPropertyValueTypeExtraction:
 
         # Assert
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
 
         properties = prop_call["properties"]
@@ -774,7 +770,7 @@ class TestPhase2OldValueAndExpression:
 
         # Assert
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
 
         properties = prop_call["properties"]
@@ -813,7 +809,7 @@ class TestPhase2OldValueAndExpression:
 
         # Assert
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
 
         properties = prop_call["properties"]
@@ -851,7 +847,7 @@ class TestPhase2OldValueAndExpression:
 
         # Assert
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
 
         properties = prop_call["properties"]
@@ -892,7 +888,7 @@ class TestPhase2OldValueAndExpression:
 
         # Assert
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
 
         properties = prop_call["properties"]
@@ -930,7 +926,7 @@ class TestPhase2OldValueAndExpression:
 
         # Assert
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
 
         properties = prop_call["properties"]
@@ -971,7 +967,7 @@ class TestPhase2OldValueAndExpression:
 
         # Assert
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
 
         properties = prop_call["properties"]
@@ -1025,7 +1021,7 @@ class TestQuantityPropertyPresentation:
         presenter.on_node_selected("\x02", "Part")
 
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
         prop_pres = prop_call["properties"][0]
 
@@ -1078,7 +1074,7 @@ class TestQuantityPropertyPresentation:
         presenter.on_node_selected("\x02", "Part")
 
         calls = fake_view.get_calls()
-        prop_call = next((c for c in calls if c["method"] == "show_properties"), None)
+        prop_call = next((c for c in calls if c["method"] == "show_property_diff"), None)
         assert prop_call is not None
         prop_pres = prop_call["properties"][0]
 

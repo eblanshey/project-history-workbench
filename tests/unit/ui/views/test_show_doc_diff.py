@@ -1,4 +1,4 @@
-"""File responsibility: Unit tests for DiffPanelView.show_diff_tree() implementation.
+"""File responsibility: Unit tests for DiffPanelView.show_doc_diff() implementation.
 
 These tests verify that the diff tree is correctly rendered with color-coded nodes,
 proper hierarchy, and correct handling of different node states (ADDED, DELETED,
@@ -31,10 +31,10 @@ def panel() -> DiffPanelView:
 
 
 class TestShowDiffTreeEmptyList:
-    """Tests for show_diff_tree() with empty list."""
+    """Tests for show_doc_diff() with empty list."""
 
-    def test_show_diff_tree_with_empty_list_clears_tree(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_diff_tree() clears tree when given empty list."""
+    def test_show_doc_diff_with_empty_list_clears_tree(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """show_doc_diff() clears tree when given empty list."""
         from freecad.diff_wb.ui.presenters.presentation_models import NodePresentation
 
         # Given: Tree has some items
@@ -46,18 +46,18 @@ class TestShowDiffTreeEmptyList:
             has_changes=True,
             children=[],
         )
-        panel.show_diff_tree([root_node])
+        panel.show_doc_diff([root_node])
         assert panel.tree_widget.topLevelItemCount() == 1
 
         # When: Show empty list
-        panel.show_diff_tree([])
+        panel.show_doc_diff([])
 
         # Then: Tree is cleared (empty nodes means no display)
         assert panel.tree_widget.topLevelItemCount() == 0
 
 
 class TestShowDiffTreeMixedStates:
-    """Tests for show_diff_tree() with mixed node states."""
+    """Tests for show_doc_diff() with mixed node states."""
 
     def test_added_nodes_shown_with_green_background(self, panel) -> None:  # type: ignore[no-untyped-def]
         """ADDED nodes display with light green background."""
@@ -76,7 +76,7 @@ class TestShowDiffTreeMixedStates:
         )
 
         # When: Show tree with ADDED node
-        panel.show_diff_tree([added_node])
+        panel.show_doc_diff([added_node])
 
         # Then: Root item exists and child has green background
         root_item = panel.tree_widget.topLevelItem(0)
@@ -103,7 +103,7 @@ class TestShowDiffTreeMixedStates:
         )
 
         # When: Show tree with DELETED node
-        panel.show_diff_tree([deleted_node])
+        panel.show_doc_diff([deleted_node])
 
         # Then: Root item exists and child has red background
         root_item = panel.tree_widget.topLevelItem(0)
@@ -130,7 +130,7 @@ class TestShowDiffTreeMixedStates:
         )
 
         # When: Show tree with MODIFIED node
-        panel.show_diff_tree([modified_node])
+        panel.show_doc_diff([modified_node])
 
         # Then: Root item exists and child has blue background
         root_item = panel.tree_widget.topLevelItem(0)
@@ -157,7 +157,7 @@ class TestShowDiffTreeMixedStates:
         )
 
         # When: Show tree with UNCHANGED node
-        panel.show_diff_tree([unchanged_node])
+        panel.show_doc_diff([unchanged_node])
 
         # Then: Root item exists and child has default background (not colored)
         root_item = panel.tree_widget.topLevelItem(0)
@@ -187,7 +187,7 @@ class TestShowDiffTreeMixedStates:
         )
 
         # When: Show tree with the node
-        panel.show_diff_tree([test_node])
+        panel.show_doc_diff([test_node])
 
         # Then: Path is retrievable from UserRole on child item (root is git_path wrapper)
         root_item = panel.tree_widget.topLevelItem(0)
@@ -216,7 +216,7 @@ class TestDisplayNameExtractionEdgeCases:
         )
 
         # When: Show tree with the node
-        panel.show_diff_tree([node])
+        panel.show_doc_diff([node])
 
         # Then: Root exists and child shows label with empty name (no path segment)
         root_item = panel.tree_widget.topLevelItem(0)
@@ -240,7 +240,7 @@ class TestDisplayNameExtractionEdgeCases:
         )
 
         # When: Show tree with the node
-        panel.show_diff_tree([node])
+        panel.show_doc_diff([node])
 
         # Then: Root exists and child shows empty string (label == name == "")
         root_item = panel.tree_widget.topLevelItem(0)
@@ -264,7 +264,7 @@ class TestDisplayNameExtractionEdgeCases:
         )
 
         # When: Show tree with the node
-        panel.show_diff_tree([node])
+        panel.show_doc_diff([node])
 
         # Then: Root exists and child shows label without parentheses (label == name)
         root_item = panel.tree_widget.topLevelItem(0)
@@ -275,7 +275,7 @@ class TestDisplayNameExtractionEdgeCases:
 
 
 class TestShowDiffTreeHierarchy:
-    """Tests for show_diff_tree() tree hierarchy."""
+    """Tests for show_doc_diff() tree hierarchy."""
 
     def test_children_appear_nested_under_parents(self, panel) -> None:  # type: ignore[no-untyped-def]
         """Child nodes appear nested under their parent nodes."""
@@ -308,7 +308,7 @@ class TestShowDiffTreeHierarchy:
         )
 
         # When: Show tree with parent and children
-        panel.show_diff_tree([parent])
+        panel.show_doc_diff([parent])
 
         # Then: Root item exists, parent is its child, grand-children are nested under parent
         assert panel.tree_widget.topLevelItemCount() == 1
@@ -352,7 +352,7 @@ class TestShowDiffTreeHierarchy:
         )
 
         # When: Show deeply nested tree
-        panel.show_diff_tree([parent])
+        panel.show_doc_diff([parent])
 
         # Then: All levels present under root wrapper
         root_item = panel.tree_widget.topLevelItem(0)
@@ -390,7 +390,7 @@ class TestShowDiffTreeHierarchy:
         )
 
         # When: Show tree with multiple roots
-        panel.show_diff_tree([root1, root2])
+        panel.show_doc_diff([root1, root2])
 
         # Then: Both appear as children of the single root wrapper item
         assert panel.tree_widget.topLevelItemCount() == 1
@@ -402,7 +402,7 @@ class TestShowDiffTreeHierarchy:
 
 
 class TestShowDiffTreeExpandCollapse:
-    """Tests for show_diff_tree() expand/collapse functionality."""
+    """Tests for show_doc_diff() expand/collapse functionality."""
 
     def test_nodes_expanded_by_default(self, panel) -> None:  # type: ignore[no-untyped-def]
         """All nodes are expanded by default for immediate visibility."""
@@ -427,7 +427,7 @@ class TestShowDiffTreeExpandCollapse:
         )
 
         # When: Show tree
-        panel.show_diff_tree([parent])
+        panel.show_doc_diff([parent])
 
         # Then: Children are visible (expanded by default)
         root_item = panel.tree_widget.topLevelItem(0)
@@ -443,7 +443,7 @@ class TestShowDiffTreeExpandCollapse:
 
 
 class TestShowDiffTreeScrolling:
-    """Tests for show_diff_tree() scrollable content."""
+    """Tests for show_doc_diff() scrollable content."""
 
     def test_tree_is_scrollable_when_content_exceeds_view(self, panel) -> None:  # type: ignore[no-untyped-def]
         """Tree widget provides scrolling when content exceeds viewport."""
@@ -463,7 +463,7 @@ class TestShowDiffTreeScrolling:
         ]
 
         # When: Show tree with many nodes
-        panel.show_diff_tree(nodes)
+        panel.show_doc_diff(nodes)
 
         # Then: All nodes are present as children of root wrapper
         assert panel.tree_widget.topLevelItemCount() == 1
@@ -476,7 +476,7 @@ class TestShowDiffTreeScrolling:
 
 
 class TestShowDiffTreeGitPath:
-    """Tests for show_diff_tree() git_path top-level item functionality."""
+    """Tests for show_doc_diff() git_path top-level item functionality."""
 
     def test_git_path_displayed_as_top_level_item(self, panel) -> None:  # type: ignore[no-untyped-def]
         """Tree widget displays git_path as top-level item when provided."""
@@ -494,7 +494,7 @@ class TestShowDiffTreeGitPath:
         git_path = "path/to/document.FCStd"
 
         # When: Show tree with git_path
-        panel.show_diff_tree([node], git_path)
+        panel.show_doc_diff([node], git_path)
 
         # Then: Top-level item shows git_path
         assert panel.tree_widget.topLevelItemCount() == 1
@@ -526,7 +526,7 @@ class TestShowDiffTreeGitPath:
         git_path = "projects/myproject/doc.FCStd"
 
         # When: Show tree with multiple nodes and git_path
-        panel.show_diff_tree([child1, child2], git_path)
+        panel.show_doc_diff([child1, child2], git_path)
 
         # Then: Root item contains all nodes as children
         root_item = panel.tree_widget.topLevelItem(0)
@@ -552,7 +552,7 @@ class TestShowDiffTreeGitPath:
         git_path = ""
 
         # When: Show tree with empty git_path
-        panel.show_diff_tree([node], git_path)
+        panel.show_doc_diff([node], git_path)
 
         # Then: Falls back to "Unnamed Document"
         root_item = panel.tree_widget.topLevelItem(0)
@@ -583,7 +583,7 @@ class TestShowDiffTreeGitPath:
         git_path = "repo/docs/model.FCStd"
 
         # When: Show nested tree with git_path
-        panel.show_diff_tree([child], git_path)
+        panel.show_doc_diff([child], git_path)
 
         # Then: Structure preserved under git_path root
         root_item = panel.tree_widget.topLevelItem(0)
@@ -600,15 +600,15 @@ class TestShowDiffTreeGitPath:
 
 
 class TestShowDiffTreesSelectionKeyWiring:
-    """Tests for show_diff_trees() root key and click callback wiring."""
+    """Tests for show_doc_diffs() root key and click callback wiring."""
 
-    def test_show_diff_trees_stores_fallback_root_key_in_user_role(self, panel) -> None:  # type: ignore[no-untyped-def]
+    def test_show_doc_diffs_stores_fallback_root_key_in_user_role(self, panel) -> None:  # type: ignore[no-untyped-def]
         """Root item stores fallback selection key when git_path is empty."""
         from PySide6.QtCore import Qt
 
         from freecad.diff_wb.ui.presenters.presentation_models import DiffTreePresentation
 
-        panel.show_diff_trees([DiffTreePresentation(nodes=[], git_path="", warnings=[])])
+        panel.show_doc_diffs([DiffTreePresentation(nodes=[], git_path="", warnings=[])])
 
         root_item = panel.tree_widget.topLevelItem(0)
         assert root_item is not None
@@ -625,7 +625,7 @@ class TestShowDiffTreesSelectionKeyWiring:
             captured.append((git_path, node_path))
 
         panel.set_node_selection_callback(callback)
-        panel.show_diff_trees(
+        panel.show_doc_diffs(
             [
                 DiffTreePresentation(
                     nodes=[
@@ -655,15 +655,15 @@ class TestShowDiffTreesSelectionKeyWiring:
 
 
 class TestShowDiffTreesWarningDisplay:
-    """Tests for warning indicator rendering in show_diff_trees()."""
+    """Tests for warning indicator rendering in show_doc_diffs()."""
 
-    def test_show_diff_trees_warning_is_tooltip_only(self, panel) -> None:  # type: ignore[no-untyped-def]
+    def test_show_doc_diffs_warning_is_tooltip_only(self, panel) -> None:  # type: ignore[no-untyped-def]
         """Warnings are exposed via tooltip and not as inline orange text labels."""
         from PySide6.QtWidgets import QLabel
 
         from freecad.diff_wb.ui.presenters.presentation_models import DiffTreePresentation
 
-        panel.show_diff_trees(
+        panel.show_doc_diffs(
             [
                 DiffTreePresentation(
                     nodes=[],

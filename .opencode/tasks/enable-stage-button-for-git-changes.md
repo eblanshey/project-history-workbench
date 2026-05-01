@@ -484,6 +484,7 @@ def _on_working_tree_selected(self) -> None:
 ```
 
 4. Update `present_diffs` signature and implementation:
+
 ```python
 def present_diffs(self, diff_results: list[DiffResult], dirty_paths: set[str] | None = None) -> None:
     """Transform multiple DiffResults into presentation models and display.
@@ -493,29 +494,29 @@ def present_diffs(self, diff_results: list[DiffResult], dirty_paths: set[str] | 
         dirty_paths: Set of git paths that have git-tracked changes.
     """
     dirty_paths = dirty_paths or set()
-    
+
     if not diff_results:
-        self._view.show_diff_trees([])
+        self._view.show_doc_diffs([])
         return
-    
+
     presentations = []
     for diff_result in diff_results:
         nodes = [self._format_node(node) for node in diff_result.hierarchy.roots]
         git_path = diff_result.new_snapshot.git_path or diff_result.new_snapshot.document_name
         warnings = list(diff_result.warnings)
-        
+
         # Check if this document's git path is in dirty set
         is_git_dirty = git_path in dirty_paths
-        
+
         presentations.append(DiffTreePresentation(
-            nodes=nodes, 
-            git_path=git_path, 
+            nodes=nodes,
+            git_path=git_path,
             warnings=warnings,
             is_git_dirty=is_git_dirty  # NEW field
         ))
-    
-    self._view.show_diff_trees(presentations)
-    
+
+    self._view.show_doc_diffs(presentations)
+
     # Show summary from first document (for now)
     first = diff_results[0]
     self._view.show_summary(

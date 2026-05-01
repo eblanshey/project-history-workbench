@@ -1,4 +1,4 @@
-"""File responsibility: Unit tests for DiffPanelView.show_properties() method with QTreeWidget.
+"""File responsibility: Unit tests for DiffPanelView.show_property_diff() method with QTreeWidget.
 
 These tests verify that the DiffPanelView correctly populates the properties
 tree widget with PropertyPresentation data, including:
@@ -32,15 +32,15 @@ def panel() -> object:
     return DiffPanelView()
 
 
-class TestDiffPanelViewShowPropertiesTree:
-    """Tests for DiffPanelView.show_properties() method with QTreeWidget."""
+class TestDiffPanelViewShowPropertyDiff:
+    """Tests for DiffPanelView.show_property_diff() method with QTreeWidget."""
 
     def test_empty_property_list_clears_tree(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() with empty list clears the properties tree."""
+        """show_property_diff() with empty list clears the properties tree."""
         # Given: Tree has existing items from previous call
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
-        panel.show_properties(
+        panel.show_property_diff(
             [
                 PropertyPresentation(
                     name="Length",
@@ -50,14 +50,14 @@ class TestDiffPanelViewShowPropertiesTree:
         )
         assert panel.properties_tree.topLevelItemCount() == 1
 
-        # When: Call show_properties with empty list
-        panel.show_properties([])
+        # When: Call show_property_diff with empty list
+        panel.show_property_diff([])
 
         # Then: Tree should be cleared
         assert panel.properties_tree.topLevelItemCount() == 0
 
     def test_single_property_added_state_green_background(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() with ADDED state displays green background in 3-column layout."""
+        """show_property_diff() with ADDED state displays green background in 3-column layout."""
         from PySide6.QtGui import QColor
 
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
@@ -72,8 +72,8 @@ class TestDiffPanelViewShowPropertiesTree:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Should have one group with one property child
         assert panel.properties_tree.topLevelItemCount() == 1  # One group header
@@ -103,7 +103,7 @@ class TestDiffPanelViewShowPropertiesTree:
         assert prop_item.background(2).color() == QColor(200, 255, 200)
 
     def test_single_property_deleted_state_red_background(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() with DELETED state displays red background in 3-column layout."""
+        """show_property_diff() with DELETED state displays red background in 3-column layout."""
         from PySide6.QtGui import QColor
 
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
@@ -118,8 +118,8 @@ class TestDiffPanelViewShowPropertiesTree:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Should have one group with one property child
         assert panel.properties_tree.topLevelItemCount() == 1
@@ -144,7 +144,7 @@ class TestDiffPanelViewShowPropertiesTree:
         assert prop_item.background(2).color() == QColor(255, 200, 200)
 
     def test_single_property_modified_state_blue_background(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() with MODIFIED state displays blue background in 3-column layout."""
+        """show_property_diff() with MODIFIED state displays blue background in 3-column layout."""
         from PySide6.QtGui import QColor
 
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
@@ -159,8 +159,8 @@ class TestDiffPanelViewShowPropertiesTree:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Check the property has blue background
         group_item = panel.properties_tree.topLevelItem(0)
@@ -207,8 +207,8 @@ class TestDiffPanelViewShowPropertiesTree:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Verify column values and background color
         group_item = panel.properties_tree.topLevelItem(0)
@@ -221,7 +221,7 @@ class TestDiffPanelViewShowPropertiesTree:
         assert prop_item.background(2).color() == expected_bg
 
     def test_property_with_unchanged_state_gray_background(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() includes all properties with UNCHANGED state shown with gray background in 3-column layout."""
+        """show_property_diff() includes all properties with UNCHANGED state shown with gray background in 3-column layout."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         # Given: Mix of changed and unchanged properties
@@ -246,8 +246,8 @@ class TestDiffPanelViewShowPropertiesTree:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Should have 1 group with 3 property children
         assert panel.properties_tree.topLevelItemCount() == 1
@@ -299,7 +299,7 @@ class TestDiffPanelViewShowPropertiesTree:
             ),
         ]
 
-        panel.show_properties(properties)
+        panel.show_property_diff(properties)
 
         group_item = panel.properties_tree.topLevelItem(0)
         prop_item = group_item.child(0)
@@ -309,15 +309,15 @@ class TestDiffPanelViewShowPropertiesTree:
         assert prop_item.background(2).color() == expected_bg
 
     def test_empty_list_initially_shows_no_items(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() with empty list shows no items initially."""
-        # When: Call show_properties with empty list on fresh panel
-        panel.show_properties([])
+        """show_property_diff() with empty list shows no items initially."""
+        # When: Call show_property_diff with empty list on fresh panel
+        panel.show_property_diff([])
 
         # Then: Tree should have zero top-level items
         assert panel.properties_tree.topLevelItemCount() == 0
 
     def test_group_header_is_non_selectable(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() creates group headers that are not selectable."""
+        """show_property_diff() creates group headers that are not selectable."""
         from PySide6.QtCore import Qt
 
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
@@ -330,8 +330,8 @@ class TestDiffPanelViewShowPropertiesTree:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Group header should not be selectable
         group_item = panel.properties_tree.topLevelItem(0)
@@ -340,7 +340,7 @@ class TestDiffPanelViewShowPropertiesTree:
         assert not (flags & Qt.ItemFlag.ItemIsSelectable)
 
     def test_group_header_has_gray_background(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() creates group headers with gray background on all 3 columns."""
+        """show_property_diff() creates group headers with gray background on all 3 columns."""
         from PySide6.QtGui import QColor
 
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
@@ -353,8 +353,8 @@ class TestDiffPanelViewShowPropertiesTree:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Group header should have gray background (220, 220, 220) on all 3 columns
         group_item = panel.properties_tree.topLevelItem(0)
@@ -363,7 +363,7 @@ class TestDiffPanelViewShowPropertiesTree:
         assert group_item.background(2).color() == QColor(220, 220, 220)
 
     def test_group_header_is_bold(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() creates group headers with bold font."""
+        """show_property_diff() creates group headers with bold font."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         # Given: Properties to display
@@ -374,8 +374,8 @@ class TestDiffPanelViewShowPropertiesTree:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Group header font should be bold
         group_item = panel.properties_tree.topLevelItem(0)
@@ -383,7 +383,7 @@ class TestDiffPanelViewShowPropertiesTree:
         assert font.bold()
 
     def test_groups_are_expanded_by_default(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() expands groups by default so properties are visible."""
+        """show_property_diff() expands groups by default so properties are visible."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         # Given: Properties to display
@@ -394,15 +394,15 @@ class TestDiffPanelViewShowPropertiesTree:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Group should be expanded
         group_item = panel.properties_tree.topLevelItem(0)
         assert group_item.isExpanded()
 
     def test_multiple_group_headers_displayed_correctly(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() displays multiple groups as separate headers."""
+        """show_property_diff() displays multiple groups as separate headers."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         # Given: Properties from different groups (e.g., "Base" and "Format")
@@ -429,8 +429,8 @@ class TestDiffPanelViewShowPropertiesTree:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Should have 2 group headers
         assert panel.properties_tree.topLevelItemCount() == 2
@@ -465,7 +465,7 @@ class TestDiffPanelViewExpandableProperties:
     """Tests for expandable properties in the tree widget."""
 
     def test_placement_property_marked_as_expandable(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() marks Placement property as expandable."""
+        """show_property_diff() marks Placement property as expandable."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         # Given: A Placement property
@@ -476,8 +476,8 @@ class TestDiffPanelViewExpandableProperties:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: The Placement property item should exist and can be expanded
         group_item = panel.properties_tree.topLevelItem(0)
@@ -490,7 +490,7 @@ class TestDiffPanelViewExpandableProperties:
         assert prop_item.isExpanded() is False or prop_item.childCount() >= 0
 
     def test_rotation_property_marked_as_expandable(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() marks Rotation property as expandable."""
+        """show_property_diff() marks Rotation property as expandable."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         # Given: A Rotation property
@@ -501,8 +501,8 @@ class TestDiffPanelViewExpandableProperties:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: The Rotation property should be identifiable
         group_item = panel.properties_tree.topLevelItem(0)
@@ -511,7 +511,7 @@ class TestDiffPanelViewExpandableProperties:
         assert prop_item.text(0) == "Rotation"
 
     def test_expandable_property_with_vector_value_has_children(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() adds child items for expandable properties with vector values in 3-column layout."""
+        """show_property_diff() adds child items for expandable properties with vector values in 3-column layout."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         # Given: A Position property with pre-computed children (from domain)
@@ -532,8 +532,8 @@ class TestDiffPanelViewExpandableProperties:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: The Position property should have children (x, y, z)
         group_item = panel.properties_tree.topLevelItem(0)
@@ -561,7 +561,7 @@ class TestDiffPanelViewExpandableProperties:
         assert "30.00" in new_values
 
     def test_expandable_property_with_list_value_has_children(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() adds child items for expandable properties with list values in 3-column layout."""
+        """show_property_diff() adds child items for expandable properties with list values in 3-column layout."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         # Given: A property with pre-computed children (from domain)
@@ -582,8 +582,8 @@ class TestDiffPanelViewExpandableProperties:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: The Items property should have children
         group_item = panel.properties_tree.topLevelItem(0)
@@ -613,10 +613,10 @@ class TestDiffPanelViewExpandableProperties:
 
 
 class TestDiffPanelViewGroupSorting:
-    """Tests for alphabetical group sorting in show_properties()."""
+    """Tests for alphabetical group sorting in show_property_diff()."""
 
     def test_groups_appear_in_alphabetical_order(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() displays groups in alphabetical order (Base, Data, Format, etc.)."""
+        """show_property_diff() displays groups in alphabetical order (Base, Data, Format, etc.)."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         # Given: Properties from multiple groups in non-alphabetical order
@@ -643,8 +643,8 @@ class TestDiffPanelViewGroupSorting:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Groups should appear in alphabetical order
         assert panel.properties_tree.topLevelItemCount() == 4
@@ -654,7 +654,7 @@ class TestDiffPanelViewGroupSorting:
         assert group_names == ["Alpha", "Beta", "Middle", "Zebra"]
 
     def test_groups_with_real_freecad_names_sorted_correctly(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() sorts FreeCAD-style group names alphabetically."""
+        """show_property_diff() sorts FreeCAD-style group names alphabetically."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         # Given: Properties using typical FreeCAD group names in random order
@@ -681,8 +681,8 @@ class TestDiffPanelViewGroupSorting:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Groups should be sorted alphabetically: Base, Data, Format, View
         assert panel.properties_tree.topLevelItemCount() == 4
@@ -690,7 +690,7 @@ class TestDiffPanelViewGroupSorting:
         assert group_names == ["Base", "Data", "Format", "View"]
 
     def test_properties_within_groups_maintain_input_order(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() maintains property order within each group as provided."""
+        """show_property_diff() maintains property order within each group as provided."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         # Given: Multiple properties in same group with specific order
@@ -712,8 +712,8 @@ class TestDiffPanelViewGroupSorting:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Properties within the group maintain their input order (ZProp, AProp, MProp)
         assert panel.properties_tree.topLevelItemCount() == 1
@@ -726,7 +726,7 @@ class TestDiffPanelViewGroupSorting:
         assert prop_names == ["Z Prop", "A Prop", "M Prop"]
 
     def test_single_group_no_sorting_needed(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() handles single group correctly without sorting issues."""
+        """show_property_diff() handles single group correctly without sorting issues."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         # Given: All properties in a single group
@@ -743,8 +743,8 @@ class TestDiffPanelViewGroupSorting:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Should have one group with two properties
         assert panel.properties_tree.topLevelItemCount() == 1
@@ -753,7 +753,7 @@ class TestDiffPanelViewGroupSorting:
         assert group_item.childCount() == 2
 
     def test_default_group_properties_shows_when_no_group_specified(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() places ungrouped properties in 'Properties' default group."""
+        """show_property_diff() places ungrouped properties in 'Properties' default group."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         # Given: Mix of grouped and ungrouped properties
@@ -769,8 +769,8 @@ class TestDiffPanelViewGroupSorting:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Should have 2 groups (CustomGroup and Properties), sorted alphabetically
         assert panel.properties_tree.topLevelItemCount() == 2
@@ -785,7 +785,7 @@ class TestDiffPanelViewGroupSorting:
         assert properties_group.child(0).text(0) == "Ungrouped Prop"
 
     def test_case_sensitive_sorting_behavior(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() sorts groups case-sensitively (uppercase before lowercase)."""
+        """show_property_diff() sorts groups case-sensitively (uppercase before lowercase)."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         # Given: Groups with similar names but different cases
@@ -812,8 +812,8 @@ class TestDiffPanelViewGroupSorting:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Groups should be sorted case-sensitively (ASCII order: uppercase before lowercase)
         # In ASCII/Python sorted(): 'A' (65) < 'B' (66) < 'a' (97) < 'b' (98)
@@ -822,7 +822,7 @@ class TestDiffPanelViewGroupSorting:
         assert group_names == ["Alpha", "Base", "alpha", "base"]
 
     def test_empty_string_group_name_defaults_to_properties(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() treats empty string group names as the default 'Properties' group."""
+        """show_property_diff() treats empty string group names as the default 'Properties' group."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         # Given: Properties with empty string group and explicit group
@@ -839,8 +839,8 @@ class TestDiffPanelViewGroupSorting:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Empty string group is converted to "Properties" (same as no group specified)
         # So we get 2 groups: CustomGroup and Properties (sorted alphabetically)
@@ -876,7 +876,7 @@ class TestDiffPanelViewThreeColumnLayout:
                 state=DiffState.MODIFIED,
             ),
         ]
-        panel.show_properties(properties)
+        panel.show_property_diff(properties)
 
         # Then: Header labels should be correct (verified via tree item column count and content)
         group_item = panel.properties_tree.topLevelItem(0)
@@ -899,8 +899,8 @@ class TestDiffPanelViewThreeColumnLayout:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Group header should have empty columns 1 and 2
         group_item = panel.properties_tree.topLevelItem(0)
@@ -913,7 +913,7 @@ class TestDiffPanelViewExpandablePropertyChildDiffs:
     """Tests for expandable properties with child diff comparison (Phase 4)."""
 
     def test_expandable_property_with_mixed_child_states(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() correctly displays children with different states (modified and unchanged)."""
+        """show_property_diff() correctly displays children with different states (modified and unchanged)."""
         from PySide6.QtGui import QColor
 
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
@@ -936,8 +936,8 @@ class TestDiffPanelViewExpandablePropertyChildDiffs:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: The Position property should have children (x, y, z)
         group_item = panel.properties_tree.topLevelItem(0)
@@ -983,7 +983,7 @@ class TestDiffPanelViewExpandablePropertyChildDiffs:
         assert prop_item.background(0).color() == QColor(200, 200, 255)
 
     def test_expandable_property_with_added_child(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() correctly displays ADDED children (present in new but not old)."""
+        """show_property_diff() correctly displays ADDED children (present in new but not old)."""
         from PySide6.QtGui import QColor
 
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
@@ -1005,8 +1005,8 @@ class TestDiffPanelViewExpandablePropertyChildDiffs:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: The Vector property should have children including the added z
         group_item = panel.properties_tree.topLevelItem(0)
@@ -1030,7 +1030,7 @@ class TestDiffPanelViewExpandablePropertyChildDiffs:
         assert z_child.background(2).color() == QColor(200, 255, 200)
 
     def test_expandable_property_with_deleted_child(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() correctly displays DELETED children (present in old but not new)."""
+        """show_property_diff() correctly displays DELETED children (present in old but not new)."""
         from PySide6.QtGui import QColor
 
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
@@ -1052,8 +1052,8 @@ class TestDiffPanelViewExpandablePropertyChildDiffs:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: The Vector property should have children including the deleted z
         group_item = panel.properties_tree.topLevelItem(0)
@@ -1100,8 +1100,8 @@ class TestDiffPanelViewExpandablePropertyChildDiffs:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Parent row should be blue (MODIFIED) matching its state
         group_item = panel.properties_tree.topLevelItem(0)
@@ -1136,8 +1136,8 @@ class TestDiffPanelViewExpandablePropertyChildDiffs:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: All children should have default background
         group_item = panel.properties_tree.topLevelItem(0)
@@ -1159,7 +1159,7 @@ class TestDiffPanelViewExpandablePropertyChildDiffs:
             assert bg_color not in diff_colors
 
     def test_expandable_property_with_list_values_and_child_diffs(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """show_properties() correctly handles list values with child diffs."""
+        """show_property_diff() correctly handles list values with child diffs."""
         from PySide6.QtGui import QColor
 
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
@@ -1182,8 +1182,8 @@ class TestDiffPanelViewExpandablePropertyChildDiffs:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: The Items property should have children 0, 1, 2
         group_item = panel.properties_tree.topLevelItem(0)
@@ -1254,8 +1254,8 @@ class TestDiffPanelViewNestedSubPathRendering:
 
         properties = [placement]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Full nested tree exists
         group_item = panel.properties_tree.topLevelItem(0)
@@ -1298,8 +1298,8 @@ class TestDiffPanelViewNestedSubPathRendering:
 
         properties = [placement]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: All nodes in the changed branch are expanded
         group_item = panel.properties_tree.topLevelItem(0)
@@ -1327,8 +1327,8 @@ class TestDiffPanelViewNestedSubPathRendering:
 
         properties = [placement]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: All nodes in the unchanged branch are collapsed
         group_item = panel.properties_tree.topLevelItem(0)
@@ -1357,8 +1357,8 @@ class TestDiffPanelViewNestedSubPathRendering:
 
         properties = [placement]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Base is expanded (has changed descendants)
         group_item = panel.properties_tree.topLevelItem(0)
@@ -1392,8 +1392,8 @@ class TestDiffPanelViewNestedSubPathRendering:
 
         properties = [placement]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: All rows have green background
         group_item = panel.properties_tree.topLevelItem(0)
@@ -1428,8 +1428,8 @@ class TestDiffPanelViewNestedSubPathRendering:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Colors match presenter state, not overridden
         group_item = panel.properties_tree.topLevelItem(0)
@@ -1464,8 +1464,8 @@ class TestDiffPanelViewNestedSubPathRendering:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Container row shows bracketed summary from presenter
         group_item = panel.properties_tree.topLevelItem(0)
@@ -1503,8 +1503,8 @@ class TestDiffPanelViewNestedSubPathRendering:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Container rows show empty values (no fallback to name)
         group_item = panel.properties_tree.topLevelItem(0)
@@ -1544,8 +1544,8 @@ class TestDiffPanelViewNestedSubPathRendering:
             ),
         ]
 
-        # When: Call show_properties
-        panel.show_properties(properties)
+        # When: Call show_property_diff
+        panel.show_property_diff(properties)
 
         # Then: Children appear in the presenter-provided order
         group_item = panel.properties_tree.topLevelItem(0)

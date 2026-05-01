@@ -309,8 +309,8 @@ class TestPropertyViewerPhase6:
                     )
                 )
 
-            # Call show_properties - should not raise
-            panel.show_properties(properties)
+            # Call show_property_diff - should not raise
+            panel.show_property_diff(properties)
 
             # Verify tree has items
             root_count = panel.properties_tree.topLevelItemCount()

@@ -1119,3 +1119,71 @@ class TestDiffPanelViewRuntimePrecision:
         mock_settings.float_precision = 6
         result = panel._format_value_for_display(3.14159265)
         assert "3.141593" in result
+
+
+class TestDiffPanelViewClearMethods:
+    """Tests for explicit diff clearing methods."""
+
+    def test_clear_property_diff_clears_property_tree(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """clear_property_diff() removes all property rows."""
+        from freecad.diff_wb.domain.diff.models import DiffState
+        from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
+
+        panel.show_property_diff(
+            [
+                PropertyPresentation(
+                    name="Length",
+                    old_value="10.0",
+                    new_value="20.0",
+                    state=DiffState.MODIFIED,
+                )
+            ]
+        )
+        assert panel.properties_tree.topLevelItemCount() > 0
+
+        panel.clear_property_diff()
+
+        assert panel.properties_tree.topLevelItemCount() == 0
+
+    def test_clear_doc_diffs_clears_tree_summary_controls_and_properties(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """clear_doc_diffs() clears doc tree, summary, Stage All, and properties."""
+        from freecad.diff_wb.domain.diff.models import DiffState
+        from freecad.diff_wb.ui.presenters.presentation_models import DiffTreePresentation, PropertyPresentation
+
+        panel.show_summary(changed_docs=3)
+        panel.set_stage_all_button_visible(True)
+        panel.set_stage_all_button_enabled(True)
+        panel.show_doc_diffs(
+            [
+                DiffTreePresentation(
+                    nodes=[],
+                    git_path="a.FCStd",
+                    warnings=[],
+                    stage_button_enabled=True,
+                )
+            ]
+        )
+        panel.show_property_diff(
+            [
+                PropertyPresentation(
+                    name="Length",
+                    old_value="10.0",
+                    new_value="20.0",
+                    state=DiffState.MODIFIED,
+                )
+            ]
+        )
+
+        assert panel.tree_widget.topLevelItemCount() > 0
+        assert panel.properties_tree.topLevelItemCount() > 0
+        assert panel._changed_label.text() == "Changed: 3"
+        assert panel._stage_all_button.isHidden() is False
+        assert panel._stage_all_button.isEnabled() is True
+
+        panel.clear_doc_diffs()
+
+        assert panel.tree_widget.topLevelItemCount() == 0
+        assert panel.properties_tree.topLevelItemCount() == 0
+        assert panel._changed_label.text() == "No changes"
+        assert panel._stage_all_button.isHidden() is True
+        assert panel._stage_all_button.isEnabled() is False

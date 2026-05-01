@@ -431,7 +431,7 @@ class DiffPresenter:
         nodes = [self._format_node(node) for node in diff_result.hierarchy.roots]
 
         # Call view methods to trigger UI rendering
-        self._view.show_diff_tree(nodes, git_path)
+        self._view.show_doc_diff(nodes, git_path)
         has_changes = (diff_result.added_count + diff_result.deleted_count + diff_result.modified_count) > 0
         changed_docs = 1 if has_changes else 0
         self._view.show_summary(changed_docs=changed_docs)
@@ -449,6 +449,15 @@ class DiffPresenter:
         elif selection.item_kind == "COMMIT":
             self._on_commit_selected(selection.commit_hash)
 
+    def clear_property_diff(self) -> None:
+        """Clear property diff panel content."""
+        self._view.clear_property_diff()
+
+    def clear_doc_diff(self) -> None:
+        """Clear document diff data and document/property diff panels."""
+        self._diff_results_by_path.clear()
+        self._view.clear_doc_diffs()
+
     def _on_working_tree_selected(self) -> None:
         """Handle Working Tree item selection.
 
@@ -461,18 +470,14 @@ class DiffPresenter:
         repo = self._ui_state.git_repository
         if repo is None:
             Log.warning("No git repository detected")
-            self._diff_results_by_path.clear()
-            self._view.show_diff_trees([])
-            self._view.set_stage_all_button_visible(False)
+            self.clear_doc_diff()
             return
 
         docs_result = self._get_eligible_docs.execute(repo)
         if not docs_result.is_success or not docs_result.data:
             Log.warning(f"No eligible documents: {docs_result.message}")
             # Clear any stale state from prior selection
-            self._diff_results_by_path.clear()
-            self._view.show_diff_trees([])
-            self._view.set_stage_all_button_visible(False)
+            self.clear_doc_diff()
             return
 
         eligible_docs = docs_result.data
@@ -513,9 +518,7 @@ class DiffPresenter:
             self.present_diffs(all_diff_results, dirty_paths)
         else:
             Log.warning("No diff results to display")
-            self._diff_results_by_path.clear()
-            self._view.show_diff_trees([])
-            self._view.set_stage_all_button_visible(False)
+            self.clear_doc_diff()
 
     def _on_staging_selected(self) -> None:
         """Handle Staging item selection.
@@ -534,6 +537,7 @@ class DiffPresenter:
         repo = self._ui_state.git_repository
         if repo is None:
             Log.warning("No git repository detected")
+            self.clear_doc_diff()
             return
 
         # Get list of staged FCStd files
@@ -545,7 +549,7 @@ class DiffPresenter:
         staged_paths = staged_result.data or []
         if not staged_paths:
             # No staged files - clear the view
-            self._view.show_diff_trees([])
+            self.clear_doc_diff()
             return
 
         # Compute diffs for all staged paths
@@ -563,7 +567,7 @@ class DiffPresenter:
             self.present_diffs(all_diff_results, set(), missing_snapshot_paths)
         else:
             Log.warning("No diff results to display for staging")
-            self._view.show_diff_trees([])
+            self.clear_doc_diff()
 
     def _compute_staged_diffs(self, repo: GitRepository, staged_paths: list[str]) -> tuple[list[DiffResult], list[str]]:
         """Compute diffs for staged files.
@@ -690,11 +694,13 @@ class DiffPresenter:
 
         if commit_hash is None:
             Log.warning("Commit selection received without commit hash")
+            self.clear_doc_diff()
             return
 
         repo = self._ui_state.git_repository
         if repo is None:
             Log.warning("No git repository detected")
+            self.clear_doc_diff()
             return
 
         # Compute diffs for all changed files (extracted for testability)
@@ -711,7 +717,7 @@ class DiffPresenter:
             self.present_diffs(all_diff_results, set(), missing_paths)
         else:
             Log.info(f"No FCStd files changed in commit {commit_hash}")
-            self._view.show_diff_trees([])
+            self.clear_doc_diff()
 
     def on_add_button_clicked(self, git_path: str) -> None:
         """Handle '+ Stage' button click for staging.
@@ -788,6 +794,9 @@ class DiffPresenter:
         # Clear dirty paths since staged files are no longer dirty
         self._dirty_paths.clear()
 
+        # Clear current doc/property selection before reloading trees
+        self.clear_doc_diff()
+
         # Refresh the working tree view to reflect staged state
         self._on_working_tree_selected()
 
@@ -808,10 +817,11 @@ class DiffPresenter:
         missing_snapshot_paths = missing_snapshot_paths or []
 
         if not diff_results and not missing_snapshot_paths:
-            self._view.show_diff_trees([])
-            # Also hide Stage All button when no data to display
-            self._view.set_stage_all_button_visible(False)
+            self.clear_doc_diff()
             return
+
+        # Replacing doc trees invalidates current property selection
+        self.clear_property_diff()
 
         # Determine if we're in working tree view (used for staging button logic)
         is_working_tree = (
@@ -859,7 +869,7 @@ class DiffPresenter:
         # Sort all presentations alphanumerically by git_path
         presentations.sort(key=lambda p: p.git_path)
 
-        self._view.show_diff_trees(presentations)
+        self._view.show_doc_diffs(presentations)
 
         # Stage All button: only visible during Working Tree selection
         if is_working_tree:
@@ -907,14 +917,14 @@ class DiffPresenter:
         """
         # Guard: No diff results stored
         if not self._diff_results_by_path:
-            self._view.show_properties([])
+            self.clear_property_diff()
             return
 
         # Look up the correct DiffResult for this document
         diff_result = self._diff_results_by_path.get(git_path)
         if diff_result is None:
             Log.debug(f"[PRESENTER] No DiffResult found for git_path: {git_path}")
-            self._view.show_properties([])
+            self.clear_property_diff()
             return
 
         # Find NodeDiff by path within this document's hierarchy
@@ -923,13 +933,13 @@ class DiffPresenter:
         # If not found, clear properties
         if node_diff is None:
             Log.debug(f"[PRESENTER] NodeDiff not found for path: {node_path} in document {git_path}")
-            self._view.show_properties([])
+            self.clear_property_diff()
             return
 
         # Transform property diffs to presentations
         properties = self._transform_property_diffs(node_diff)
         Log.debug(f"[PRESENTER] Transformed to {len(properties)} PropertyPresentation")
-        self._view.show_properties(properties)
+        self._view.show_property_diff(properties)
 
     def _transform_property_diffs(self, node_diff: NodeDiff) -> list[PropertyPresentation]:
         """Transform domain PropertyDiff to presentation format.

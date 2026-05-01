@@ -246,8 +246,8 @@ class DiffPanelView(QWidget):
         metaclass conflicts between QWidget and Protocol classes.
 
         Implemented protocols:
-        - DiffView (freecad.diff_wb.ui.protocols.diff_view): show_loading, show_diff_tree,
-          show_summary, show_error, show_properties, show_repository
+        - DiffView (freecad.diff_wb.ui.protocols.diff_view): show_loading, show_doc_diff,
+          show_summary, show_error, show_property_diff, show_repository
         - SnapshotView (freecad.diff_wb.ui.protocols.snapshot_view): show_success,
           show_error, show_loading, show_snapshots
 
@@ -359,7 +359,7 @@ class DiffPanelView(QWidget):
         self.tree_widget.setColumnCount(1)
         self.tree_widget.header().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         # Note: Not calling hide() because QTreeWidget shows an empty column by default,
-        # which provides visual structure. The show_diff_tree() method will populate
+        # which provides visual structure. The show_doc_diff() method will populate
         # it with data and ensure visibility when needed.
 
         # Column 2: Tree view container (with summary labels above it)
@@ -743,7 +743,7 @@ class DiffPanelView(QWidget):
         pass
 
     # DiffView protocol methods
-    def show_diff_tree(self, nodes: list[NodePresentation], git_path: str = "") -> None:
+    def show_doc_diff(self, nodes: list[NodePresentation], git_path: str = "") -> None:
         """Display the diff tree with color-coded nodes.
 
         Args:
@@ -775,7 +775,7 @@ class DiffPanelView(QWidget):
         # Ensure tree widget is visible (in case it was hidden)
         self.tree_widget.show()
 
-    def show_diff_trees(self, diffs: list[DiffTreePresentation]) -> None:
+    def show_doc_diffs(self, diffs: list[DiffTreePresentation]) -> None:
         """Display multiple diff trees in the tree widget.
 
         Args:
@@ -846,6 +846,22 @@ class DiffPanelView(QWidget):
 
         # Ensure tree widget is visible
         self.tree_widget.show()
+
+    def clear_property_diff(self) -> None:
+        """Clear property diff panel content."""
+        self.properties_tree.clear()
+
+    def clear_doc_diffs(self) -> None:
+        """Clear document diff tree and related controls.
+
+        Also clears property diff panel to avoid stale node/property pairing.
+        """
+        self.tree_widget.clear()
+        self._changed_label.setText("No changes")
+        self.set_stage_all_button_visible(False)
+        self.set_stage_all_button_enabled(False)
+        self._stage_buttons.clear()
+        self.clear_property_diff()
 
     def _add_warning_indicators(self, layout: QHBoxLayout, warnings: list[str]) -> None:
         """Add warning icon with tooltip to the layout.
@@ -948,7 +964,7 @@ class DiffPanelView(QWidget):
         changed_text = QCoreApplication.translate("DiffView", DIFF_SUMMARY_CHANGED_LABEL)
         self._changed_label.setText(f"{changed_text} {changed_docs}")
 
-    def show_properties(self, properties: list[PropertyPresentation]) -> None:
+    def show_property_diff(self, properties: list[PropertyPresentation]) -> None:
         """Display property diffs in the properties tree widget.
 
         Args:
@@ -959,7 +975,7 @@ class DiffPanelView(QWidget):
                        Expandable properties can be expanded to show their children.
         """
         # Clear existing tree items
-        self.properties_tree.clear()
+        self.clear_property_diff()
 
         # Guard: no properties to display
         if not properties:
@@ -1155,7 +1171,7 @@ class DiffPanelView(QWidget):
         """Add pre-computed child items to the tree.
 
         Expansion intent is stored on each child item and applied after
-        the tree is fully built in show_properties.
+        the tree is fully built in show_property_diff.
 
         Args:
             parent_item: The parent QTreeWidgetItem to add children to.
