@@ -68,6 +68,11 @@ STAGE_ALL_LABEL = "Stage All"
 No placeholders. This is a static label displayed above the diff tree.
 """
 
+DOC_STATUS_NEW_DOCUMENT_TOOLTIP = "New document"
+DOC_STATUS_OLD_SNAPSHOT_MISSING_TOOLTIP = "Cannot find old snapshot. Diff cannot be generated."
+DOC_STATUS_SNAPSHOT_MISSING_TOOLTIP = "The selected commit does not have a snapshot for this document"
+DOC_STATUS_INVALID_SNAPSHOT_TOOLTIP = "The older snapshot is invalid, so a diff cannot be generated."
+
 # ============================================================================
 # COMMON STRINGS
 # ============================================================================
@@ -240,6 +245,10 @@ __all__ = [
     "DIFF_SUMMARY_CHANGED_LABEL",
     "DIFF_LOADING_MESSAGE",
     "STAGE_ALL_LABEL",
+    "DOC_STATUS_NEW_DOCUMENT_TOOLTIP",
+    "DOC_STATUS_OLD_SNAPSHOT_MISSING_TOOLTIP",
+    "DOC_STATUS_SNAPSHOT_MISSING_TOOLTIP",
+    "DOC_STATUS_INVALID_SNAPSHOT_TOOLTIP",
     # Common
     "ERROR_UNKNOWN",
     "ERROR_NO_DOCUMENT",

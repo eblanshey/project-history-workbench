@@ -873,7 +873,7 @@ class DiffPanelView(QWidget):
         for indicator in indicators:
             icon_label = QLabel()
             icon_label.setPixmap(indicator.icon.pixmap(16, 16))
-            icon_label.setToolTip(indicator.tooltip)
+            icon_label.setToolTip(QCoreApplication.translate("DiffView", indicator.tooltip))
             layout.addWidget(icon_label)
 
     def _on_add_button_clicked(self, git_path: str) -> None:

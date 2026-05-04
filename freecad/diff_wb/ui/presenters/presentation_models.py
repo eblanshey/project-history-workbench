@@ -9,6 +9,12 @@ from PySide6.QtGui import QIcon
 
 from ...domain.diff.models import DiffState
 from ...resources import get_icon_path
+from ..translation_strings import (
+    DOC_STATUS_INVALID_SNAPSHOT_TOOLTIP,
+    DOC_STATUS_NEW_DOCUMENT_TOOLTIP,
+    DOC_STATUS_OLD_SNAPSHOT_MISSING_TOOLTIP,
+    DOC_STATUS_SNAPSHOT_MISSING_TOOLTIP,
+)
 
 
 __all__ = [
@@ -38,7 +44,10 @@ class NewFileIndicator(DocumentStatusIndicator):
     """Indicator for new documents missing in old ref."""
 
     def __init__(self) -> None:
-        super().__init__(tooltip="New file", icon=QIcon(str(get_icon_path("DocumentStatusNewFile.svg"))))
+        super().__init__(
+            tooltip=DOC_STATUS_NEW_DOCUMENT_TOOLTIP,
+            icon=QIcon(str(get_icon_path("DocumentStatusNewFile.svg"))),
+        )
 
 
 @dataclass(frozen=True)
@@ -47,7 +56,7 @@ class OldSnapshotMissingIndicator(DocumentStatusIndicator):
 
     def __init__(self) -> None:
         super().__init__(
-            tooltip="Old snapshot missing",
+            tooltip=DOC_STATUS_OLD_SNAPSHOT_MISSING_TOOLTIP,
             icon=QIcon(str(get_icon_path("DocumentStatusOldSnapshotMissing.svg"))),
         )
 
@@ -58,7 +67,7 @@ class SnapshotMissingIndicator(DocumentStatusIndicator):
 
     def __init__(self) -> None:
         super().__init__(
-            tooltip="Snapshot missing",
+            tooltip=DOC_STATUS_SNAPSHOT_MISSING_TOOLTIP,
             icon=QIcon(str(get_icon_path("DocumentStatusSnapshotMissing.svg"))),
         )
 
@@ -69,7 +78,7 @@ class InvalidSnapshotIndicator(DocumentStatusIndicator):
 
     def __init__(self) -> None:
         super().__init__(
-            tooltip="Invalid snapshot",
+            tooltip=DOC_STATUS_INVALID_SNAPSHOT_TOOLTIP,
             icon=QIcon(str(get_icon_path("DocumentStatusInvalidSnapshot.svg"))),
         )
 
