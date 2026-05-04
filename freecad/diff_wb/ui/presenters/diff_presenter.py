@@ -12,19 +12,17 @@ diff results into UI-friendly presentation models.
 from dataclasses import dataclass, field
 from typing import Any
 
-from ...application.actions.create_diff import CreateDiffAction
-from ...application.actions.create_document_snapshot_commit import CreateDocumentSnapshotForCommitAction
-from ...application.actions.create_document_snapshot_working import (
-    CreateDocumentSnapshotForWorkingTreeAction,
-)
-from ...application.actions.get_committed_file_paths import GetCommittedFilePathsAction
+from ...application.actions.create_document_diffs import CreateDocumentDiffsAction
 from ...application.actions.get_dirty_documents import GetDirtyDocumentsAction
 from ...application.actions.get_open_eligible_documents import GetOpenEligibleDocumentsAction
-from ...application.actions.get_staged_file_paths import GetStagedFilePathsAction
+from ...application.actions.result_models import (
+    CreateDocumentDiffsRequest,
+    DocumentDiffMode,
+    DocumentDiffStatus,
+)
 from ...application.actions.stage_documents import StageDocumentsAction
 from ...domain.diff.engine import DiffResult
-from ...domain.diff.models import WARNING_OLD_SNAPSHOT_MISSING, DiffState, NodeDiff, PropertyPathDiff
-from ...domain.git.models import GitRepository
+from ...domain.diff.models import DiffState, NodeDiff, PropertyPathDiff
 from ...domain.settings import SettingsRepository
 from ...domain.tree import Property
 from ...domain.tree.data_path import PropertyPathType
@@ -32,7 +30,17 @@ from ...utils import Log, format_float
 from ..protocols.diff_view import DiffView
 from ..state import UIState
 from ..views.models import HistorySelection
-from .presentation_models import DiffTreePresentation, NodePresentation, PropertyPresentation
+from .presentation_models import (
+    DiffComputationFailedIndicator,
+    DiffTreePresentation,
+    DocumentStatusIndicator,
+    InvalidSnapshotIndicator,
+    NewFileIndicator,
+    NodePresentation,
+    OldSnapshotMissingIndicator,
+    PropertyPresentation,
+    SnapshotMissingIndicator,
+)
 
 
 @dataclass
@@ -352,13 +360,9 @@ class DiffPresenter:
         view: DiffView,
         ui_state: UIState,
         get_eligible_docs_action: GetOpenEligibleDocumentsAction,
-        create_working_snapshot_action: CreateDocumentSnapshotForWorkingTreeAction,
-        create_commit_snapshot_action: CreateDocumentSnapshotForCommitAction,
-        create_diff_action: CreateDiffAction,
+        create_document_diffs_action: CreateDocumentDiffsAction,
         stage_documents_action: StageDocumentsAction,
         get_dirty_documents_action: GetDirtyDocumentsAction,
-        get_staged_file_paths_action: GetStagedFilePathsAction,
-        get_committed_file_paths_action: GetCommittedFilePathsAction,
         settings_repo: SettingsRepository | None = None,
     ) -> None:
         """Initialize with required dependencies.
@@ -367,13 +371,9 @@ class DiffPresenter:
             view: DiffView implementation to display diff results
             ui_state: UI state holder containing git repository info
             get_eligible_docs_action: Action to get eligible open documents
-            create_working_snapshot_action: Action to create working tree snapshots
-            create_commit_snapshot_action: Action to create commit snapshots
-            create_diff_action: Action to compute diffs between snapshots
+            create_document_diffs_action: Action to orchestrate document diffs by mode
             stage_documents_action: Action to stage documents to git
             get_dirty_documents_action: Action to get dirty documents
-            get_staged_file_paths_action: Action to get staged file paths
-            get_committed_file_paths_action: Action to get committed file paths
             settings_repo: Settings repository for runtime precision (optional, uses default if None)
         """
         from ...domain.config import FLOAT_PRECISION as DEFAULT_FLOAT_PRECISION
@@ -381,16 +381,13 @@ class DiffPresenter:
         self._view = view
         self._ui_state = ui_state
         self._get_eligible_docs = get_eligible_docs_action
-        self._create_working_tree_snapshot = create_working_snapshot_action
-        self._create_commit_snapshot = create_commit_snapshot_action
-        self._create_diff = create_diff_action
+        self._create_document_diffs = create_document_diffs_action
         self._stage_documents = stage_documents_action
         self._get_dirty_documents = get_dirty_documents_action
-        self._get_staged_file_paths = get_staged_file_paths_action
-        self._get_committed_file_paths = get_committed_file_paths_action
         self._settings_repo = settings_repo
         self._default_precision = DEFAULT_FLOAT_PRECISION
         self._diff_results_by_path: dict[str, DiffResult] = {}
+        self._document_status_by_path: dict[str, DocumentDiffStatus] = {}
         self._dirty_paths: set[str] = set()
 
         # Wire up the callback for history selection
@@ -465,7 +462,7 @@ class DiffPresenter:
         1. Create working tree snapshot
         2. Create diff against None (old snapshot)
         3. Get dirty documents (ONE call for all eligible docs)
-        4. Collect results, logging warnings for failures
+        4. Collect results, logging failures
         """
         repo = self._ui_state.git_repository
         if repo is None:
@@ -481,24 +478,12 @@ class DiffPresenter:
             return
 
         eligible_docs = docs_result.data
-        all_diff_results: list[DiffResult] = []
-
-        for doc in eligible_docs:
-            working_result = self._create_working_tree_snapshot.execute(repo, doc)
-            if not working_result.is_success or working_result.data is None:
-                Log.warning(f"Failed to create working snapshot: {working_result.message}")
-                continue
-
-            working_snapshot = working_result.data
-
-            commit_result = self._create_commit_snapshot.execute(repo, None, working_snapshot.git_path)
-            commit_snapshot = commit_result.data if commit_result.is_success else None
-
-            diff_result = self._create_diff.execute(commit_snapshot, working_snapshot)
-            if diff_result.is_success and diff_result.data is not None:
-                all_diff_results.append(diff_result.data)
-            else:
-                Log.warning(f"Failed to compute diff: {diff_result.message}")
+        doc_diff_results_result = self._create_document_diffs.execute(
+            CreateDocumentDiffsRequest(mode=DocumentDiffMode.WORKING_TREE, repo=repo, documents=eligible_docs)
+        )
+        doc_diff_results = doc_diff_results_result.data if doc_diff_results_result.is_success else []
+        all_diff_results = [item.snapshot_diff for item in doc_diff_results if item.snapshot_diff is not None]
+        document_statuses = {item.git_path: item.status for item in doc_diff_results}
 
         # Get dirty documents (ONE call for all eligible docs - efficient!)
         dirty_result = self._get_dirty_documents.execute(repo, eligible_docs)
@@ -509,13 +494,19 @@ class DiffPresenter:
 
         # Store diff results keyed by git_path for later use by add button
         self._diff_results_by_path.clear()
+        self._document_status_by_path.clear()
         for result in all_diff_results:
             git_path = result.new_snapshot.git_path
             if git_path:
                 self._diff_results_by_path[git_path] = result
+                self._document_status_by_path[git_path] = document_statuses.get(git_path, DocumentDiffStatus.UNCHANGED)
 
-        if all_diff_results:
-            self.present_diffs(all_diff_results, dirty_paths)
+        for git_path, status in document_statuses.items():
+            if git_path not in self._document_status_by_path:
+                self._document_status_by_path[git_path] = status
+
+        if all_diff_results or document_statuses:
+            self.present_diffs(all_diff_results, dirty_paths, self._document_status_by_path)
         else:
             Log.warning("No diff results to display")
             self.clear_doc_diff()
@@ -540,153 +531,39 @@ class DiffPresenter:
             self.clear_doc_diff()
             return
 
-        # Get list of staged FCStd files
-        staged_result = self._get_staged_file_paths.execute(repo)
-        if not staged_result.is_success:
-            Log.warning(f"Failed to get staged files: {staged_result.message}")
-            return
-
-        staged_paths = staged_result.data or []
-        if not staged_paths:
-            # No staged files - clear the view
-            self.clear_doc_diff()
-            return
-
-        # Compute diffs for all staged paths
-        all_diff_results, missing_snapshot_paths = self._compute_staged_diffs(repo, staged_paths)
+        doc_diff_results_result = self._create_document_diffs.execute(
+            CreateDocumentDiffsRequest(mode=DocumentDiffMode.STAGING, repo=repo)
+        )
+        doc_diff_results = doc_diff_results_result.data if doc_diff_results_result.is_success else []
+        all_diff_results = [item.snapshot_diff for item in doc_diff_results if item.snapshot_diff is not None]
+        document_statuses = {item.git_path: item.status for item in doc_diff_results}
 
         # Store diff results keyed by git_path for later use
         self._diff_results_by_path.clear()
+        self._document_status_by_path.clear()
         for result in all_diff_results:
             result_git_path = result.new_snapshot.git_path
             if result_git_path:
                 self._diff_results_by_path[result_git_path] = result
+                self._document_status_by_path[result_git_path] = document_statuses.get(
+                    result_git_path, DocumentDiffStatus.UNCHANGED
+                )
 
-        if all_diff_results or missing_snapshot_paths:
+        for git_path, status in document_statuses.items():
+            if git_path not in self._document_status_by_path:
+                self._document_status_by_path[git_path] = status
+
+        if all_diff_results or document_statuses:
             # Present with empty dirty_paths since staged files are, by definition, tracked
-            self.present_diffs(all_diff_results, set(), missing_snapshot_paths)
+            self.present_diffs(all_diff_results, set(), self._document_status_by_path)
         else:
             Log.warning("No diff results to display for staging")
             self.clear_doc_diff()
 
-    def _compute_staged_diffs(self, repo: GitRepository, staged_paths: list[str]) -> tuple[list[DiffResult], list[str]]:
-        """Compute diffs for staged files.
-
-        For each staged path, retrieves snapshots from index and HEAD,
-        then computes the diff between them.
-
-        Args:
-            repo: GitRepository containing the documents.
-            staged_paths: List of staged git paths.
-
-        Returns:
-            Tuple of (list of DiffResult, list of paths with missing index snapshots).
-        """
-        all_diff_results: list[DiffResult] = []
-        missing_snapshot_paths: list[str] = []
-
-        for git_path in staged_paths:
-            diff_result, needs_warning = self._compute_diff_for_single_staged_file(repo, git_path)
-
-            if needs_warning:
-                missing_snapshot_paths.append(git_path)
-            elif diff_result is not None:
-                all_diff_results.append(diff_result)
-
-        return all_diff_results, missing_snapshot_paths
-
-    def _compute_diff_for_single_staged_file(
-        self, repo: GitRepository, git_path: str
-    ) -> tuple[DiffResult | None, bool]:
-        """Compute diff for a single staged file.
-
-        Retrieves snapshots from index and HEAD, then computes the diff.
-
-        Args:
-            repo: GitRepository containing the documents.
-            git_path: The git path of the staged file.
-
-        Returns:
-            Tuple of (DiffResult or None, boolean indicating if snapshot is missing in index).
-        """
-        # Get snapshot from index (staged version)
-        index_result = self._create_commit_snapshot.execute(repo, None, git_path)
-        index_snapshot = index_result.data if index_result.is_success else None
-
-        if index_snapshot is None:
-            # Snapshot missing in index - track for warning display (per MVP spec)
-            return None, True
-
-        # Get snapshot from HEAD
-        head_result = self._create_commit_snapshot.execute(repo, "HEAD", git_path)
-        head_snapshot = head_result.data if head_result.is_success else None
-
-        # Normal case: create diff between HEAD and index
-        if head_snapshot is None:
-            # HEAD doesn't have this file yet - treat as all new
-            diff_result = self._create_diff.execute(None, index_snapshot)
-        else:
-            diff_result = self._create_diff.execute(head_snapshot, index_snapshot)
-
-        if diff_result.is_success and diff_result.data is not None:
-            return diff_result.data, False
-        else:
-            Log.warning(f"Failed to compute diff for {git_path}: {diff_result.message}")
-            return None, False
-
-    def _compute_commit_diffs(self, repo: GitRepository, commit_hash: str) -> tuple[list[DiffResult], list[str]]:
-        """Compute diffs for files changed in a commit vs its parent.
-
-        For each FCStd file changed between the commit and its parent:
-        1. Extract snapshots from both commits
-        2. Compute diff between snapshots
-        3. Track paths where the selected commit snapshot is missing
-
-        Args:
-            repo: GitRepository containing the documents.
-            commit_hash: The commit hash to compute diffs for.
-
-        Returns:
-            Tuple of (list of DiffResult, list of paths with missing commit snapshots).
-        """
-        all_diff_results: list[DiffResult] = []
-        missing_snapshot_paths: list[str] = []
-
-        commit_result = self._get_committed_file_paths.execute(repo, commit_hash)
-        parent_result = self._get_committed_file_paths.execute(repo, commit_hash + "^")
-
-        commit_paths = set(commit_result.data) if commit_result.is_success else set()
-        parent_paths = set(parent_result.data) if parent_result.is_success else set()
-        all_paths = commit_paths | parent_paths
-
-        for git_path in all_paths:
-            commit_snap_result = self._create_commit_snapshot.execute(repo, commit_hash, git_path)
-            parent_snap_result = self._create_commit_snapshot.execute(repo, commit_hash + "^", git_path)
-
-            commit_snapshot = commit_snap_result.data if commit_snap_result.is_success else None
-            parent_snapshot = parent_snap_result.data if parent_snap_result.is_success else None
-
-            if commit_snapshot is not None and parent_snapshot is not None:
-                # Both snapshots exist - compute diff
-                diff_result = self._create_diff.execute(parent_snapshot, commit_snapshot)
-                if diff_result.is_success and diff_result.data is not None:
-                    all_diff_results.append(diff_result.data)
-            elif commit_snapshot is not None and parent_snapshot is None:
-                # Parent snapshot missing - compare against None and rely on diff warnings.
-                diff_result = self._create_diff.execute(None, commit_snapshot)
-                if diff_result.is_success and diff_result.data is not None:
-                    all_diff_results.append(diff_result.data)
-            elif commit_snapshot is None and parent_snapshot is not None:
-                # Commit snapshot missing for a changed path - show flat warning row.
-                missing_snapshot_paths.append(git_path)
-            # Skip cases where both snapshots are None (no data to compare)
-
-        return all_diff_results, missing_snapshot_paths
-
     def _on_commit_selected(self, commit_hash: str | None) -> None:
         """Handle commit item selection.
 
-        Delegates per-file diff computation to _compute_commit_diffs(),
+        Requests document-level commit diffs via CreateDocumentDiffsAction,
         then stores results and presents them to the view.
         """
         # Stage All button is only shown in Working Tree view
@@ -703,18 +580,28 @@ class DiffPresenter:
             self.clear_doc_diff()
             return
 
-        # Compute diffs for all changed files (extracted for testability)
-        all_diff_results, missing_paths = self._compute_commit_diffs(repo, commit_hash)
+        doc_diff_results_result = self._create_document_diffs.execute(
+            CreateDocumentDiffsRequest(mode=DocumentDiffMode.COMMIT, repo=repo, commit_hash=commit_hash)
+        )
+        doc_diff_results = doc_diff_results_result.data if doc_diff_results_result.is_success else []
+        all_diff_results = [item.snapshot_diff for item in doc_diff_results if item.snapshot_diff is not None]
+        document_statuses = {item.git_path: item.status for item in doc_diff_results}
 
         # Store diff results keyed by git_path for later use
         self._diff_results_by_path.clear()
+        self._document_status_by_path.clear()
         for result in all_diff_results:
             git_path = result.new_snapshot.git_path
             if git_path:
                 self._diff_results_by_path[git_path] = result
+                self._document_status_by_path[git_path] = document_statuses.get(git_path, DocumentDiffStatus.UNCHANGED)
 
-        if all_diff_results or missing_paths:
-            self.present_diffs(all_diff_results, set(), missing_paths)
+        for git_path, status in document_statuses.items():
+            if git_path not in self._document_status_by_path:
+                self._document_status_by_path[git_path] = status
+
+        if all_diff_results or document_statuses:
+            self.present_diffs(all_diff_results, set(), self._document_status_by_path)
         else:
             Log.info(f"No FCStd files changed in commit {commit_hash}")
             self.clear_doc_diff()
@@ -767,7 +654,7 @@ class DiffPresenter:
             Log.warning("No git repository detected")
             return
 
-        # Collect snapshots matching staging button criteria: changes OR git-dirty OR old snapshot missing
+        # Collect snapshots matching staging button criteria: changes OR git-dirty OR document status indicator
         snapshots = [
             result.new_snapshot
             for result in self._diff_results_by_path.values()
@@ -775,7 +662,13 @@ class DiffPresenter:
             and (
                 any(node.has_deep_changes for node in result.hierarchy.roots)
                 or result.new_snapshot.git_path in self._dirty_paths
-                or WARNING_OLD_SNAPSHOT_MISSING in result.warnings
+                or self._document_status_by_path.get(result.new_snapshot.git_path, DocumentDiffStatus.UNCHANGED)
+                in (
+                    DocumentDiffStatus.NEW_FILE,
+                    DocumentDiffStatus.OLD_SNAPSHOT_MISSING,
+                    DocumentDiffStatus.SNAPSHOT_MISSING,
+                    DocumentDiffStatus.INVALID_SNAPSHOT,
+                )
             )
         ]
 
@@ -804,19 +697,19 @@ class DiffPresenter:
         self,
         diff_results: list[DiffResult],
         dirty_paths: set[str] | None = None,
-        missing_snapshot_paths: list[str] | None = None,
+        document_statuses: dict[str, DocumentDiffStatus] | None = None,
     ) -> None:
         """Transform multiple DiffResults into presentation models and display.
 
         Args:
             diff_results: List of DiffResult objects to present.
             dirty_paths: Set of git paths that have git-tracked changes.
-            missing_snapshot_paths: List of git_paths where snapshot is missing (creates flat warning items).
+            document_statuses: Optional status map keyed by git path.
         """
         dirty_paths = dirty_paths or set()
-        missing_snapshot_paths = missing_snapshot_paths or []
+        document_statuses = document_statuses or {}
 
-        if not diff_results and not missing_snapshot_paths:
+        if not diff_results and not document_statuses:
             self.clear_doc_diff()
             return
 
@@ -824,15 +717,15 @@ class DiffPresenter:
         self.clear_property_diff()
 
         # Determine if we're in working tree view (used for staging button logic)
-        is_working_tree = (
-            self._view._current_selection is not None and self._view._current_selection.item_kind == "WORKING_TREE"
-        )
+        current_selection = self._view.get_current_history_selection()
+        is_working_tree = current_selection is not None and current_selection.item_kind == "WORKING_TREE"
 
         presentations = []
         for diff_result in diff_results:
             nodes = [self._format_node(node) for node in diff_result.hierarchy.roots]
             git_path = diff_result.new_snapshot.git_path or diff_result.new_snapshot.document_name
-            warnings = list(diff_result.warnings)
+            status = document_statuses.get(git_path, DocumentDiffStatus.UNCHANGED)
+            indicators = self._get_document_indicators(status)
 
             # Compute has_changes from nodes
             has_changes = any(node.has_changes for node in nodes)
@@ -840,28 +733,36 @@ class DiffPresenter:
             # Check if this document's git path has git-tracked changes
             is_git_dirty = git_path in dirty_paths
 
-            # Check if this is a working tree diff (old snapshot missing)
-            has_old_snapshot_missing_warning = WARNING_OLD_SNAPSHOT_MISSING in warnings
+            has_status_indicator = status in (
+                DocumentDiffStatus.NEW_FILE,
+                DocumentDiffStatus.OLD_SNAPSHOT_MISSING,
+                DocumentDiffStatus.SNAPSHOT_MISSING,
+                DocumentDiffStatus.INVALID_SNAPSHOT,
+                DocumentDiffStatus.DIFF_COMPUTATION_FAILED,
+            )
 
-            # Stage button enabled if: diff changes OR git-dirty OR old snapshot missing (working tree only)
-            stage_button_enabled = has_changes or is_git_dirty or (has_old_snapshot_missing_warning and is_working_tree)
+            # Stage button enabled if: diff changes OR git-dirty OR status indicator (working tree only)
+            stage_button_enabled = has_changes or is_git_dirty or (has_status_indicator and is_working_tree)
 
             presentations.append(
                 DiffTreePresentation(
                     nodes=nodes,
                     git_path=git_path,
-                    warnings=warnings,
+                    indicators=indicators,
                     stage_button_enabled=stage_button_enabled,
                 )
             )
 
-        # Add flat warning items for missing snapshot paths
-        for git_path in missing_snapshot_paths:
+        # Add flat indicator items for statuses with no computed tree
+        present_paths = {p.git_path for p in presentations}
+        for git_path, status in document_statuses.items():
+            if git_path in present_paths:
+                continue
             presentations.append(
                 DiffTreePresentation(
                     nodes=[],  # Empty - flat item
                     git_path=git_path,
-                    warnings=[WARNING_OLD_SNAPSHOT_MISSING],
+                    indicators=self._get_document_indicators(status),
                     stage_button_enabled=False,
                 )
             )
@@ -886,6 +787,20 @@ class DiffPresenter:
             if (diff_result.added_count + diff_result.deleted_count + diff_result.modified_count) > 0
         )
         self._view.show_summary(changed_docs=changed_docs)
+
+    def _get_document_indicators(self, status: DocumentDiffStatus) -> list[DocumentStatusIndicator]:
+        """Build UI indicators for document-level status."""
+        if status == DocumentDiffStatus.NEW_FILE:
+            return [NewFileIndicator()]
+        if status == DocumentDiffStatus.OLD_SNAPSHOT_MISSING:
+            return [OldSnapshotMissingIndicator()]
+        if status == DocumentDiffStatus.SNAPSHOT_MISSING:
+            return [SnapshotMissingIndicator()]
+        if status == DocumentDiffStatus.INVALID_SNAPSHOT:
+            return [InvalidSnapshotIndicator()]
+        if status == DocumentDiffStatus.DIFF_COMPUTATION_FAILED:
+            return [DiffComputationFailedIndicator()]
+        return []
 
     def _format_node(self, node_diff: NodeDiff) -> NodePresentation:
         """Transform domain NodeDiff to presentation model.

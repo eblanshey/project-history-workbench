@@ -69,8 +69,7 @@ Update domain models and logic to support Git paths and snapshot-based compariso
 - Update Snapshot entity to have a "git_path" string variable, which is the relative path from the git root
 - Update DiffResult entity to have "old_snapshot: Snapshot" and "new_snapshot: Snapshot"
   - Remove old_snapshot_name and "new_snapshot_name"
-- Update DiffResult entity to have a "warnings" list property:
-  - The list can contain a list of strings with warning
+- Keep DiffResult focused on snapshot comparison data only (no UI warning fields)
 - Update TreeComparator.compare_snapshots to:
   - accept Snapshot instances instead of nodes (old_snapshot and new_snapshot) (update usages)
   - Create DiffResult with the snapshots
@@ -84,7 +83,7 @@ Update domain models and logic to support Git paths and snapshot-based compariso
 
 ### Phase 5 - Start of working tree diff implementation
 
-- In DiffResult, add static property WARNING_OLD_SNAPSHOT_MISSING = WARNING_OLD_SNAPSHOT_MISSING
+- Represent missing-old-snapshot state at document/application status level, not in DiffResult
 - In GitService add method `get_eligible_docs(GitRepository, list[DocumentLike])`:
     - First arg: the active GitRepository
     - Second arg: list of DocumentLike (can be taken from all open freecad documents)
@@ -110,7 +109,7 @@ Update domain models and logic to support Git paths and snapshot-based compariso
     - CreateDocumentSnapshotForCommit
     - CreateDiff - if the commit snapshot doesn't exist, pass the same Snapshot for both arguments.
   - It should populate the existing diff widget with the resulting diff. Put these actions into a presentation-level orchestration method (what should we call it and where does it live?) so that it can be reused.
-  - In the view, if the DiffResult.warnings contains WARNING_OLD_SNAPSHOT_MISSING, add a warning sign emoji (U+26A0) with a tooltip over it with text: "Old snapshot missing"
+  - In the view, map document-level status to indicators (for example warning icon with tooltip for missing old snapshot)
 
 Questions: where should we store the DiffResults for application state? Should we store them in the ApplicationState? Is that the right place? Is the DiffResult something that belongs in presentation layer or view layer? In the next phase we'll need to be able to add Snapshots to git staging, which entails extracting them from the DiffResult.
 

@@ -1,12 +1,83 @@
-"""File responsibility: Action result models for commands and queries."""
+"""File responsibility: Action and document-diff result models for application orchestration."""
 
 from dataclasses import dataclass
+from enum import Enum, auto
 from typing import Any
 
 from ...domain.diff import DiffResult
+from ...domain.freecad_ports import DocumentLike
+from ...domain.git.models import GitRepository
+from ...domain.snapshots import Snapshot
 
 
-__all__ = ["Result", "SnapshotResult", "CompareResult", "SnapshotSummary"]
+__all__ = [
+    "Result",
+    "SnapshotResult",
+    "CompareResult",
+    "SnapshotSummary",
+    "SnapshotLoadStatus",
+    "SnapshotLoadResult",
+    "DocumentDiffStatus",
+    "DocumentDiffResult",
+    "DocumentDiffMode",
+    "CreateDocumentDiffsRequest",
+]
+
+
+class SnapshotLoadStatus(Enum):
+    """Outcome when loading snapshot from git/index."""
+
+    FOUND = auto()
+    DOCUMENT_MISSING = auto()
+    SNAPSHOT_MISSING = auto()
+    INVALID_SNAPSHOT = auto()
+
+
+@dataclass(frozen=True)
+class SnapshotLoadResult:
+    """Snapshot loading outcome with typed status."""
+
+    snapshot: Snapshot | None
+    status: SnapshotLoadStatus
+
+
+class DocumentDiffStatus(Enum):
+    """Document-level diff status across file/snapshot states."""
+
+    MODIFIED = auto()
+    UNCHANGED = auto()
+    NEW_FILE = auto()
+    OLD_SNAPSHOT_MISSING = auto()
+    SNAPSHOT_MISSING = auto()
+    INVALID_SNAPSHOT = auto()
+    DIFF_COMPUTATION_FAILED = auto()
+
+
+@dataclass(frozen=True)
+class DocumentDiffResult:
+    """Application-level diff result for one FCStd document."""
+
+    git_path: str
+    status: DocumentDiffStatus
+    snapshot_diff: DiffResult | None = None
+
+
+class DocumentDiffMode(Enum):
+    """Selection mode for document diff orchestration."""
+
+    WORKING_TREE = auto()
+    STAGING = auto()
+    COMMIT = auto()
+
+
+@dataclass(frozen=True)
+class CreateDocumentDiffsRequest:
+    """Inputs for computing document-level diff results."""
+
+    mode: DocumentDiffMode
+    repo: GitRepository
+    commit_hash: str | None = None
+    documents: list[DocumentLike] | None = None
 
 
 @dataclass

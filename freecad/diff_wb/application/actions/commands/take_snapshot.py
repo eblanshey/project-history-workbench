@@ -75,8 +75,8 @@ class TakeSnapshotAction:
                 snapshot_name=None,
                 error_message=error_msg,
             )
-        except Exception as e:
-            # Catch-all for unexpected errors during extraction
+        except Exception as e:  # noqa: BLE001
+            # Broad catch required: extractor adapters/tests may raise arbitrary backend exceptions.
             error_msg = f"Unexpected error during snapshot extraction: {str(e)}"
             Log.exception(error_msg)
             self._freecad_port.message(error_msg)
@@ -99,8 +99,8 @@ class TakeSnapshotAction:
                 snapshot_name=None,
                 error_message=error_msg,
             )
-        except Exception as e:
-            # Catch-all for unexpected errors during save
+        except Exception as e:  # noqa: BLE001
+            # Broad catch required: repository ports and tests may raise arbitrary exceptions.
             error_msg = f"Unexpected error during snapshot save: {str(e)}"
             Log.exception(error_msg)
             self._freecad_port.message(error_msg)

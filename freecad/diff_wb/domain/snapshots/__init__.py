@@ -11,6 +11,7 @@ from pathlib import Path
 
 from .models import Snapshot, SnapshotMetadata, SnapshotObject, SnapshotOccurrence
 from .repository import InMemorySnapshotRepository, SnapshotRepository
+from .serializer import SnapshotDeserializer
 
 
 def get_snapshot_yaml_path_for_document(document_path: str) -> Path:
@@ -37,6 +38,7 @@ __all__ = [
     "SnapshotObject",
     "SnapshotOccurrence",
     "SnapshotRepository",
+    "SnapshotDeserializer",
     "InMemorySnapshotRepository",
     "get_snapshot_yaml_path_for_document",
 ]

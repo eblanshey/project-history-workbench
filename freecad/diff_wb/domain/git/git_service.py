@@ -151,6 +151,19 @@ class GitService:
         """
         return self._git_port.get_file_contents(repo.absolute_path, commit, git_path)
 
+    def file_exists(self, repo: GitRepository, commit: str | None, git_path: str) -> bool:
+        """Check whether a file exists at commit or index.
+
+        Args:
+            repo: GitRepository to query.
+            commit: Commit reference or None for index.
+            git_path: Relative path within repository.
+
+        Returns:
+            True if file exists at the specified ref/index.
+        """
+        return self._git_port.file_exists(repo.absolute_path, commit, git_path)
+
     def commit(self, repo: GitRepository, message: str) -> bool:
         """Commit staged changes in the repository.
 

@@ -9,6 +9,7 @@ from freecad.diff_wb.ui.presenters.presentation_models import (
     NodePresentation,
     PropertyPresentation,
 )
+from freecad.diff_wb.ui.views.models import HistorySelection
 
 
 class FakeDiffView:
@@ -176,3 +177,11 @@ class FakeDiffView:
             enabled: Whether the Stage All button should be enabled.
         """
         self._record_call("set_stage_all_button_enabled", enabled=enabled)
+
+    def get_current_history_selection(self) -> HistorySelection | None:
+        """Return currently selected history entry for presenter logic."""
+        return self._current_selection
+
+    def set_current_history_selection(self, selection: HistorySelection | None) -> None:
+        """Test helper to set current history selection."""
+        self._current_selection = selection

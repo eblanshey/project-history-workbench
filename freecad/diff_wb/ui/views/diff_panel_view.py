@@ -34,6 +34,7 @@ from ...resources import get_icon_path
 from ...utils import format_float
 from ..presenters.presentation_models import (
     DiffTreePresentation,
+    DocumentStatusIndicator,
     NodePresentation,
     PropertyPresentation,
 )
@@ -47,18 +48,9 @@ from ..translation_strings import (
 from .models import HistorySelection
 
 
-# Module-level icon loading for refresh button and warning icon.
+# Module-level icon loading for refresh button.
 # Refresh icon is workbench-owned and loaded from package resources.
-# Warning icon comes from FreeCAD theme when available.
 _REFRESH_ICON: QIcon = QIcon(str(get_icon_path("RefreshRepository.svg")))
-
-try:
-    import FreeCADGui as Gui
-
-    _WARNING_ICON: QIcon | None = Gui.getIcon("Warning.svg")
-except (ImportError, AttributeError):
-    # FreeCADGui not available (e.g., during unit tests or non-GUI environments)
-    _WARNING_ICON = None
 
 
 __all__ = ["DiffPanelView", "HistorySelection"]
@@ -577,6 +569,10 @@ class DiffPanelView(QWidget):
         """
         self._stage_all_button.setEnabled(enabled)
 
+    def get_current_history_selection(self) -> HistorySelection | None:
+        """Return currently selected history entry."""
+        return self._current_selection
+
     def _on_stage_all_clicked(self) -> None:
         """Handle Stage All button click by invoking the callback."""
         if self._on_stage_all_callback:
@@ -806,10 +802,11 @@ class DiffPanelView(QWidget):
             # Add text label
             layout.addWidget(QLabel(top_level_text))
 
-            # Add warning indicators (tooltip-only)
-            self._add_warning_indicators(layout, diff.warnings)
-
+            # Push status/action widgets to right side of item row
             layout.addStretch()
+
+            # Add document status indicators
+            self._add_status_indicators(layout, diff.indicators)
 
             # Only create "+ Stage" button when Working Tree is selected
             show_stage_button = (
@@ -863,25 +860,21 @@ class DiffPanelView(QWidget):
         self._stage_buttons.clear()
         self.clear_property_diff()
 
-    def _add_warning_indicators(self, layout: QHBoxLayout, warnings: list[str]) -> None:
-        """Add warning icon with tooltip to the layout.
+    def _add_status_indicators(self, layout: QHBoxLayout, indicators: list[DocumentStatusIndicator]) -> None:
+        """Add status indicators with tooltip to the layout.
 
         Args:
             layout: The QHBoxLayout to add widgets to.
-            warnings: List of warning strings to display.
+            indicators: List of document status indicators to display.
         """
-        if not warnings:
+        if not indicators:
             return
 
-        # Prepare warning text for tooltip (newline-separated)
-        warning_tooltip = "\n".join(warnings)
-
-        # Add warning icon if available
-        if _WARNING_ICON is not None:
-            warning_icon_label = QLabel()
-            warning_icon_label.setPixmap(_WARNING_ICON.pixmap(16, 16))
-            warning_icon_label.setToolTip(warning_tooltip)
-            layout.addWidget(warning_icon_label)
+        for indicator in indicators:
+            icon_label = QLabel()
+            icon_label.setPixmap(indicator.icon.pixmap(16, 16))
+            icon_label.setToolTip(indicator.tooltip)
+            layout.addWidget(icon_label)
 
     def _on_add_button_clicked(self, git_path: str) -> None:
         """Handle '+ Stage' button click by invoking the callback.

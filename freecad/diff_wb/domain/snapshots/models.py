@@ -71,6 +71,7 @@ class Snapshot:
 
     @property
     def node_count(self) -> int:
+        """Return number of occurrence rows in snapshot tree."""
         return len(self.occurrences)
 
     def __str__(self) -> str:
@@ -79,16 +80,19 @@ class Snapshot:
         return f"Snapshot({self.document_name}, {len(self.objects)} objects, {self.node_count} occurrences)"
 
     def find_object(self, name: str) -> SnapshotObject | None:
+        """Return object payload by object name, or None when absent."""
         for obj in self.objects:
             if obj.name == name:
                 return obj
         return None
 
     def find_occurrence(self, path: str) -> SnapshotOccurrence | None:
+        """Return occurrence row by full occurrence path, or None when absent."""
         for occ in self.occurrences:
             if occ.path == path:
                 return occ
         return None
 
     def with_identity(self, git_path: str) -> "Snapshot":
+        """Return copy with git_path set and document_name derived from it."""
         return replace(self, git_path=git_path, document_name=PurePosixPath(git_path).name)

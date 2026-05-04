@@ -82,8 +82,8 @@ class CompareSnapshotsAction:
                 diff_result=None,
                 error_message=error_msg,
             )
-        except Exception as e:
-            # Catch-all for unexpected errors during diff computation
+        except (RuntimeError, LookupError, OSError) as e:
+            # FreeCAD/diff integrations can raise runtime and data lookup errors.
             error_msg = f"Unexpected error during diff computation: {str(e)}"
             Log.exception(error_msg)
             return CompareResult(

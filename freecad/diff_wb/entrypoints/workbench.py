@@ -26,7 +26,7 @@ _PREFERENCES_PAGE_ID = "freecad.diff_wb.ui.views.settings_preferences_page.DiffS
 try:
     import FreeCADGui as Gui  # pylint: disable=import-error
     from FreeCADGui import getMainWindow  # noqa: N813
-except Exception as e:
+except ImportError as e:
     Log.exception(f"Failed to import FreeCADGui: {e}")
     Gui = None  # type: ignore[assignment]
     getMainWindow = None  # type: ignore[assignment]  # noqa: N816
@@ -188,7 +188,7 @@ if Gui is not None:
                 # Connect window close cleanup
                 self._subwindow.destroyed.connect(self._on_subwindow_closed)
 
-            except Exception as e:
+            except (ImportError, AttributeError, TypeError, RuntimeError) as e:
                 Log.exception(f"ERROR creating diff panel: {e} traceback: {traceback.format_exc()}")
 
         def _on_subwindow_closed(self) -> None:

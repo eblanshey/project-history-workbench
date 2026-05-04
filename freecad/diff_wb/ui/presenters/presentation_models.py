@@ -5,7 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from PySide6.QtGui import QIcon
+
 from ...domain.diff.models import DiffState
+from ...resources import get_icon_path
 
 
 __all__ = [
@@ -13,7 +16,73 @@ __all__ = [
     "NodePresentation",
     "PropertyPresentation",
     "SnapshotPresentation",
+    "DocumentStatusIndicator",
+    "NewFileIndicator",
+    "OldSnapshotMissingIndicator",
+    "SnapshotMissingIndicator",
+    "InvalidSnapshotIndicator",
+    "DiffComputationFailedIndicator",
 ]
+
+
+@dataclass(frozen=True)
+class DocumentStatusIndicator:
+    """UI indicator shown beside a document root row."""
+
+    tooltip: str
+    icon: QIcon
+
+
+@dataclass(frozen=True)
+class NewFileIndicator(DocumentStatusIndicator):
+    """Indicator for new documents missing in old ref."""
+
+    def __init__(self) -> None:
+        super().__init__(tooltip="New file", icon=QIcon(str(get_icon_path("DocumentStatusNewFile.svg"))))
+
+
+@dataclass(frozen=True)
+class OldSnapshotMissingIndicator(DocumentStatusIndicator):
+    """Indicator for old-ref snapshot missing while document exists."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            tooltip="Old snapshot missing",
+            icon=QIcon(str(get_icon_path("DocumentStatusOldSnapshotMissing.svg"))),
+        )
+
+
+@dataclass(frozen=True)
+class SnapshotMissingIndicator(DocumentStatusIndicator):
+    """Indicator for current/target snapshot missing."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            tooltip="Snapshot missing",
+            icon=QIcon(str(get_icon_path("DocumentStatusSnapshotMissing.svg"))),
+        )
+
+
+@dataclass(frozen=True)
+class InvalidSnapshotIndicator(DocumentStatusIndicator):
+    """Indicator for invalid/corrupt snapshot payload."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            tooltip="Invalid snapshot",
+            icon=QIcon(str(get_icon_path("DocumentStatusInvalidSnapshot.svg"))),
+        )
+
+
+@dataclass(frozen=True)
+class DiffComputationFailedIndicator(DocumentStatusIndicator):
+    """Indicator for diff engine failure during comparison."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            tooltip="Diff computation failed",
+            icon=QIcon(str(get_icon_path("DocumentStatusDiffFailed.svg"))),
+        )
 
 
 @dataclass(frozen=True)
@@ -68,11 +137,11 @@ class DiffTreePresentation:
     Attributes:
         nodes: Transformed list of root NodePresentation objects
         git_path: Git path of the document
-        warnings: List of warning strings from DiffResult.warnings
+        indicators: List of status indicators shown near document label
         stage_button_enabled: True if the stage button should be enabled
     """
 
     nodes: list[NodePresentation]
     git_path: str
-    warnings: list[str]
+    indicators: list[DocumentStatusIndicator]
     stage_button_enabled: bool = False

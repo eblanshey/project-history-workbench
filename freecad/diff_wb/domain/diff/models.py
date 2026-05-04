@@ -48,10 +48,6 @@ class DiffState(Enum):
     UNCHANGED = auto()
 
 
-# Warning constants for edge cases
-WARNING_OLD_SNAPSHOT_MISSING = "Old snapshot missing"
-
-
 @dataclass(frozen=True)
 class PropertyPathDiff:
     """The difference between two property path values.
@@ -445,7 +441,6 @@ class DiffResult:
     Attributes:
         old_snapshot: The old snapshot being compared
         new_snapshot: The new snapshot being compared
-        warnings: List of warning messages for edge cases
         added_count: Number of added nodes
         deleted_count: Number of deleted nodes
         modified_count: Number of modified nodes
@@ -454,7 +449,6 @@ class DiffResult:
 
     old_snapshot: Snapshot
     new_snapshot: Snapshot
-    warnings: list[str] = field(default_factory=list)
     added_count: int = 0
     deleted_count: int = 0
     modified_count: int = 0
@@ -666,5 +660,4 @@ __all__ = [
     "PropertyDiff",
     "PropertyPathDiff",
     "DiffState",
-    "WARNING_OLD_SNAPSHOT_MISSING",
 ]

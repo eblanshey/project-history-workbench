@@ -129,6 +129,19 @@ class GitPort(Protocol):
         """
         ...
 
+    def file_exists(self, git_root: str, commit: str | None, git_path: str) -> bool:
+        """Check whether a file path exists at commit or index.
+
+        Args:
+            git_root: Absolute path to git repository root.
+            commit: Commit reference or None for index.
+            git_path: Relative path within repository.
+
+        Returns:
+            True if the path exists at given ref/index, False otherwise.
+        """
+        ...
+
     def commit(self, git_root: str, message: str) -> bool:
         """Commit staged changes in the git repository.
 

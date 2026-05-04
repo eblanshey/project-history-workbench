@@ -4,6 +4,7 @@ These tests verify that the DI container correctly wires all application
 layer dependencies together, including git repository detection components.
 """
 
+from freecad.diff_wb.application.actions.create_document_diffs import CreateDocumentDiffsAction
 from freecad.diff_wb.application.actions.get_commits import GetCommitsAction
 from freecad.diff_wb.application.di.container import (
     ApplicationContainer,
@@ -31,6 +32,7 @@ class TestApplicationContainer:
         assert container.list_snapshots_action is not None
         assert container.open_all_documents_in_repository_action is not None
         assert container.recompute_all_open_documents_action is not None
+        assert container.create_document_diffs_action is not None
 
     def test_container_wires_dependencies_correctly(self) -> None:
         """Actions have correct dependencies injected."""
@@ -56,6 +58,15 @@ class TestApplicationContainer:
         # Verify ListSnapshotsAction dependencies
         list_action = container.list_snapshots_action
         assert hasattr(list_action, "_snapshot_repo")
+
+        # Verify CreateDocumentDiffsAction dependencies
+        create_document_diffs_action = container.create_document_diffs_action
+        assert isinstance(create_document_diffs_action, CreateDocumentDiffsAction)
+        assert hasattr(create_document_diffs_action, "_create_working_snapshot")
+        assert hasattr(create_document_diffs_action, "_create_commit_snapshot")
+        assert hasattr(create_document_diffs_action, "_create_diff")
+        assert hasattr(create_document_diffs_action, "_get_staged_file_paths")
+        assert hasattr(create_document_diffs_action, "_get_committed_file_paths")
 
     def test_container_returns_application_container_instance(self) -> None:
         """Container returns an ApplicationContainer instance."""

@@ -5,7 +5,6 @@
 import pytest
 
 from freecad.diff_wb.domain.diff.models import (
-    WARNING_OLD_SNAPSHOT_MISSING,
     DiffState,
     PropertyDiff,
 )
@@ -213,25 +212,3 @@ class TestPropertyDiffPathDiffs:
 
         # First path should be "."
         assert prop_diff.path_diffs[0].path == "."
-
-
-class TestWarningConstants:
-    """Tests for warning constants in diff models."""
-
-    def test_warning_old_snapshot_missing_exists(self) -> None:
-        """Warning constant for missing old snapshot is defined."""
-        # The constant should be importable and accessible
-        assert WARNING_OLD_SNAPSHOT_MISSING is not None
-
-    def test_warning_old_snapshot_missing_exact_value(self) -> None:
-        """Warning constant equals expected string exactly."""
-        assert WARNING_OLD_SNAPSHOT_MISSING == "Old snapshot missing"
-
-    def test_warning_old_snapshot_missing_is_non_empty_descriptive(self) -> None:
-        """Warning string is non-empty and descriptive."""
-        # Check that the warning string is non-empty
-        assert isinstance(WARNING_OLD_SNAPSHOT_MISSING, str)
-        assert len(WARNING_OLD_SNAPSHOT_MISSING) > 0
-
-        # Check that it contains descriptive text
-        assert "old" in WARNING_OLD_SNAPSHOT_MISSING.lower() or "snapshot" in WARNING_OLD_SNAPSHOT_MISSING.lower()

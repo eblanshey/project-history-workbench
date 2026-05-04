@@ -15,7 +15,7 @@ from ..config import EXCLUDED_PROPERTIES, EXCLUDED_PROPERTIES_BY_TYPE, EXCLUDED_
 from ..settings import SettingsRepository
 from ..snapshots import Snapshot
 from .comparator import TreeComparator
-from .models import WARNING_OLD_SNAPSHOT_MISSING, DiffResult
+from .models import DiffResult
 
 
 class TreeComparatorProtocol(Protocol):
@@ -110,7 +110,7 @@ class DiffEngine:
         """Compute diff between two snapshots.
 
         Steps:
-        1. Handle None case (add WARNING_OLD_SNAPSHOT_MISSING warning)
+        1. Handle None case (compare snapshot against itself)
         2. Get settings (excluded types/properties/type-specific)
         3. Compare trees using TreeComparator (includes type filtering)
         4. Apply property-level exclusions (including type-specific)
@@ -123,9 +123,6 @@ class DiffEngine:
         Returns:
             DiffResult containing all differences between the snapshots
         """
-        # Track if old snapshot was missing
-        old_was_none = old is None
-
         # Handle None case: use same snapshot for both
         # This triggers the "same snapshot" warning in DiffResult.__post_init__
         if old is None:
@@ -145,13 +142,6 @@ class DiffEngine:
         result = self._tree_comparator.compare_snapshots(
             old, new, excluded_properties, excluded_node_types, excluded_properties_by_type, precision
         )
-
-        # Add warning for missing old snapshot if applicable
-        # Note: When old_was_none is True and old == new, we get "same snapshot" warning from __post_init__
-        # but we also want WARNING_OLD_SNAPSHOT_MISSING to indicate why we're comparing against itself
-        if old_was_none:
-            # Add warning for missing old snapshot
-            result.warnings.insert(0, WARNING_OLD_SNAPSHOT_MISSING)
 
         return result
 

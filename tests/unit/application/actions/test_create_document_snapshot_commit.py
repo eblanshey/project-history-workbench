@@ -2,14 +2,26 @@
 # File responsibility: Unit tests for CreateDocumentSnapshotForCommitAction application action.
 """Unit tests for CreateDocumentSnapshotForCommitAction."""
 
+from datetime import datetime
 from unittest.mock import MagicMock
 
 from freecad.diff_wb.application.actions.create_document_snapshot_commit import (
     CreateDocumentSnapshotForCommitAction,
 )
+from freecad.diff_wb.application.actions.result_models import SnapshotLoadStatus
 from freecad.diff_wb.domain.git.git_service import GitService
 from freecad.diff_wb.domain.git.models import GitRepository
-from freecad.diff_wb.domain.snapshots import Snapshot
+from freecad.diff_wb.domain.snapshots.models import Snapshot
+
+
+def _snapshot(snapshot_id: str) -> Snapshot:
+    return Snapshot(
+        snapshot_id=snapshot_id,
+        document_name="placeholder.FCStd",
+        timestamp=datetime.now(),
+        objects=[],
+        occurrences=[],
+    )
 
 
 class TestCreateDocumentSnapshotForCommitAction:
@@ -33,8 +45,13 @@ occurrences:
   after: null
 """
         mock_git_service.get_file_contents.return_value = yaml_content
+        mock_deserializer = MagicMock()
+        mock_deserializer.from_yaml.return_value = _snapshot("test-uuid-index")
 
-        action = CreateDocumentSnapshotForCommitAction(git_service=mock_git_service)
+        action = CreateDocumentSnapshotForCommitAction(
+            git_service=mock_git_service,
+            snapshot_deserializer=mock_deserializer,
+        )
         repo = GitRepository(name="test-repo", absolute_path="/path/to/repo")
 
         # When execute is called with commit=None and fcstd_git_path
@@ -43,11 +60,12 @@ occurrences:
         # Then the snapshot is created from the index content
         assert result.is_success is True
         assert result.data is not None
-        assert isinstance(result.data, Snapshot)
-        assert result.data.snapshot_id == "test-uuid-index"
-        assert len(result.data.occurrences) == 1
-        assert result.data.git_path == "path/to/doc.FCStd"
-        assert result.data.document_name == "doc.FCStd"
+        assert result.data.status == SnapshotLoadStatus.FOUND
+        assert result.data.snapshot is not None
+        assert result.data.snapshot.snapshot_id == "test-uuid-index"
+        assert result.data.snapshot.git_path == "path/to/doc.FCStd"
+        assert result.data.snapshot.document_name == "doc.FCStd"
+        mock_deserializer.from_yaml.assert_called_once_with(yaml_content)
 
     def test_execute_with_commit_hash_returns_commit_snapshot(self) -> None:
         """Test: Execute with commit hash returns snapshot from that commit."""
@@ -66,8 +84,13 @@ objects:
   properties: {}
 """
         mock_git_service.get_file_contents.return_value = yaml_content
+        mock_deserializer = MagicMock()
+        mock_deserializer.from_yaml.return_value = _snapshot("test-uuid-commit")
 
-        action = CreateDocumentSnapshotForCommitAction(git_service=mock_git_service)
+        action = CreateDocumentSnapshotForCommitAction(
+            git_service=mock_git_service,
+            snapshot_deserializer=mock_deserializer,
+        )
         repo = GitRepository(name="test-repo", absolute_path="/path/to/repo")
 
         # When execute is called with commit="HEAD"
@@ -76,9 +99,11 @@ objects:
         # Then the snapshot is created from that commit's content
         assert result.is_success is True
         assert result.data is not None
-        assert result.data.snapshot_id == "test-uuid-commit"
-        assert result.data.git_path == "path/to/doc.FCStd"
-        assert result.data.document_name == "doc.FCStd"
+        assert result.data.status == SnapshotLoadStatus.FOUND
+        assert result.data.snapshot is not None
+        assert result.data.snapshot.snapshot_id == "test-uuid-commit"
+        assert result.data.snapshot.git_path == "path/to/doc.FCStd"
+        assert result.data.snapshot.document_name == "doc.FCStd"
 
     def test_execute_with_nested_path_preserves_git_path_and_filename(self) -> None:
         """Test: Nested git paths are preserved while document name uses filename."""
@@ -90,8 +115,13 @@ uid: test-uuid-nested
 objects: []
 """
         mock_git_service.get_file_contents.return_value = yaml_content
+        mock_deserializer = MagicMock()
+        mock_deserializer.from_yaml.return_value = _snapshot("test-uuid-nested")
 
-        action = CreateDocumentSnapshotForCommitAction(git_service=mock_git_service)
+        action = CreateDocumentSnapshotForCommitAction(
+            git_service=mock_git_service,
+            snapshot_deserializer=mock_deserializer,
+        )
         repo = GitRepository(name="test-repo", absolute_path="/path/to/repo")
 
         # When execute is called with a nested path
@@ -100,38 +130,70 @@ objects: []
         # Then full git_path is preserved and document_name is filename
         assert result.is_success is True
         assert result.data is not None
-        assert result.data.git_path == "assemblies/sub/Widget.FCStd"
-        assert result.data.document_name == "Widget.FCStd"
+        assert result.data.status == SnapshotLoadStatus.FOUND
+        assert result.data.snapshot is not None
+        assert result.data.snapshot.git_path == "assemblies/sub/Widget.FCStd"
+        assert result.data.snapshot.document_name == "Widget.FCStd"
 
-    def test_execute_returns_none_when_no_content(self) -> None:
-        """Test: Execute returns None when file doesn't exist in git."""
-        # Given a GitService that returns None
+    def test_yaml_missing_and_fcstd_missing_returns_document_missing(self) -> None:
+        """Test: Missing YAML + missing FCStd returns DOCUMENT_MISSING."""
         mock_git_service = MagicMock(spec=GitService)
         mock_git_service.get_file_contents.return_value = None
+        mock_git_service.file_exists.return_value = False
 
-        action = CreateDocumentSnapshotForCommitAction(git_service=mock_git_service)
+        action = CreateDocumentSnapshotForCommitAction(
+            git_service=mock_git_service,
+            snapshot_deserializer=MagicMock(),
+        )
         repo = GitRepository(name="test-repo", absolute_path="/path/to/repo")
 
-        # When execute is called
         result = action.execute(repo, None, "path/to/nonexistent.FCStd")
 
-        # Then Result.success(None) is returned
         assert result.is_success is True
-        assert result.data is None
+        assert result.data is not None
+        assert result.data.snapshot is None
+        assert result.data.status == SnapshotLoadStatus.DOCUMENT_MISSING
+        mock_git_service.file_exists.assert_called_once_with(repo, None, "path/to/nonexistent.FCStd")
 
-    def test_execute_returns_failure_on_deserialization_error(self) -> None:
-        """Test: Execute returns failure when YAML deserialization fails."""
+    def test_yaml_missing_and_fcstd_exists_returns_snapshot_missing(self) -> None:
+        """Test: Missing YAML + existing FCStd returns SNAPSHOT_MISSING."""
+        mock_git_service = MagicMock(spec=GitService)
+        mock_git_service.get_file_contents.return_value = None
+        mock_git_service.file_exists.return_value = True
+
+        action = CreateDocumentSnapshotForCommitAction(
+            git_service=mock_git_service,
+            snapshot_deserializer=MagicMock(),
+        )
+        repo = GitRepository(name="test-repo", absolute_path="/path/to/repo")
+
+        result = action.execute(repo, None, "path/to/doc.FCStd")
+
+        assert result.is_success is True
+        assert result.data is not None
+        assert result.data.snapshot is None
+        assert result.data.status == SnapshotLoadStatus.SNAPSHOT_MISSING
+        mock_git_service.file_exists.assert_called_once_with(repo, None, "path/to/doc.FCStd")
+
+    def test_yaml_invalid_returns_invalid_snapshot_status(self) -> None:
+        """Test: Invalid YAML returns INVALID_SNAPSHOT success result."""
         # Given a GitService that returns invalid YAML
         mock_git_service = MagicMock(spec=GitService)
         mock_git_service.get_file_contents.return_value = "invalid: yaml: content: ["
+        mock_deserializer = MagicMock()
+        mock_deserializer.from_yaml.side_effect = ValueError("invalid yaml")
 
-        action = CreateDocumentSnapshotForCommitAction(git_service=mock_git_service)
+        action = CreateDocumentSnapshotForCommitAction(
+            git_service=mock_git_service,
+            snapshot_deserializer=mock_deserializer,
+        )
         repo = GitRepository(name="test-repo", absolute_path="/path/to/repo")
 
         # When execute is called
         result = action.execute(repo, None, "path/to/doc.FCStd")
 
-        # Then Result.failure is returned
-        assert result.is_success is False
-        assert result.message is not None
-        assert "Failed to deserialize snapshot" in result.message
+        # Then typed load result is returned with INVALID_SNAPSHOT
+        assert result.is_success is True
+        assert result.data is not None
+        assert result.data.snapshot is None
+        assert result.data.status == SnapshotLoadStatus.INVALID_SNAPSHOT

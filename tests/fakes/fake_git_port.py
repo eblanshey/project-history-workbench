@@ -45,6 +45,8 @@ class FakeGitPort:
         self._staged_paths: list[str] = []
         # File contents mapping: (commit, git_path) -> content
         self._file_contents: dict[tuple[str | None, str], str] = {}
+        # Existing files mapping: (commit, git_path) -> exists
+        self._file_exists: dict[tuple[str | None, str], bool] = {}
         # Tracks the last commit() call for argument verification
         self._last_commit_call: tuple[str, str] | None = None
         # Maps (git_root, commit) tuples to lists of FCStd file paths
@@ -254,6 +256,13 @@ class FakeGitPort:
         if key in self._file_contents:
             return self._file_contents[key]
         return None
+
+    def file_exists(self, git_root: str, commit: str | None, git_path: str) -> bool:
+        """Fake implementation of file_exists for testing."""
+        key = (commit, git_path)
+        if key in self._file_exists:
+            return self._file_exists[key]
+        return key in self._file_contents
 
     def commit(self, git_root: str, message: str) -> bool:
         """Fake implementation of commit for testing.

@@ -11,6 +11,7 @@ from freecad.diff_wb.domain.diff.models import DiffState
 from freecad.diff_wb.ui.presenters.presentation_models import (
     DiffTreePresentation,
     NodePresentation,
+    OldSnapshotMissingIndicator,
 )
 from tests.fakes.fake_diff_view import FakeDiffView
 
@@ -123,7 +124,7 @@ class TestFakeDiffViewShowDiffTrees:
                     )
                 ],
                 git_path="test/document.FCStd",
-                warnings=[],
+                indicators=[],
             )
         ]
 
@@ -145,12 +146,12 @@ class TestFakeDiffViewShowDiffTrees:
             DiffTreePresentation(
                 nodes=[],
                 git_path="doc1.FCStd",
-                warnings=["warning1"],
+                indicators=[OldSnapshotMissingIndicator()],
             ),
             DiffTreePresentation(
                 nodes=[],
                 git_path="doc2.FCStd",
-                warnings=[],
+                indicators=[],
             ),
         ]
 

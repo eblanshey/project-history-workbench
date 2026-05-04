@@ -9,7 +9,6 @@ from typing import Any
 
 from freecad.diff_wb.domain import Property
 from freecad.diff_wb.domain.diff import (
-    WARNING_OLD_SNAPSHOT_MISSING,
     DiffHierarchy,
     DiffResult,
     DiffState,
@@ -248,8 +247,8 @@ class TestDiffResult:
         assert diff.old_snapshot is old_snapshot
         assert diff.new_snapshot is new_snapshot
 
-    def test_warnings_initialized_empty_by_default(self) -> None:
-        """Test warnings list is initialized empty by default."""
+    def test_default_counts_initialized(self) -> None:
+        """Test default counters are initialized."""
         old_snapshot = snapshot_from_rows(
             snapshot_id="old-id",
             document_name="OldDoc",
@@ -265,10 +264,12 @@ class TestDiffResult:
             occurrences=[],
         )
         diff = DiffResult(old_snapshot=old_snapshot, new_snapshot=new_snapshot)
-        assert diff.warnings == []
+        assert diff.added_count == 0
+        assert diff.deleted_count == 0
+        assert diff.modified_count == 0
 
-    def test_same_snapshot_instance_has_no_warning(self) -> None:
-        """Test same snapshot instance for old/new does not trigger warning."""
+    def test_same_snapshot_instance_allowed(self) -> None:
+        """Test same snapshot instance for old/new is valid."""
         snapshot = snapshot_from_rows(
             snapshot_id="same-id",
             document_name="SameDoc",
@@ -277,32 +278,7 @@ class TestDiffResult:
             occurrences=[],
         )
         diff = DiffResult(old_snapshot=snapshot, new_snapshot=snapshot)
-        assert len(diff.warnings) == 0
-
-    def test_warnings_can_contain_multiple_strings(self) -> None:
-        """Test warnings can contain multiple strings."""
-        old_snapshot = snapshot_from_rows(
-            snapshot_id="old-id",
-            document_name="OldDoc",
-            timestamp=datetime.datetime.now(),
-            objects=[],
-            occurrences=[],
-        )
-        new_snapshot = snapshot_from_rows(
-            snapshot_id="new-id",
-            document_name="NewDoc",
-            timestamp=datetime.datetime.now(),
-            objects=[],
-            occurrences=[],
-        )
-        diff = DiffResult(
-            old_snapshot=old_snapshot,
-            new_snapshot=new_snapshot,
-            warnings=["Warning 1", "Warning 2"],
-        )
-        assert len(diff.warnings) == 2
-        assert "Warning 1" in diff.warnings
-        assert "Warning 2" in diff.warnings
+        assert diff.old_snapshot is snapshot
 
     def test_has_changes_false(self) -> None:
         """Test has_changes when no changes."""
@@ -633,7 +609,7 @@ class TestDiffEngineComputeDiffWithNone:
     """Tests for DiffEngine.compute_diff() when old snapshot is None."""
 
     def test_compute_diff_with_none_old_snapshot(self) -> None:
-        """Test compute_diff with None for old snapshot adds appropriate warning."""
+        """Test compute_diff with None for old snapshot compares against itself."""
         new_snapshot = snapshot_from_rows(
             snapshot_id=str(uuid.uuid4()),
             document_name="TestDoc",
@@ -647,9 +623,7 @@ class TestDiffEngineComputeDiffWithNone:
         # Should use same snapshot for both
         assert result.old_snapshot is new_snapshot
         assert result.new_snapshot is new_snapshot
-        # Should have warning about missing old snapshot
-        assert len(result.warnings) == 1
-        assert WARNING_OLD_SNAPSHOT_MISSING in result.warnings
+        assert result.has_changes is False
 
 
 class TestDiffEngineComputeDiffWithSettings:

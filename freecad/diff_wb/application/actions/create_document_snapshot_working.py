@@ -50,7 +50,8 @@ class CreateDocumentSnapshotForWorkingTreeAction:
         git_path = doc_path[len(repo.absolute_path) :].lstrip("/")
         try:
             snapshot = self._extractor.extract_tree(document, git_path=git_path)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
+            # Broad catch required: extractor port intentionally shields arbitrary FreeCAD/runtime failures.
             Log.exception(f"Failed to extract snapshot for {git_path}: {e}")
             return Result.failure(f"Failed to extract snapshot: {e}")
 

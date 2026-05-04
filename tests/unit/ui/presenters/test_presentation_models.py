@@ -443,7 +443,7 @@ class TestDiffTreePresentation:
         diff_tree = DiffTreePresentation(
             nodes=nodes,
             git_path="path/to/document.FCStd",
-            warnings=[],
+            indicators=[],
         )
 
         # Act & Assert - attempting to modify should raise FrozenInstanceError
@@ -452,18 +452,21 @@ class TestDiffTreePresentation:
 
     def test_diff_tree_presentation_fields(self) -> None:
         """Verify all fields present in DiffTreePresentation."""
+        from freecad.diff_wb.ui.presenters.presentation_models import OldSnapshotMissingIndicator
+
         # Arrange & Act
         nodes: list[NodePresentation] = []
+        indicator = OldSnapshotMissingIndicator()
         diff_tree = DiffTreePresentation(
             nodes=nodes,
             git_path="path/to/document.FCStd",
-            warnings=["warning1"],
+            indicators=[indicator],
         )
 
         # Assert
         assert diff_tree.nodes == nodes
         assert diff_tree.git_path == "path/to/document.FCStd"
-        assert diff_tree.warnings == ["warning1"]
+        assert diff_tree.indicators == [indicator]
 
     def test_diff_tree_presentation_nodes_field(self) -> None:
         """Verify nodes field can be set with NodePresentation objects."""
@@ -487,7 +490,7 @@ class TestDiffTreePresentation:
         diff_tree = DiffTreePresentation(
             nodes=[node1, node2],
             git_path="path/to/document.FCStd",
-            warnings=[],
+            indicators=[],
         )
 
         # Assert
@@ -503,46 +506,49 @@ class TestDiffTreePresentation:
         diff_tree = DiffTreePresentation(
             nodes=[],
             git_path="src/models/part.FCStd",
-            warnings=[],
+            indicators=[],
         )
 
         # Assert
         assert diff_tree.git_path == "src/models/part.FCStd"
 
-    def test_diff_tree_presentation_warnings_field(self) -> None:
-        """Verify warnings field can be set with warning strings."""
+    def test_diff_tree_presentation_indicators_field(self) -> None:
+        """Verify indicators field can be set with indicator objects."""
+        from freecad.diff_wb.ui.presenters.presentation_models import NewFileIndicator, OldSnapshotMissingIndicator
+
         # Arrange & Act
         diff_tree = DiffTreePresentation(
             nodes=[],
             git_path="path/to/document.FCStd",
-            warnings=["Warning 1", "Warning 2"],
+            indicators=[NewFileIndicator(), OldSnapshotMissingIndicator()],
         )
 
         # Assert
-        assert diff_tree.warnings == ["Warning 1", "Warning 2"]
-        assert len(diff_tree.warnings) == 2
+        assert len(diff_tree.indicators) == 2
+        assert isinstance(diff_tree.indicators[0], NewFileIndicator)
+        assert isinstance(diff_tree.indicators[1], OldSnapshotMissingIndicator)
 
-    def test_diff_tree_presentation_warnings_empty_list_default(self) -> None:
-        """Verify warnings defaults to empty list when not provided."""
-        # Note: warnings doesn't have a default_factory, so it's required
+    def test_diff_tree_presentation_indicators_empty_list_default(self) -> None:
+        """Verify indicators defaults to empty list when not provided."""
+        # Note: indicators doesn't have a default_factory, so it's required
         # This test verifies we can pass an empty list
         # Arrange & Act
         diff_tree = DiffTreePresentation(
             nodes=[],
             git_path="path/to/document.FCStd",
-            warnings=[],
+            indicators=[],
         )
 
         # Assert
-        assert diff_tree.warnings == []
-        assert isinstance(diff_tree.warnings, list)
+        assert diff_tree.indicators == []
+        assert isinstance(diff_tree.indicators, list)
 
     def test_diff_tree_presentation_stage_button_enabled_field(self) -> None:
         """Verify stage_button_enabled field is present and can be set."""
         diff_tree = DiffTreePresentation(
             nodes=[],
             git_path="path/to/document.FCStd",
-            warnings=[],
+            indicators=[],
             stage_button_enabled=True,
         )
         assert diff_tree.stage_button_enabled is True
@@ -552,7 +558,7 @@ class TestDiffTreePresentation:
         diff_tree = DiffTreePresentation(
             nodes=[],
             git_path="path/to/document.FCStd",
-            warnings=[],
+            indicators=[],
         )
         assert diff_tree.stage_button_enabled is False
 
@@ -562,7 +568,7 @@ class TestDiffTreePresentation:
         diff_tree = DiffTreePresentation(
             nodes=[],
             git_path="path/to/document.FCStd",
-            warnings=[],
+            indicators=[],
         )
 
         # Assert
@@ -579,7 +585,7 @@ class TestDiffTreePresentationIsDataclass:
         diff_tree = DiffTreePresentation(
             nodes=[],
             git_path="path/to/document.FCStd",
-            warnings=[],
+            indicators=[],
         )
 
         # Assert
@@ -593,17 +599,17 @@ class TestDiffTreePresentationIsDataclass:
         tree1 = DiffTreePresentation(
             nodes=nodes1,
             git_path="path/to/document.FCStd",
-            warnings=[],
+            indicators=[],
         )
         tree2 = DiffTreePresentation(
             nodes=nodes2,
             git_path="path/to/document.FCStd",
-            warnings=[],
+            indicators=[],
         )
         tree3 = DiffTreePresentation(
             nodes=nodes1,
             git_path="different/path.FCStd",
-            warnings=[],
+            indicators=[],
         )
 
         # Assert

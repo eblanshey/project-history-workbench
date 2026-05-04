@@ -606,9 +606,11 @@ class TestShowDiffTreesSelectionKeyWiring:
         """Root item stores fallback selection key when git_path is empty."""
         from PySide6.QtCore import Qt
 
-        from freecad.diff_wb.ui.presenters.presentation_models import DiffTreePresentation
+        from freecad.diff_wb.ui.presenters.presentation_models import (
+            DiffTreePresentation,
+        )
 
-        panel.show_doc_diffs([DiffTreePresentation(nodes=[], git_path="", warnings=[])])
+        panel.show_doc_diffs([DiffTreePresentation(nodes=[], git_path="", indicators=[])])
 
         root_item = panel.tree_widget.topLevelItem(0)
         assert root_item is not None
@@ -639,7 +641,7 @@ class TestShowDiffTreesSelectionKeyWiring:
                         )
                     ],
                     git_path="parts/A.FCStd",
-                    warnings=[],
+                    indicators=[],
                 )
             ]
         )
@@ -661,14 +663,17 @@ class TestShowDiffTreesWarningDisplay:
         """Warnings are exposed via tooltip and not as inline orange text labels."""
         from PySide6.QtWidgets import QLabel
 
-        from freecad.diff_wb.ui.presenters.presentation_models import DiffTreePresentation
+        from freecad.diff_wb.ui.presenters.presentation_models import (
+            DiffTreePresentation,
+            OldSnapshotMissingIndicator,
+        )
 
         panel.show_doc_diffs(
             [
                 DiffTreePresentation(
                     nodes=[],
                     git_path="parts/A.FCStd",
-                    warnings=["Old snapshot missing"],
+                    indicators=[OldSnapshotMissingIndicator()],
                 )
             ]
         )

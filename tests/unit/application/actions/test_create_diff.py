@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 # File responsibility: Unit tests for CreateDiffAction using fake DiffEngine.
-# Tests cover success scenarios, missing old snapshot warning, and same snapshot warning.
+# Tests cover success scenarios and error handling.
 """Unit tests for CreateDiffAction."""
 
 from datetime import datetime
 from typing import Protocol
 
 from freecad.diff_wb.application.actions.create_diff import CreateDiffAction
-from freecad.diff_wb.domain.diff.models import WARNING_OLD_SNAPSHOT_MISSING, DiffResult
+from freecad.diff_wb.domain.diff.models import DiffResult
 from freecad.diff_wb.domain.snapshots.models import Snapshot
 from freecad.diff_wb.domain.tree.property import Property
 
@@ -39,7 +39,6 @@ class FakeDiffEngine:
         return DiffResult(
             old_snapshot=old if old is not None else new,
             new_snapshot=new,
-            warnings=[],
         )
 
 
@@ -110,18 +109,15 @@ class TestCreateDiffActionSuccess:
 class TestCreateDiffActionWithNoneOldSnapshot:
     """Tests for handling missing old snapshot."""
 
-    def test_when_old_snapshot_is_none_diff_result_has_warning(self) -> None:
-        """Test that when old_snapshot is None, DiffResult has WARNING_OLD_SNAPSHOT_MISSING."""
+    def test_when_old_snapshot_is_none_action_returns_success(self) -> None:
+        """Test that None old_snapshot is delegated to engine and succeeds."""
 
         # Setup - use a fake engine that adds the warning when old is None
         # Note: The fake engine creates a DIFFERENT old snapshot to avoid triggering
         # the "same snapshot" warning in DiffResult.__post_init__
-        class FakeDiffEngineWithWarning:
+        class FakeDiffEngineWithNoneSupport:
             def compute_diff(self, old: Snapshot | None, new: Snapshot) -> DiffResult:
-                warnings = []
                 if old is None:
-                    warnings.append(WARNING_OLD_SNAPSHOT_MISSING)
-                    # Create a different old snapshot to avoid "same snapshot" warning
                     old = Snapshot(
                         snapshot_id="different-id",
                         document_name=new.document_name + "_old",
@@ -133,27 +129,25 @@ class TestCreateDiffActionWithNoneOldSnapshot:
                 return DiffResult(
                     old_snapshot=old,
                     new_snapshot=new,
-                    warnings=warnings,
                 )
 
-        action = CreateDiffAction(FakeDiffEngineWithWarning())
+        action = CreateDiffAction(FakeDiffEngineWithNoneSupport())
         new_snapshot = create_test_snapshot("new_doc")
 
         # Execute with None as old snapshot
         result = action.execute(None, new_snapshot)
 
-        # Assert - should be success with WARNING_OLD_SNAPSHOT_MISSING
+        # Assert - should be success
         assert result.is_success is True
         assert result.data is not None
         assert isinstance(result.data, DiffResult)
-        assert WARNING_OLD_SNAPSHOT_MISSING in result.data.warnings
 
 
 class TestCreateDiffActionWithSameSnapshot:
     """Tests for handling same snapshot case."""
 
-    def test_when_old_snapshot_equals_new_snapshot_diff_result_has_no_warning(self) -> None:
-        """Test that when old_snapshot equals new_snapshot, DiffResult has no warning."""
+    def test_when_old_snapshot_equals_new_snapshot_diff_result_is_valid(self) -> None:
+        """Test that when old_snapshot equals new_snapshot, DiffResult is valid."""
         # Setup
         fake_engine = FakeDiffEngine()
         action = CreateDiffAction(fake_engine)
@@ -164,12 +158,10 @@ class TestCreateDiffActionWithSameSnapshot:
         # Execute with same snapshot for both old and new
         result = action.execute(same_snapshot, same_snapshot)
 
-        # Assert - should succeed with no warning (same snapshot is valid)
+        # Assert - should succeed (same snapshot is valid)
         assert result.is_success is True
         assert result.data is not None
         assert isinstance(result.data, DiffResult)
-        # No warning expected for same snapshot
-        assert len(result.data.warnings) == 0
 
 
 class TestCreateDiffActionFailure:

@@ -1,8 +1,7 @@
-"""Tests for Phase 3: UI Composer.
+# File responsibility: Verify UI composer wiring, registration, and constructed dependencies.
+"""Tests for UI Composer.
 
 These tests verify that the UI Composer correctly creates and wires all UI components.
-
-Following TDD: these tests were written BEFORE implementation.
 """
 
 from unittest.mock import MagicMock, patch
@@ -37,6 +36,7 @@ class TestComposeAndRegisterUiReturnsView:
         mock_container.create_working_snapshot_action = MagicMock()
         mock_container.create_commit_snapshot_action = MagicMock()
         mock_container.create_diff_action = MagicMock()
+        mock_container.create_document_diffs_action = MagicMock()
         mock_container.stage_documents_action = MagicMock()
         mock_container.get_dirty_documents_action = MagicMock()
         mock_container.get_staged_file_paths_action = MagicMock()
@@ -69,6 +69,7 @@ class TestComposeCreatesUiState:
         mock_container.create_working_snapshot_action = MagicMock()
         mock_container.create_commit_snapshot_action = MagicMock()
         mock_container.create_diff_action = MagicMock()
+        mock_container.create_document_diffs_action = MagicMock()
         mock_container.stage_documents_action = MagicMock()
         mock_container.get_dirty_documents_action = MagicMock()
         mock_container.get_staged_file_paths_action = MagicMock()
@@ -101,6 +102,7 @@ class TestComposerRegistersSnapshotPresenter:
         mock_container.create_working_snapshot_action = MagicMock()
         mock_container.create_commit_snapshot_action = MagicMock()
         mock_container.create_diff_action = MagicMock()
+        mock_container.create_document_diffs_action = MagicMock()
         mock_container.stage_documents_action = MagicMock()
         mock_container.get_dirty_documents_action = MagicMock()
         mock_container.get_staged_file_paths_action = MagicMock()
@@ -154,6 +156,7 @@ class TestComposerRegistersDiffPresenter:
         mock_container.create_working_snapshot_action = MagicMock()
         mock_container.create_commit_snapshot_action = MagicMock()
         mock_container.create_diff_action = MagicMock()
+        mock_container.create_document_diffs_action = MagicMock()
         mock_container.stage_documents_action = MagicMock()
         mock_container.get_dirty_documents_action = MagicMock()
         mock_container.get_staged_file_paths_action = MagicMock()
@@ -203,13 +206,10 @@ class TestComposerRegistersDiffPresenter:
 
             call_args = MockPresenter.call_args
             assert "get_eligible_docs_action" in call_args.kwargs
-            assert "create_working_snapshot_action" in call_args.kwargs
-            assert "create_commit_snapshot_action" in call_args.kwargs
-            assert "create_diff_action" in call_args.kwargs
+            assert "create_document_diffs_action" in call_args.kwargs
             assert "stage_documents_action" in call_args.kwargs
             assert "get_dirty_documents_action" in call_args.kwargs
-            assert "get_staged_file_paths_action" in call_args.kwargs
-            assert "get_committed_file_paths_action" in call_args.kwargs
+            assert call_args.kwargs["create_document_diffs_action"] is mock_container.create_document_diffs_action
 
 
 class TestComposerConnectsTreeWidgetCallback:
@@ -223,6 +223,7 @@ class TestComposerConnectsTreeWidgetCallback:
         mock_container.create_working_snapshot_action = MagicMock()
         mock_container.create_commit_snapshot_action = MagicMock()
         mock_container.create_diff_action = MagicMock()
+        mock_container.create_document_diffs_action = MagicMock()
         mock_container.stage_documents_action = MagicMock()
         mock_container.get_dirty_documents_action = MagicMock()
         mock_container.get_staged_file_paths_action = MagicMock()
@@ -287,6 +288,7 @@ class TestComposerInitializesGitRepositoryPresenter:
         mock_container.create_working_snapshot_action = MagicMock()
         mock_container.create_commit_snapshot_action = MagicMock()
         mock_container.create_diff_action = MagicMock()
+        mock_container.create_document_diffs_action = MagicMock()
         mock_container.stage_documents_action = MagicMock()
         mock_container.get_dirty_documents_action = MagicMock()
         mock_container.get_staged_file_paths_action = MagicMock()
@@ -369,6 +371,7 @@ class TestComposerWiresAllDependencies:
         mock_container.create_working_snapshot_action = MagicMock()
         mock_container.create_commit_snapshot_action = MagicMock()
         mock_container.create_diff_action = MagicMock()
+        mock_container.create_document_diffs_action = MagicMock()
         mock_container.stage_documents_action = MagicMock()
         mock_container.get_dirty_documents_action = MagicMock()
         mock_container.get_staged_file_paths_action = MagicMock()
@@ -401,26 +404,13 @@ class TestComposerWiresAllDependencies:
                 == mock_container.get_open_eligible_docs_action
             )
             assert (
-                MockDiffPresenter.call_args.kwargs["create_working_snapshot_action"]
-                == mock_container.create_working_snapshot_action
+                MockDiffPresenter.call_args.kwargs["create_document_diffs_action"]
+                == mock_container.create_document_diffs_action
             )
-            assert (
-                MockDiffPresenter.call_args.kwargs["create_commit_snapshot_action"]
-                == mock_container.create_commit_snapshot_action
-            )
-            assert MockDiffPresenter.call_args.kwargs["create_diff_action"] == mock_container.create_diff_action
             assert MockDiffPresenter.call_args.kwargs["stage_documents_action"] == mock_container.stage_documents_action
             assert (
                 MockDiffPresenter.call_args.kwargs["get_dirty_documents_action"]
                 == mock_container.get_dirty_documents_action
-            )
-            assert (
-                MockDiffPresenter.call_args.kwargs["get_staged_file_paths_action"]
-                == mock_container.get_staged_file_paths_action
-            )
-            assert (
-                MockDiffPresenter.call_args.kwargs["get_committed_file_paths_action"]
-                == mock_container.get_committed_file_paths_action
             )
 
             # GitRepositoryPresenter gets its actions

@@ -1,11 +1,18 @@
-"""File responsibility: Unit tests for Result class.
+"""File responsibility: Unit tests for application action result models.
 
 This module contains unit tests for the generic Result dataclass used across
 all actions in the application layer. Tests cover factory methods, constructor
 usage, and edge cases for both success and failure scenarios.
 """
 
-from freecad.diff_wb.application.actions.result_models import Result
+from dataclasses import asdict
+
+from freecad.diff_wb.application.actions.result_models import (
+    DocumentDiffResult,
+    DocumentDiffStatus,
+    Result,
+    SnapshotLoadStatus,
+)
 
 
 class TestResultSuccess:
@@ -171,3 +178,33 @@ class TestResultImmutability:
 
         result.data = "modified"
         assert result.data == "modified"
+
+
+class TestDocumentDiffResultModel:
+    """Tests for document-level diff result application model."""
+
+    def test_document_diff_result_has_only_application_fields(self) -> None:
+        """Verify model includes only git path, status, and snapshot diff."""
+        model = DocumentDiffResult(git_path="path/to/doc.FCStd", status=DocumentDiffStatus.MODIFIED, snapshot_diff=None)
+
+        assert set(asdict(model).keys()) == {"git_path", "status", "snapshot_diff"}
+
+    def test_document_diff_result_can_hold_snapshot_diff(self) -> None:
+        """Verify model accepts snapshot diff payload."""
+        snapshot_diff = object()
+
+        model = DocumentDiffResult(
+            git_path="path/to/doc.FCStd",
+            status=DocumentDiffStatus.UNCHANGED,
+            snapshot_diff=snapshot_diff,
+        )
+
+        assert model.snapshot_diff is snapshot_diff
+
+
+class TestSnapshotLoadStatus:
+    """Tests for snapshot load status enum values."""
+
+    def test_snapshot_load_status_has_invalid_snapshot(self) -> None:
+        """Verify enum includes invalid snapshot status."""
+        assert SnapshotLoadStatus.INVALID_SNAPSHOT.name == "INVALID_SNAPSHOT"

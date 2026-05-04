@@ -3,15 +3,14 @@
 import datetime
 from unittest.mock import MagicMock
 
-from freecad.diff_wb.application.actions.create_diff import CreateDiffAction
-from freecad.diff_wb.application.actions.create_document_snapshot_commit import CreateDocumentSnapshotForCommitAction
-from freecad.diff_wb.application.actions.create_document_snapshot_working import (
-    CreateDocumentSnapshotForWorkingTreeAction,
-)
-from freecad.diff_wb.application.actions.get_committed_file_paths import GetCommittedFilePathsAction
+from freecad.diff_wb.application.actions.create_document_diffs import CreateDocumentDiffsAction
 from freecad.diff_wb.application.actions.get_dirty_documents import GetDirtyDocumentsAction
 from freecad.diff_wb.application.actions.get_open_eligible_documents import GetOpenEligibleDocumentsAction
-from freecad.diff_wb.application.actions.get_staged_file_paths import GetStagedFilePathsAction
+from freecad.diff_wb.application.actions.result_models import (
+    DocumentDiffResult,
+    DocumentDiffStatus,
+    Result,
+)
 from freecad.diff_wb.application.actions.stage_documents import StageDocumentsAction
 from freecad.diff_wb.domain.diff.models import DiffHierarchy, DiffResult, DiffState, NodeDiff, PropertyDiff
 from freecad.diff_wb.domain.git.models import GitRepository
@@ -35,25 +34,17 @@ def _create_test_presenter() -> tuple[FakeDiffView, DiffPresenter]:
 
     # Create mock actions
     get_eligible_docs_action = MagicMock(spec=GetOpenEligibleDocumentsAction)
-    create_working_snapshot_action = MagicMock(spec=CreateDocumentSnapshotForWorkingTreeAction)
-    create_commit_snapshot_action = MagicMock(spec=CreateDocumentSnapshotForCommitAction)
-    create_diff_action = MagicMock(spec=CreateDiffAction)
+    create_document_diffs_action = MagicMock(spec=CreateDocumentDiffsAction)
     stage_documents_action = MagicMock(spec=StageDocumentsAction)
     get_dirty_documents_action = MagicMock(spec=GetDirtyDocumentsAction)
-    get_staged_file_paths_action = MagicMock(spec=GetStagedFilePathsAction)
-    get_committed_file_paths_action = MagicMock(spec=GetCommittedFilePathsAction)
 
     presenter = DiffPresenter(
         view=view,
         ui_state=ui_state,
         get_eligible_docs_action=get_eligible_docs_action,
-        create_working_snapshot_action=create_working_snapshot_action,
-        create_commit_snapshot_action=create_commit_snapshot_action,
-        create_diff_action=create_diff_action,
+        create_document_diffs_action=create_document_diffs_action,
         stage_documents_action=stage_documents_action,
         get_dirty_documents_action=get_dirty_documents_action,
-        get_staged_file_paths_action=get_staged_file_paths_action,
-        get_committed_file_paths_action=get_committed_file_paths_action,
     )
     return view, presenter
 
@@ -829,7 +820,7 @@ class TestDiffPresenterWorkingTreeOrchestration:
         presenter._get_eligible_docs.execute.assert_called_once_with(mock_repo)
 
     def test_on_working_tree_selected_creates_working_snapshots(self) -> None:
-        """For each eligible document, creates working tree snapshot."""
+        """Delegates working-tree orchestration to CreateDocumentDiffsAction."""
         from tests.fakes.fake_freecad_port import DocumentLike
 
         fake_view, presenter = _create_test_presenter()
@@ -847,44 +838,19 @@ class TestDiffPresenterWorkingTreeOrchestration:
         mock_docs_result.message = ""
         presenter._get_eligible_docs.execute.return_value = mock_docs_result
 
-        # Setup mock working snapshot
-        mock_working_snapshot = Snapshot(
-            snapshot_id="ws1",
-            document_name="doc1.FCStd",
-            timestamp=datetime.datetime.now(),
-            git_path="doc1.FCStd",
-        )
-        mock_working_result = MagicMock()
-        mock_working_result.is_success = True
-        mock_working_result.data = mock_working_snapshot
-        mock_working_result.message = ""
-        presenter._create_working_tree_snapshot.execute.return_value = mock_working_result
-
-        # Setup mock commit result (stub returns None)
-        mock_commit_result = MagicMock()
-        mock_commit_result.is_success = True
-        mock_commit_result.data = None
-        presenter._create_commit_snapshot.execute.return_value = mock_commit_result
-
-        # Setup mock diff result
-        mock_diff_result = DiffResult(
-            old_snapshot=None,
-            new_snapshot=mock_working_snapshot,
-            hierarchy=DiffHierarchy(),
-        )
-        mock_create_diff_result = MagicMock()
-        mock_create_diff_result.is_success = True
-        mock_create_diff_result.data = mock_diff_result
-        presenter._create_diff.execute.return_value = mock_create_diff_result
+        presenter._create_document_diffs.execute.return_value = Result.success([])
 
         # Act
         presenter._on_working_tree_selected()
 
         # Assert
-        presenter._create_working_tree_snapshot.execute.assert_called_once_with(mock_repo, mock_doc1)
+        request = presenter._create_document_diffs.execute.call_args.args[0]
+        assert request.mode.name == "WORKING_TREE"
+        assert request.repo == mock_repo
+        assert request.documents == [mock_doc1]
 
     def test_on_working_tree_selected_creates_diff_with_none_old_snapshot(self) -> None:
-        """Creates diff with None old_snapshot and working tree snapshot as new."""
+        """Consumes action results and stores snapshot_diff by git path."""
         from tests.fakes.fake_freecad_port import DocumentLike
 
         fake_view, presenter = _create_test_presenter()
@@ -902,49 +868,136 @@ class TestDiffPresenterWorkingTreeOrchestration:
         mock_docs_result.message = ""
         presenter._get_eligible_docs.execute.return_value = mock_docs_result
 
-        # Setup mock working snapshot
         mock_working_snapshot = Snapshot(
             snapshot_id="ws1",
             document_name="doc.FCStd",
             timestamp=datetime.datetime.now(),
             git_path="doc.FCStd",
         )
-        mock_working_result = MagicMock()
-        mock_working_result.is_success = True
-        mock_working_result.data = mock_working_snapshot
-        presenter._create_working_tree_snapshot.execute.return_value = mock_working_result
-
-        # Setup mock commit result
-        mock_commit_result = MagicMock()
-        mock_commit_result.is_success = True
-        mock_commit_result.data = None
-        presenter._create_commit_snapshot.execute.return_value = mock_commit_result
-
-        # Mock the diff creation
-        captured_old_snapshot = []
-
-        def capture_diff(old, new):
-            captured_old_snapshot.append(old)
-            mock_diff_result = MagicMock()
-            mock_diff_result.is_success = True
-            mock_diff_result.data = DiffResult(
-                old_snapshot=old,
-                new_snapshot=new,
-                hierarchy=DiffHierarchy(),
-            )
-            return mock_diff_result
-
-        presenter._create_diff.execute.side_effect = capture_diff
+        mock_diff_result = DiffResult(old_snapshot=None, new_snapshot=mock_working_snapshot, hierarchy=DiffHierarchy())
+        presenter._create_document_diffs.execute.return_value = Result.success(
+            [
+                DocumentDiffResult(
+                    git_path="doc.FCStd",
+                    status=DocumentDiffStatus.NEW_FILE,
+                    snapshot_diff=mock_diff_result,
+                )
+            ]
+        )
 
         # Act
         presenter._on_working_tree_selected()
 
         # Assert
-        assert len(captured_old_snapshot) == 1
-        assert captured_old_snapshot[0] is None
+        assert presenter._diff_results_by_path["doc.FCStd"] == mock_diff_result
+
+    def test_on_working_tree_selected_stores_only_available_snapshot_diffs(self) -> None:
+        """Skips status-only entries in diff map but still presents status rows."""
+        from tests.fakes.fake_freecad_port import DocumentLike
+
+        fake_view, presenter = _create_test_presenter()
+        mock_repo = GitRepository(name="test-repo", absolute_path="/test/path")
+        presenter._ui_state.git_repository = mock_repo
+
+        mock_doc = MagicMock(spec=DocumentLike)
+        mock_docs_result = MagicMock()
+        mock_docs_result.is_success = True
+        mock_docs_result.data = [mock_doc]
+        mock_docs_result.message = ""
+        presenter._get_eligible_docs.execute.return_value = mock_docs_result
+        presenter._get_dirty_documents.execute.return_value = Result.success([])
+
+        snapshot = Snapshot(
+            snapshot_id="ws1",
+            document_name="with_diff.FCStd",
+            timestamp=datetime.datetime.now(),
+            git_path="with_diff.FCStd",
+        )
+        with_diff = DiffResult(old_snapshot=None, new_snapshot=snapshot, hierarchy=DiffHierarchy())
+
+        presenter._create_document_diffs.execute.return_value = Result.success(
+            [
+                DocumentDiffResult(
+                    git_path="with_diff.FCStd",
+                    status=DocumentDiffStatus.MODIFIED,
+                    snapshot_diff=with_diff,
+                ),
+                DocumentDiffResult(
+                    git_path="status_only.FCStd",
+                    status=DocumentDiffStatus.OLD_SNAPSHOT_MISSING,
+                    snapshot_diff=None,
+                ),
+            ]
+        )
+
+        presenter._on_working_tree_selected()
+
+        assert presenter._diff_results_by_path == {"with_diff.FCStd": with_diff}
+        assert presenter._document_status_by_path == {
+            "with_diff.FCStd": DocumentDiffStatus.MODIFIED,
+            "status_only.FCStd": DocumentDiffStatus.OLD_SNAPSHOT_MISSING,
+        }
+
+        show_call = next((c for c in fake_view.get_calls() if c["method"] == "show_doc_diffs"), None)
+        assert show_call is not None
+        git_paths = {item.git_path for item in show_call["diff_trees"]}
+        assert git_paths == {"with_diff.FCStd", "status_only.FCStd"}
+
+    def test_on_working_tree_selected_presents_status_only_results(self) -> None:
+        """Working-tree selection displays status-only document results."""
+        from tests.fakes.fake_freecad_port import DocumentLike
+
+        fake_view, presenter = _create_test_presenter()
+        presenter._ui_state.git_repository = GitRepository(name="test-repo", absolute_path="/test/path")
+
+        mock_doc = MagicMock(spec=DocumentLike)
+        docs_result = MagicMock()
+        docs_result.is_success = True
+        docs_result.data = [mock_doc]
+        docs_result.message = ""
+        presenter._get_eligible_docs.execute.return_value = docs_result
+        presenter._get_dirty_documents.execute.return_value = Result.success([])
+        presenter._create_document_diffs.execute.return_value = Result.success(
+            [DocumentDiffResult(git_path="status_only.FCStd", status=DocumentDiffStatus.OLD_SNAPSHOT_MISSING)]
+        )
+
+        presenter._on_working_tree_selected()
+
+        clear_call = next((c for c in fake_view.get_calls() if c["method"] == "clear_doc_diffs"), None)
+        assert clear_call is None
+        show_call = next((c for c in fake_view.get_calls() if c["method"] == "show_doc_diffs"), None)
+        assert show_call is not None
+        assert [item.git_path for item in show_call["diff_trees"]] == ["status_only.FCStd"]
+
+    def test_on_working_tree_selected_presents_diff_computation_failed_indicator(self) -> None:
+        """Status-only diff failure maps to warning indicator in presentation."""
+        from tests.fakes.fake_freecad_port import DocumentLike
+
+        fake_view, presenter = _create_test_presenter()
+        presenter._ui_state.git_repository = GitRepository(name="test-repo", absolute_path="/test/path")
+
+        mock_doc = MagicMock(spec=DocumentLike)
+        docs_result = MagicMock()
+        docs_result.is_success = True
+        docs_result.data = [mock_doc]
+        docs_result.message = ""
+        presenter._get_eligible_docs.execute.return_value = docs_result
+        presenter._get_dirty_documents.execute.return_value = Result.success([])
+        presenter._create_document_diffs.execute.return_value = Result.success(
+            [DocumentDiffResult(git_path="broken.FCStd", status=DocumentDiffStatus.DIFF_COMPUTATION_FAILED)]
+        )
+
+        presenter._on_working_tree_selected()
+
+        show_call = next((c for c in fake_view.get_calls() if c["method"] == "show_doc_diffs"), None)
+        assert show_call is not None
+        assert len(show_call["diff_trees"]) == 1
+        indicators = show_call["diff_trees"][0].indicators
+        assert len(indicators) == 1
+        assert indicators[0].tooltip == "Diff computation failed"
 
     def test_on_working_tree_selected_logs_warning_and_continues_on_failure(self) -> None:
-        """Logs warning for failed snapshots but continues processing."""
+        """Gracefully handles failed action response."""
         from tests.fakes.fake_freecad_port import DocumentLike
 
         fake_view, presenter = _create_test_presenter()
@@ -964,56 +1017,15 @@ class TestDiffPresenterWorkingTreeOrchestration:
         mock_docs_result.message = ""
         presenter._get_eligible_docs.execute.return_value = mock_docs_result
 
-        # First doc fails, second succeeds
-        failed_result = MagicMock()
-        failed_result.is_success = False
-        failed_result.data = None
-        failed_result.message = "Failed to extract"
-
-        successful_snapshot = Snapshot(
-            snapshot_id="ws2",
-            document_name="doc2.FCStd",
-            timestamp=datetime.datetime.now(),
-            git_path="doc2.FCStd",
-        )
-        successful_result = MagicMock()
-        successful_result.is_success = True
-        successful_result.data = successful_snapshot
-        successful_result.message = ""
-
-        call_count = [0]
-
-        def create_working_side_effect(repo, doc):
-            call_count[0] += 1
-            if call_count[0] == 1:
-                return failed_result
-            return successful_result
-
-        presenter._create_working_tree_snapshot.execute.side_effect = create_working_side_effect
-
-        # Setup commit and diff mocks
-        mock_commit_result = MagicMock()
-        mock_commit_result.is_success = True
-        mock_commit_result.data = None
-        presenter._create_commit_snapshot.execute.return_value = mock_commit_result
-
-        mock_diff_result = MagicMock()
-        mock_diff_result.is_success = True
-        mock_diff_result.data = DiffResult(
-            old_snapshot=None,
-            new_snapshot=successful_snapshot,
-            hierarchy=DiffHierarchy(),
-        )
-        presenter._create_diff.execute.return_value = mock_diff_result
+        presenter._create_document_diffs.execute.return_value = Result.failure("Failed to extract")
 
         # Act
         presenter._on_working_tree_selected()
 
-        # Assert - both docs should have been processed
-        assert presenter._create_working_tree_snapshot.execute.call_count == 2
+        assert presenter._diff_results_by_path == {}
 
     def test_on_working_tree_selected_collects_all_successful_diffs(self) -> None:
-        """Collects all successful DiffResults and passes to present_diffs()."""
+        """Presents all snapshot diffs returned by action."""
         from tests.fakes.fake_freecad_port import DocumentLike
 
         fake_view, presenter = _create_test_presenter()
@@ -1033,43 +1045,20 @@ class TestDiffPresenterWorkingTreeOrchestration:
         mock_docs_result.message = ""
         presenter._get_eligible_docs.execute.return_value = mock_docs_result
 
-        # Create snapshots for both docs
         snapshot1 = Snapshot(
             snapshot_id="ws1", document_name="doc1.FCStd", timestamp=datetime.datetime.now(), git_path="doc1.FCStd"
         )
         snapshot2 = Snapshot(
             snapshot_id="ws2", document_name="doc2.FCStd", timestamp=datetime.datetime.now(), git_path="doc2.FCStd"
         )
-
-        def create_working_side_effect(repo, doc):
-            result = MagicMock()
-            result.is_success = True
-            result.data = snapshot1 if doc == mock_doc1 else snapshot2
-            result.message = ""
-            return result
-
-        presenter._create_working_tree_snapshot.execute.side_effect = create_working_side_effect
-
-        # Setup commit and diff mocks
-        mock_commit_result = MagicMock()
-        mock_commit_result.is_success = True
-        mock_commit_result.data = None
-        presenter._create_commit_snapshot.execute.return_value = mock_commit_result
-
-        def create_diff_side_effect(old, new):
-            result = MagicMock()
-            result.is_success = True
-            result.data = DiffResult(
-                old_snapshot=None,
-                new_snapshot=new,
-                hierarchy=DiffHierarchy(),
-                added_count=1,
-                deleted_count=0,
-                modified_count=0,
-            )
-            return result
-
-        presenter._create_diff.execute.side_effect = create_diff_side_effect
+        diff1 = DiffResult(old_snapshot=None, new_snapshot=snapshot1, hierarchy=DiffHierarchy(), added_count=1)
+        diff2 = DiffResult(old_snapshot=None, new_snapshot=snapshot2, hierarchy=DiffHierarchy(), added_count=1)
+        presenter._create_document_diffs.execute.return_value = Result.success(
+            [
+                DocumentDiffResult(git_path="doc1.FCStd", status=DocumentDiffStatus.MODIFIED, snapshot_diff=diff1),
+                DocumentDiffResult(git_path="doc2.FCStd", status=DocumentDiffStatus.MODIFIED, snapshot_diff=diff2),
+            ]
+        )
 
         # Act
         presenter._on_working_tree_selected()
@@ -1680,7 +1669,7 @@ class TestDiffPresenterStageAllButtonVisibility:
         fake_view, presenter = _create_test_presenter()
 
         # Set the current selection to WORKING_TREE
-        fake_view._current_selection = HistorySelection(item_kind="WORKING_TREE", commit_hash=None)
+        fake_view.set_current_history_selection(HistorySelection(item_kind="WORKING_TREE", commit_hash=None))
 
         diff_result = DiffResult(
             old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
@@ -1708,14 +1697,7 @@ class TestDiffPresenterStageAllButtonVisibility:
         mock_repo = GitRepository(name="test-repo", absolute_path="/test/path")
         presenter._ui_state.git_repository = mock_repo
 
-        # Return staged paths
-        presenter._get_staged_file_paths.execute.return_value = MagicMock(is_success=True, data=["a.FCStd"])
-
-        # All staged file diffs fail (index snapshot missing) - creates warning row
-        mock_index_result = MagicMock()
-        mock_index_result.is_success = False
-        mock_index_result.data = None
-        presenter._create_commit_snapshot.execute.return_value = mock_index_result
+        presenter._create_document_diffs.execute.return_value = Result.success([])
 
         # Act
         presenter._on_staging_selected()
@@ -1734,7 +1716,7 @@ class TestDiffPresenterStageAllButtonVisibility:
         fake_view, presenter = _create_test_presenter()
 
         # Set the current selection to COMMIT
-        fake_view._current_selection = HistorySelection(item_kind="COMMIT", commit_hash="abc123")
+        fake_view.set_current_history_selection(HistorySelection(item_kind="COMMIT", commit_hash="abc123"))
 
         diff_result = DiffResult(
             old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
@@ -1759,7 +1741,7 @@ class TestDiffPresenterStageAllButtonVisibility:
         fake_view, presenter = _create_test_presenter()
 
         # Set the current selection to WORKING_TREE
-        fake_view._current_selection = HistorySelection(item_kind="WORKING_TREE", commit_hash=None)
+        fake_view.set_current_history_selection(HistorySelection(item_kind="WORKING_TREE", commit_hash=None))
 
         hierarchy = DiffHierarchy()
         hierarchy.add_node(NodeDiff(path="Part", type_id="Part::Feature"))
@@ -1791,7 +1773,7 @@ class TestDiffPresenterStageAllButtonVisibility:
         fake_view, presenter = _create_test_presenter()
 
         # Set the current selection to WORKING_TREE
-        fake_view._current_selection = HistorySelection(item_kind="WORKING_TREE", commit_hash=None)
+        fake_view.set_current_history_selection(HistorySelection(item_kind="WORKING_TREE", commit_hash=None))
 
         diff_result = DiffResult(
             old_snapshot=Snapshot(snapshot_id="s1", document_name="v1", timestamp=datetime.datetime.now()),
@@ -1849,29 +1831,7 @@ class TestDiffPresenterStageAllButtonEdgeCasesNoDiff:
         mock_docs_result.message = ""
         presenter._get_eligible_docs.execute.return_value = mock_docs_result
 
-        # Working snapshot creation succeeds
-        mock_working_snapshot = Snapshot(
-            snapshot_id="ws1",
-            document_name="doc.FCStd",
-            timestamp=datetime.datetime.now(),
-            git_path="doc.FCStd",
-        )
-        mock_working_result = MagicMock()
-        mock_working_result.is_success = True
-        mock_working_result.data = mock_working_snapshot
-        presenter._create_working_tree_snapshot.execute.return_value = mock_working_result
-
-        # Commit snapshot returns None (stub)
-        mock_commit_result = MagicMock()
-        mock_commit_result.is_success = True
-        mock_commit_result.data = None
-        presenter._create_commit_snapshot.execute.return_value = mock_commit_result
-
-        # Diff creation fails
-        mock_diff_result = MagicMock()
-        mock_diff_result.is_success = False
-        mock_diff_result.message = "Diff failed"
-        presenter._create_diff.execute.return_value = mock_diff_result
+        presenter._create_document_diffs.execute.return_value = Result.success([])
 
         # Dirty documents returns empty
         mock_dirty_result = MagicMock()
@@ -1898,30 +1858,22 @@ class TestDiffPresenterStagingSelection:
         fake_view, presenter = _create_test_presenter()
 
         presenter._ui_state.git_repository = GitRepository(name="repo", absolute_path="/repo")
-        presenter._get_staged_file_paths.execute.return_value = MagicMock(is_success=True, data=["a.FCStd"])
-
         index_snapshot = Snapshot(
             snapshot_id="idx-1",
             document_name="a.FCStd",
             timestamp=datetime.datetime.now(),
             git_path="a.FCStd",
         )
-        head_snapshot = Snapshot(
-            snapshot_id="head-1",
-            document_name="a.FCStd",
-            timestamp=datetime.datetime.now(),
-            git_path="a.FCStd",
-        )
-        presenter._create_commit_snapshot.execute.side_effect = [
-            MagicMock(is_success=True, data=index_snapshot),
-            MagicMock(is_success=True, data=head_snapshot),
-        ]
-
         hierarchy = DiffHierarchy()
         hierarchy.add_node(NodeDiff(path="Body", type_id="PartDesign::Body", _force_state=DiffState.MODIFIED))
-        presenter._create_diff.execute.return_value = MagicMock(
-            is_success=True,
-            data=DiffResult(old_snapshot=head_snapshot, new_snapshot=index_snapshot, hierarchy=hierarchy),
+        presenter._create_document_diffs.execute.return_value = Result.success(
+            [
+                DocumentDiffResult(
+                    git_path="a.FCStd",
+                    status=DocumentDiffStatus.MODIFIED,
+                    snapshot_diff=DiffResult(old_snapshot=None, new_snapshot=index_snapshot, hierarchy=hierarchy),
+                )
+            ]
         )
 
         presenter._on_staging_selected()
@@ -1933,24 +1885,12 @@ class TestDiffPresenterStagingSelection:
         fake_view, presenter = _create_test_presenter()
 
         presenter._ui_state.git_repository = GitRepository(name="repo", absolute_path="/repo")
-        presenter._get_staged_file_paths.execute.return_value = MagicMock(is_success=True, data=["a.FCStd"])
-
         index_snapshot = Snapshot(
             snapshot_id="idx-1",
             document_name="a.FCStd",
             timestamp=datetime.datetime.now(),
             git_path="a.FCStd",
         )
-        head_snapshot = Snapshot(
-            snapshot_id="head-1",
-            document_name="a.FCStd",
-            timestamp=datetime.datetime.now(),
-            git_path="a.FCStd",
-        )
-        presenter._create_commit_snapshot.execute.side_effect = [
-            MagicMock(is_success=True, data=index_snapshot),
-            MagicMock(is_success=True, data=head_snapshot),
-        ]
 
         old_prop = Property.from_freecad(10.0, {}, "Base")
         new_prop = Property.from_freecad(20.0, {}, "Base")
@@ -1962,9 +1902,14 @@ class TestDiffPresenterStagingSelection:
         )
         hierarchy = DiffHierarchy()
         hierarchy.add_node(node)
-        presenter._create_diff.execute.return_value = MagicMock(
-            is_success=True,
-            data=DiffResult(old_snapshot=head_snapshot, new_snapshot=index_snapshot, hierarchy=hierarchy),
+        presenter._create_document_diffs.execute.return_value = Result.success(
+            [
+                DocumentDiffResult(
+                    git_path="a.FCStd",
+                    status=DocumentDiffStatus.MODIFIED,
+                    snapshot_diff=DiffResult(old_snapshot=None, new_snapshot=index_snapshot, hierarchy=hierarchy),
+                )
+            ]
         )
 
         presenter._on_staging_selected()
@@ -1979,24 +1924,8 @@ class TestDiffPresenterStagingSelection:
         fake_view, presenter = _create_test_presenter()
 
         presenter._ui_state.git_repository = GitRepository(name="repo", absolute_path="/repo")
-        presenter._get_staged_file_paths.execute.return_value = MagicMock(is_success=True, data=["a.FCStd"])
-
-        index_snapshot = Snapshot(
-            snapshot_id="idx-1",
-            document_name="a.FCStd",
-            timestamp=datetime.datetime.now(),
-            git_path="",
-        )
-        presenter._create_commit_snapshot.execute.side_effect = [
-            MagicMock(is_success=True, data=index_snapshot),
-            MagicMock(is_success=True, data=None),
-        ]
-
-        hierarchy = DiffHierarchy()
-        hierarchy.add_node(NodeDiff(path="Body", type_id="PartDesign::Body", _force_state=DiffState.MODIFIED))
-        presenter._create_diff.execute.return_value = MagicMock(
-            is_success=True,
-            data=DiffResult(old_snapshot=None, new_snapshot=index_snapshot, hierarchy=hierarchy),
+        presenter._create_document_diffs.execute.return_value = Result.success(
+            [DocumentDiffResult(git_path="a.FCStd", status=DocumentDiffStatus.OLD_SNAPSHOT_MISSING)]
         )
 
         presenter._on_staging_selected()
@@ -2014,7 +1943,7 @@ class TestDiffPresenterStageAllButtonEdgeCases:
         fake_view, presenter = _create_test_presenter()
 
         # Set the current selection to WORKING_TREE
-        fake_view._current_selection = HistorySelection(item_kind="WORKING_TREE", commit_hash=None)
+        fake_view.set_current_history_selection(HistorySelection(item_kind="WORKING_TREE", commit_hash=None))
 
         # Act
         presenter.present_diffs([])
@@ -2032,8 +1961,7 @@ class TestDiffPresenterStageAllButtonEdgeCases:
         mock_repo = GitRepository(name="test-repo", absolute_path="/test/path")
         presenter._ui_state.git_repository = mock_repo
 
-        # Return empty staged paths
-        presenter._get_staged_file_paths.execute.return_value = MagicMock(is_success=True, data=[])
+        presenter._create_document_diffs.execute.return_value = Result.success([])
 
         # Act
         presenter._on_staging_selected()
@@ -2070,7 +1998,7 @@ class TestDiffPresenterStageAllButtonEdgeCases:
                 hierarchy=DiffHierarchy(),
             ),
         }
-        fake_view._current_selection = HistorySelection(item_kind="WORKING_TREE", commit_hash=None)
+        fake_view.set_current_history_selection(HistorySelection(item_kind="WORKING_TREE", commit_hash=None))
 
         # Return no eligible docs
         mock_docs_result = MagicMock()

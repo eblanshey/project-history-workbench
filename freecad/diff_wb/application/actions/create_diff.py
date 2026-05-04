@@ -39,6 +39,6 @@ class CreateDiffAction:
         try:
             diff_result = self._diff_engine.compute_diff(old_snapshot, new_snapshot)
             return Result.success(diff_result)
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, AttributeError, LookupError) as e:
             Log.exception(f"Failed to compute diff for '{new_snapshot.document_name}': {e}")
             return Result.failure(f"Failed to compute diff for '{new_snapshot.document_name}': {e}")

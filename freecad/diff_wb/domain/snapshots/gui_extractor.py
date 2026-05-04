@@ -36,6 +36,10 @@ class GuiNotAvailableError(Exception):
     pass
 
 
+FREECAD_ACCESS_ERRORS = (AttributeError, TypeError, ValueError, RuntimeError, ReferenceError)
+EXTRACTION_ERRORS = (GuiNotAvailableError, AttributeError, TypeError, ValueError, RuntimeError, ReferenceError)
+
+
 # Property type IDs that have no editor (getEditorName() returns "")
 # Comprehensive list from FreeCAD source analysis (src/App, src/Mod/*)
 # These properties are hidden in FreeCAD's property editor
@@ -179,7 +183,7 @@ def _get_claimed_children(vp: Any) -> list[str]:
             elif hasattr(child, "name"):
                 result.append(child.name)
         return result
-    except Exception as e:
+    except FREECAD_ACCESS_ERRORS as e:
         Log.exception(f"claimChildren() raised: {e}")
         return []
 
@@ -209,14 +213,14 @@ def _init_gui_and_get_doc(doc: Any) -> Any:
     """
     try:
         import FreeCADGui as Gui
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except ImportError as e:
         Log.warning(f"FreeCADGui not available: {e}")
         raise GuiNotAvailableError(f"FreeCADGui not available - cannot use claimChildren(): {e}") from e
 
     if hasattr(Gui, "setupWithoutGUI"):
         try:
             Gui.setupWithoutGUI()
-        except Exception as e:
+        except FREECAD_ACCESS_ERRORS as e:
             raise GuiNotAvailableError(f"Failed to setup GUI without display: {e}") from e
 
     gui_doc = None
@@ -225,7 +229,7 @@ def _init_gui_and_get_doc(doc: Any) -> Any:
             doc_name = getattr(doc, "Name", None)
             if doc_name is not None:
                 gui_doc = Gui.getDocument(doc_name)
-        except Exception as e:
+        except FREECAD_ACCESS_ERRORS as e:
             raise GuiNotAvailableError(f"Failed to get GUI document: {e}") from e
 
     return gui_doc
@@ -339,7 +343,7 @@ def _extract_property_value(obj: object, prop_name: str) -> Property | None:
         expr_map = _build_expression_map_for_property(prop_name, getattr(obj, "ExpressionEngine", []))
         group = _get_property_group(obj, prop_name)
         return Property.from_freecad(value, expr_map, group)
-    except Exception as e:
+    except FREECAD_ACCESS_ERRORS as e:
         Log.exception(f"Failed to extract property {prop_name}: {e}")
         return None
 
@@ -381,7 +385,7 @@ def _is_property_hidden(obj: object, prop_name: str) -> tuple[bool, str]:  # noq
             editor_mode = get_editor_mode(prop_name)
             if isinstance(editor_mode, list) and "Hidden" in editor_mode:
                 return True, "editor_mode_hidden"
-        except Exception as e:
+        except FREECAD_ACCESS_ERRORS as e:
             Log.exception(f"Failed to get editor mode for {prop_name}: {e}")
 
     # Check 2: getPropertyStatus() contains "Hidden" string or integer 26
@@ -404,7 +408,7 @@ def _is_property_hidden(obj: object, prop_name: str) -> tuple[bool, str]:  # noq
             status = get_property_status(prop_name)
             if isinstance(status, list) and ("Hidden" in status or 26 in status):
                 return True, "prop_hidden_bit"
-        except Exception as e:
+        except FREECAD_ACCESS_ERRORS as e:
             Log.exception(f"Failed to get property status for {prop_name}: {e}")
 
     # Check 3: getTypeOfProperty() returns a list containing 'Hidden'
@@ -414,7 +418,7 @@ def _is_property_hidden(obj: object, prop_name: str) -> tuple[bool, str]:  # noq
             prop_types = get_type_of_property(prop_name)
             if isinstance(prop_types, list) and "Hidden" in prop_types:
                 return True, "type_hidden"
-        except Exception as e:
+        except FREECAD_ACCESS_ERRORS as e:
             Log.exception(f"Failed to get type of property {prop_name}: {e}")
 
     # Check 4: Property type has no editor (workaround for missing getEditorName())
@@ -427,7 +431,7 @@ def _is_property_hidden(obj: object, prop_name: str) -> tuple[bool, str]:  # noq
             type_id = get_type_id(prop_name)
             if isinstance(type_id, str) and type_id in _ALL_NO_EDITOR_TYPES:
                 return True, f"{type_id.lower()}_no_editor"
-        except Exception as e:
+        except FREECAD_ACCESS_ERRORS as e:
             Log.exception(f"Failed to get type ID of property {prop_name}: {e}")
 
     return False, ""
@@ -701,7 +705,7 @@ class SnapshotExtractor:
             # Use single-pass BFS algorithm for better performance
             return _extract_tree_single_pass(doc, gui_doc, document_name, git_path)
 
-        except Exception as e:
+        except EXTRACTION_ERRORS as e:
             Log.exception(f"Error extracting document tree: {e}")
 
         # Use current time for timestamp

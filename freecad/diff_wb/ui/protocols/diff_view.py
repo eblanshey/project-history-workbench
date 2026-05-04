@@ -15,7 +15,7 @@ Translation Strategy for Summary:
 """
 
 from collections.abc import Callable
-from typing import Any, Protocol
+from typing import Protocol
 
 from ...domain.git.models import GitRepository
 from ..presenters.presentation_models import (
@@ -162,4 +162,5 @@ class DiffView(Protocol):
             enabled: Whether the Stage All button should be enabled.
         """
 
-    _current_selection: Any | None
+    def get_current_history_selection(self) -> HistorySelection | None:
+        """Return currently selected history entry, if any."""

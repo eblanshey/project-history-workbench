@@ -19,10 +19,12 @@ from ...domain.snapshots.repository import InMemorySnapshotRepository
 from ...infrastructure.freecad.ports import get_app_port, get_port
 from ...infrastructure.freecad.settings_repo import FreeCADSettingsRepository
 from ...infrastructure.git.git_port_adapter import GitPortAdapter
+from ...infrastructure.persistence.snapshot_yaml_deserializer import SnapshotYamlDeserializer
 from ..actions.commands.commit_staging import CommitStagingAction
 from ..actions.commands.compare_snapshots import CompareSnapshotsAction
 from ..actions.commands.take_snapshot import TakeSnapshotAction
 from ..actions.create_diff import CreateDiffAction
+from ..actions.create_document_diffs import CreateDocumentDiffsAction
 from ..actions.create_document_snapshot_commit import CreateDocumentSnapshotForCommitAction
 from ..actions.create_document_snapshot_working import CreateDocumentSnapshotForWorkingTreeAction
 from ..actions.find_active_git_repository import FindActiveGitRepositoryAction
@@ -70,6 +72,7 @@ class ApplicationContainer:
     create_working_snapshot_action: CreateDocumentSnapshotForWorkingTreeAction
     create_commit_snapshot_action: CreateDocumentSnapshotForCommitAction
     create_diff_action: CreateDiffAction
+    create_document_diffs_action: CreateDocumentDiffsAction
     stage_documents_action: StageDocumentsAction
     get_dirty_documents_action: GetDirtyDocumentsAction
     get_staged_file_paths_action: GetStagedFilePathsAction
@@ -182,12 +185,22 @@ def create_application_container(ctx: FreeCadContext) -> ApplicationContainer:
         git_service=git_service,
         extractor=extractor,
     )
-    create_commit_snapshot_action = CreateDocumentSnapshotForCommitAction(git_service=git_service)
+    create_commit_snapshot_action = CreateDocumentSnapshotForCommitAction(
+        git_service=git_service,
+        snapshot_deserializer=SnapshotYamlDeserializer(),
+    )
     create_diff_action = CreateDiffAction(diff_engine=diff_engine)
     stage_documents_action = StageDocumentsAction(git_service=git_service, freecad_port=freecad_port)
     get_dirty_documents_action = GetDirtyDocumentsAction(git_service=git_service)
     get_staged_file_paths_action = GetStagedFilePathsAction(git_service=git_service)
     get_committed_file_paths_action = GetCommittedFilePathsAction(git_service=git_service)
+    create_document_diffs_action = CreateDocumentDiffsAction(
+        create_working_snapshot_action=create_working_snapshot_action,
+        create_commit_snapshot_action=create_commit_snapshot_action,
+        create_diff_action=create_diff_action,
+        get_staged_file_paths_action=get_staged_file_paths_action,
+        get_committed_file_paths_action=get_committed_file_paths_action,
+    )
     commit_staging_action = CommitStagingAction(git_service=git_service)
     get_diff_settings_action = GetDiffSettingsAction(settings_repo=settings_repo)
     save_diff_settings_action = SaveDiffSettingsAction(settings_repo=settings_repo)
@@ -202,6 +215,7 @@ def create_application_container(ctx: FreeCadContext) -> ApplicationContainer:
         create_working_snapshot_action=create_working_snapshot_action,
         create_commit_snapshot_action=create_commit_snapshot_action,
         create_diff_action=create_diff_action,
+        create_document_diffs_action=create_document_diffs_action,
         stage_documents_action=stage_documents_action,
         get_dirty_documents_action=get_dirty_documents_action,
         get_staged_file_paths_action=get_staged_file_paths_action,

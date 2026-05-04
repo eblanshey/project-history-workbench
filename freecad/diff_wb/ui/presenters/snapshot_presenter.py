@@ -95,7 +95,7 @@ class SnapshotPresenter:
         try:
             snapshots = self._list_snapshots_action.execute()
             self._view.show_snapshots(snapshots)
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, AttributeError) as e:
             Log.exception(f"Failed to load snapshots: {e}")
             self._view.show_error(str(e))
 

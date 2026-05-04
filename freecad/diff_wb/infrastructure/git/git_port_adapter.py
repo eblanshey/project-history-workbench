@@ -419,6 +419,30 @@ class GitPortAdapter(GitPort):
             Log.warning("Git command not found")
             return None
 
+    def file_exists(self, git_root: str, commit: str | None, git_path: str) -> bool:
+        """Check file existence at commit or index via git cat-file.
+
+        Args:
+            git_root: Absolute path to git repository root.
+            commit: Commit reference or None for index.
+            git_path: Relative path within repository.
+
+        Returns:
+            True if path exists, False otherwise.
+        """
+        try:
+            target = f":{git_path}" if commit is None else f"{commit}:{git_path}"
+            result = subprocess.run(
+                ["git", "cat-file", "-e", target],
+                cwd=git_root,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            return result.returncode == 0
+        except (subprocess.TimeoutExpired, FileNotFoundError, NotADirectoryError, OSError):
+            return False
+
     def commit(self, git_root: str, message: str) -> bool:
         """Commit staged changes using git CLI.
 

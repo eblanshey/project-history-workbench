@@ -74,7 +74,8 @@ class StageDocumentsAction:
                 try:
                     self._freecad_port.save_document(matching_doc)
                     Log.info(f"Saved open document before staging: {git_path}")
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
+                    # Broad catch required: FreeCAD save adapters and tests can raise arbitrary exceptions.
                     Log.exception(f"Failed to save open document before staging {git_path}: {e}")
                     return Result.failure(f"Failed to save document before staging: {e}")
 
@@ -94,7 +95,8 @@ class StageDocumentsAction:
             try:
                 SnapshotYamlSerializer.to_yaml(snapshot, yaml_path)
                 Log.info(f"Persisted snapshot to {yaml_path}")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
+                # Broad catch required: serialization backends may raise non-IO domain exceptions.
                 Log.exception(f"Failed to persist snapshot for {git_path}: {e}")
                 return Result.failure(f"Failed to persist snapshot: {e}")
 

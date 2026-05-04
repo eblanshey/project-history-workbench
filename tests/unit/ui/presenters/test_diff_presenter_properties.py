@@ -7,15 +7,9 @@ trees from PropertyPathDiff and maps them to PropertyPresentation objects.
 import datetime
 from unittest.mock import MagicMock
 
-from freecad.diff_wb.application.actions.create_diff import CreateDiffAction
-from freecad.diff_wb.application.actions.create_document_snapshot_commit import CreateDocumentSnapshotForCommitAction
-from freecad.diff_wb.application.actions.create_document_snapshot_working import (
-    CreateDocumentSnapshotForWorkingTreeAction,
-)
-from freecad.diff_wb.application.actions.get_committed_file_paths import GetCommittedFilePathsAction
+from freecad.diff_wb.application.actions.create_document_diffs import CreateDocumentDiffsAction
 from freecad.diff_wb.application.actions.get_dirty_documents import GetDirtyDocumentsAction
 from freecad.diff_wb.application.actions.get_open_eligible_documents import GetOpenEligibleDocumentsAction
-from freecad.diff_wb.application.actions.get_staged_file_paths import GetStagedFilePathsAction
 from freecad.diff_wb.application.actions.stage_documents import StageDocumentsAction
 from freecad.diff_wb.domain.diff.models import DiffHierarchy, DiffResult, DiffState, NodeDiff, PropertyDiff
 from freecad.diff_wb.domain.snapshots import Snapshot
@@ -42,25 +36,17 @@ def _create_test_presenter() -> tuple[FakeDiffView, DiffPresenter]:
 
     # Create mock actions
     get_eligible_docs_action = MagicMock(spec=GetOpenEligibleDocumentsAction)
-    create_working_snapshot_action = MagicMock(spec=CreateDocumentSnapshotForWorkingTreeAction)
-    create_commit_snapshot_action = MagicMock(spec=CreateDocumentSnapshotForCommitAction)
-    create_diff_action = MagicMock(spec=CreateDiffAction)
+    create_document_diffs_action = MagicMock(spec=CreateDocumentDiffsAction)
     stage_documents_action = MagicMock(spec=StageDocumentsAction)
     get_dirty_documents_action = MagicMock(spec=GetDirtyDocumentsAction)
-    get_staged_file_paths_action = MagicMock(spec=GetStagedFilePathsAction)
-    get_committed_file_paths_action = MagicMock(spec=GetCommittedFilePathsAction)
 
     presenter = DiffPresenter(
         view=view,
         ui_state=ui_state,
         get_eligible_docs_action=get_eligible_docs_action,
-        create_working_snapshot_action=create_working_snapshot_action,
-        create_commit_snapshot_action=create_commit_snapshot_action,
-        create_diff_action=create_diff_action,
+        create_document_diffs_action=create_document_diffs_action,
         stage_documents_action=stage_documents_action,
         get_dirty_documents_action=get_dirty_documents_action,
-        get_staged_file_paths_action=get_staged_file_paths_action,
-        get_committed_file_paths_action=get_committed_file_paths_action,
     )
     return view, presenter
 

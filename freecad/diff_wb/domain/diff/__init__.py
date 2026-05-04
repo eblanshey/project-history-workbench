@@ -6,7 +6,6 @@
 from .comparator import PropertyComparator, TreeComparator
 from .engine import DiffEngine
 from .models import (
-    WARNING_OLD_SNAPSHOT_MISSING,
     DiffHierarchy,
     DiffResult,
     DiffState,
@@ -26,5 +25,4 @@ __all__ = [
     "DiffEngine",
     "TreeComparator",
     "PropertyComparator",
-    "WARNING_OLD_SNAPSHOT_MISSING",
 ]

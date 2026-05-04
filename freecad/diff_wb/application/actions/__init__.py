@@ -2,6 +2,7 @@
 
 from .commands import CompareSnapshotsAction, TakeSnapshotAction
 from .create_diff import CreateDiffAction
+from .create_document_diffs import CreateDocumentDiffsAction
 from .create_document_snapshot_commit import CreateDocumentSnapshotForCommitAction
 from .create_document_snapshot_working import CreateDocumentSnapshotForWorkingTreeAction
 from .find_active_git_repository import FindActiveGitRepositoryAction
@@ -11,7 +12,16 @@ from .get_open_eligible_documents import GetOpenEligibleDocumentsAction
 from .open_all_documents_in_repository import OpenAllDocumentsInRepositoryAction
 from .queries import ListSnapshotsAction
 from .recompute_all_open_documents import RecomputeAllOpenDocumentsAction
-from .result_models import CompareResult, Result, SnapshotResult, SnapshotSummary
+from .result_models import (
+    CompareResult,
+    CreateDocumentDiffsRequest,
+    DocumentDiffMode,
+    DocumentDiffResult,
+    DocumentDiffStatus,
+    Result,
+    SnapshotResult,
+    SnapshotSummary,
+)
 from .save_diff_settings import SaveDiffSettingsAction
 
 
@@ -30,6 +40,7 @@ __all__ = [
     "CreateDocumentSnapshotForWorkingTreeAction",
     "CreateDocumentSnapshotForCommitAction",
     "CreateDiffAction",
+    "CreateDocumentDiffsAction",
     # Queries
     "ListSnapshotsAction",
     # Result models
@@ -37,4 +48,8 @@ __all__ = [
     "SnapshotResult",
     "CompareResult",
     "SnapshotSummary",
+    "CreateDocumentDiffsRequest",
+    "DocumentDiffMode",
+    "DocumentDiffStatus",
+    "DocumentDiffResult",
 ]

@@ -1158,7 +1158,7 @@ class TestDiffPanelViewClearMethods:
                 DiffTreePresentation(
                     nodes=[],
                     git_path="a.FCStd",
-                    warnings=[],
+                    indicators=[],
                     stage_button_enabled=True,
                 )
             ]
