@@ -215,6 +215,28 @@ View Protocol ──► Qt Widget (rendered output)
 
 **UIState**: Holds frontend-only state (e.g., detected GitRepository). Created by the UI composer at startup, lives alongside presenters. Not accessible to domain or application layers.
 
+### UI View Composition Rules
+
+Composite Qt views may be split into focused child widgets, but presenter-facing APIs should remain stable through view protocols. Presenters depend on the top-level view facade, not on child widgets.
+
+Rules:
+
+- Presenters call view protocols, not concrete child widgets.
+- The UI composer wires presenters to top-level views only.
+- Top-level views act as facades for composed child widgets.
+- Child widgets must not import, instantiate, or call sibling child widgets.
+- Child widgets expose callbacks/events upward and narrow setter methods downward.
+- Cross-widget side effects are coordinated by the top-level facade.
+- Cross-widget coordination must be tested at the facade level, not through child-to-child coupling.
+
+Example:
+
+- `DiffPanelView` may compose `HistoryPanelWidget`, `DocumentDiffTreeWidget`, and `PropertyDiffTreeWidget`.
+- `HistoryPanelWidget` does not call `DocumentDiffTreeWidget`.
+- `DocumentDiffTreeWidget` does not call `PropertyDiffTreeWidget`.
+- `DiffPanelView` coordinates history selection affecting document stage-button visibility.
+- `DiffPanelView.clear_doc_diffs()` clears both the document tree and the property tree.
+
 ### 4. Infrastructure Layer (`infrastructure/`)
 
 **Responsibility**: External dependencies and implementations. Adapts external systems to domain interfaces.

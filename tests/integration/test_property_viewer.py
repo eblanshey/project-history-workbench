@@ -202,7 +202,7 @@ class TestPropertyViewerPhase6:
 
     def test_camelcase_to_spaces_conversion(self) -> None:
         """Verify CamelCase property names are converted to spaced names (Phase 3)."""
-        from freecad.diff_wb.ui.views.diff_panel_view import _camelcase_to_spaces
+        from freecad.diff_wb.ui.views.property_diff_tree_widget import _camelcase_to_spaces
 
         # Test cases
         test_cases = [
@@ -283,14 +283,14 @@ class TestPropertyViewerPhase6:
             panel.show_property_diff(properties)
 
             # Verify tree has items
-            root_count = panel.properties_tree.topLevelItemCount()
+            root_count = panel._property_diff_tree.topLevelItemCount()
             assert root_count > 0, "Properties tree should have items"
 
             # Verify groups are present (should be at least 1)
             # Group headers are top-level items with children
             has_group_with_children = False
             for i in range(root_count):
-                item = panel.properties_tree.topLevelItem(i)
+                item = panel._property_diff_tree.topLevelItem(i)
                 if item and item.childCount() > 0:
                     has_group_with_children = True
                     break

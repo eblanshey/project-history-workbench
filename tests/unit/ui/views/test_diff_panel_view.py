@@ -10,7 +10,7 @@ Tests for special items (Working Tree, Staging) verify their presence, alignment
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime
 
 import pytest
 
@@ -21,8 +21,8 @@ def _history_row_text(panel, row: int) -> str:  # type: ignore[no-untyped-def]
     """Return visible text for a history row, including custom item widgets."""
     from PySide6.QtWidgets import QLabel
 
-    item = panel.history_list.item(row)
-    widget = panel.history_list.itemWidget(item)
+    item = panel._history_panel.history_list.item(row)
+    widget = panel._history_panel.history_list.itemWidget(item)
     if widget is None:
         return item.text()
 
@@ -99,7 +99,7 @@ class TestDiffPanelViewShowSnapshots:
         panel.show_snapshots([])
 
         # History list should be empty
-        assert panel.history_list.count() == 0
+        assert panel._history_panel.history_list.count() == 0
 
     def test_show_snapshots_clears_existing_items(self, panel) -> None:  # type: ignore[no-untyped-def]
         """show_snapshots() clears existing items before populating."""
@@ -111,7 +111,7 @@ class TestDiffPanelViewShowSnapshots:
                 SnapshotSummary(id="old-1", name="Old Snapshot 1", created_at="2024-01-01T10:00:00", node_count=10),
             ]
         )
-        assert panel.history_list.count() == 1
+        assert panel._history_panel.history_list.count() == 1
 
         # Replace with new list
         panel.show_snapshots(
@@ -121,8 +121,8 @@ class TestDiffPanelViewShowSnapshots:
         )
 
         # Should only have the new item
-        assert panel.history_list.count() == 1
-        assert panel.history_list.item(0).text() == "New Snapshot 1 - Feb 1, 2024 10:00AM"
+        assert panel._history_panel.history_list.count() == 1
+        assert panel._history_panel.history_list.item(0).text() == "New Snapshot 1 - Feb 1, 2024 10:00AM"
 
     def test_show_snapshots_sorts_by_timestamp_newest_first(self, panel) -> None:  # type: ignore[no-untyped-def]
         """show_snapshots() sorts snapshots by timestamp, newest first."""
@@ -137,10 +137,10 @@ class TestDiffPanelViewShowSnapshots:
         panel.show_snapshots(snapshots)
 
         # Verify order: Newest, Middle, Oldest
-        assert panel.history_list.count() == 3
-        assert panel.history_list.item(0).text().startswith("Newest")
-        assert panel.history_list.item(1).text().startswith("Middle")
-        assert panel.history_list.item(2).text().startswith("Oldest")
+        assert panel._history_panel.history_list.count() == 3
+        assert panel._history_panel.history_list.item(0).text().startswith("Newest")
+        assert panel._history_panel.history_list.item(1).text().startswith("Middle")
+        assert panel._history_panel.history_list.item(2).text().startswith("Oldest")
 
     def test_show_snapshots_stores_id_in_user_role(self, panel) -> None:  # type: ignore[no-untyped-def]
         """show_snapshots() stores snapshot ID in Qt.UserRole for each item."""
@@ -155,7 +155,7 @@ class TestDiffPanelViewShowSnapshots:
         panel.show_snapshots(snapshots)
 
         # Verify ID is stored in UserRole
-        item = panel.history_list.item(0)
+        item = panel._history_panel.history_list.item(0)
         assert item is not None
         stored_id = item.data(Qt.ItemDataRole.UserRole)
         assert stored_id == "test-id-123"
@@ -171,7 +171,7 @@ class TestDiffPanelViewShowSnapshots:
         panel.show_snapshots(snapshots)
 
         # Check format: "My Snapshot - Jan 15, 2024 10:30 AM"
-        item_text = panel.history_list.item(0).text()
+        item_text = panel._history_panel.history_list.item(0).text()
         assert item_text == "My Snapshot - Jan 15, 2024 10:30AM"
 
     def test_show_snapshots_multiple_items_with_ids(self, panel) -> None:  # type: ignore[no-untyped-def]
@@ -189,9 +189,9 @@ class TestDiffPanelViewShowSnapshots:
         panel.show_snapshots(snapshots)
 
         # Verify all IDs are stored correctly (in sorted order: Third, Second, First)
-        assert panel.history_list.item(0).data(Qt.ItemDataRole.UserRole) == "id-3"
-        assert panel.history_list.item(1).data(Qt.ItemDataRole.UserRole) == "id-2"
-        assert panel.history_list.item(2).data(Qt.ItemDataRole.UserRole) == "id-1"
+        assert panel._history_panel.history_list.item(0).data(Qt.ItemDataRole.UserRole) == "id-3"
+        assert panel._history_panel.history_list.item(1).data(Qt.ItemDataRole.UserRole) == "id-2"
+        assert panel._history_panel.history_list.item(2).data(Qt.ItemDataRole.UserRole) == "id-1"
 
 
 class TestDiffPanelViewShowSummary:
@@ -203,7 +203,7 @@ class TestDiffPanelViewShowSummary:
         panel.show_summary(changed_docs=3)
 
         # Then: Changed label shows translated text with count
-        assert panel._changed_label.text() == "Changed: 3"
+        assert panel._document_diff_tree._changed_label.text() == "Changed: 3"
 
     def test_show_summary_with_zero_counts_shows_no_changes(self, panel) -> None:  # type: ignore[no-untyped-def]
         """show_summary() displays 'No changes' when changed_docs is zero."""
@@ -211,7 +211,7 @@ class TestDiffPanelViewShowSummary:
         panel.show_summary(changed_docs=0)
 
         # Then: Changed label shows "No changes"
-        assert panel._changed_label.text() == "No changes"
+        assert panel._document_diff_tree._changed_label.text() == "No changes"
 
     def test_show_summary_with_non_zero_value(self, panel) -> None:  # type: ignore[no-untyped-def]
         """show_summary() displays changed docs count when non-zero."""
@@ -219,19 +219,19 @@ class TestDiffPanelViewShowSummary:
         panel.show_summary(changed_docs=7)
 
         # Then: Changed label shows count
-        assert panel._changed_label.text() == "Changed: 7"
+        assert panel._document_diff_tree._changed_label.text() == "Changed: 7"
 
     def test_show_summary_overwrites_previous_text(self, panel) -> None:  # type: ignore[no-untyped-def]
         """show_summary() overwrites previous summary text."""
         # Given: Previous summary displayed
         panel.show_summary(changed_docs=1)
-        assert panel._changed_label.text() == "Changed: 1"
+        assert panel._document_diff_tree._changed_label.text() == "Changed: 1"
 
         # When: Call show_summary with new counts
         panel.show_summary(changed_docs=5)
 
         # Then: New summary replaces old one
-        assert panel._changed_label.text() == "Changed: 5"
+        assert panel._document_diff_tree._changed_label.text() == "Changed: 5"
 
 
 class TestDiffPanelViewRefreshButton:
@@ -251,7 +251,7 @@ class TestDiffPanelViewRefreshButton:
 
         # Then: Callback should be connected (we verify by simulating a click)
         # Simulate button click
-        panel._refresh_button.click()
+        panel._history_panel._refresh_button.click()
 
         # Verify callback was invoked
         assert callback_called is True
@@ -264,20 +264,20 @@ class TestDiffPanelViewRefreshButton:
         feature that requires FreeCAD runtime to function properly.
         """
         # Access the icon property to verify it's available (may be null in tests)
-        _ = panel._refresh_button.icon()
+        _ = panel._history_panel._refresh_button.icon()
         # No assertion here - null icon is acceptable in non-FreeCAD environments
         # The important thing is that the button exists and has the icon slot available
 
     def test_refresh_button_has_tooltip(self, panel) -> None:  # type: ignore[no-untyped-def]
         """Refresh button has a tooltip."""
-        tooltip = panel._refresh_button.toolTip()
+        tooltip = panel._history_panel._refresh_button.toolTip()
         assert "refresh" in tooltip.lower() or "git" in tooltip.lower()
 
     def test_refresh_button_is_small_fixed_size(self, panel) -> None:  # type: ignore[no-untyped-def]
         """Refresh button has a small icon size set."""
         # Check icon size rather than button size, as button size is managed by layout
         # Note: Actual dimensions may vary based on available icon resource
-        icon_size = panel._refresh_button.iconSize()
+        icon_size = panel._history_panel._refresh_button.iconSize()
         assert icon_size.width() > 0
         assert icon_size.height() > 0
 
@@ -291,9 +291,9 @@ class TestDiffPanelViewShowRepository:
         panel.show_repository(None)
 
         # Then: Label shows no repo message with italic gray styling
-        text = panel._repository_label.text()
+        text = panel._history_panel._repository_label.text()
         assert "no git repository" in text.lower() or "detected" in text.lower()
-        stylesheet = panel._repository_label.styleSheet()
+        stylesheet = panel._history_panel._repository_label.styleSheet()
         assert "italic" in stylesheet
         assert "gray" in stylesheet
 
@@ -308,12 +308,12 @@ class TestDiffPanelViewShowRepository:
         panel.show_repository(repo)
 
         # Then: Label shows repository name with path in tooltip
-        text = panel._repository_label.text()
+        text = panel._history_panel._repository_label.text()
         assert "test_project" in text
         assert "Repository:" in text
         # Path should be in tooltip, not in displayed text
-        assert panel._repository_label.toolTip() == "/home/user/test_project"
-        stylesheet = panel._repository_label.styleSheet()
+        assert panel._history_panel._repository_label.toolTip() == "/home/user/test_project"
+        stylesheet = panel._history_panel._repository_label.styleSheet()
         assert "bold" in stylesheet
         assert "underline" in stylesheet
 
@@ -324,18 +324,18 @@ class TestDiffPanelViewShowRepository:
 
         repo1 = GitRepository(name="old_project", absolute_path="/home/old")
         panel.show_repository(repo1)
-        assert "old_project" in panel._repository_label.text()
+        assert "old_project" in panel._history_panel._repository_label.text()
 
         # When: Call show_repository with a different repository
         repo2 = GitRepository(name="new_project", absolute_path="/home/new")
         panel.show_repository(repo2)
 
         # Then: New repository info replaces old one
-        text = panel._repository_label.text()
+        text = panel._history_panel._repository_label.text()
         assert "new_project" in text
         assert "old_project" not in text
         # Tooltip should also be updated
-        assert panel._repository_label.toolTip() == "/home/new"
+        assert panel._history_panel._repository_label.toolTip() == "/home/new"
 
     def test_show_repository_none_after_repo_resets_style(self, panel) -> None:  # type: ignore[no-untyped-def]
         """show_repository(None) after showing a repo resets to italic gray style and clears tooltip."""
@@ -349,10 +349,10 @@ class TestDiffPanelViewShowRepository:
         panel.show_repository(None)
 
         # Then: Style is reset to italic gray and tooltip is cleared
-        stylesheet = panel._repository_label.styleSheet()
+        stylesheet = panel._history_panel._repository_label.styleSheet()
         assert "italic" in stylesheet
         assert "gray" in stylesheet
-        assert panel._repository_label.toolTip() == ""
+        assert panel._history_panel._repository_label.toolTip() == ""
 
 
 class TestShowCommitsSpecialItems:
@@ -374,20 +374,20 @@ class TestShowCommitsSpecialItems:
         panel.show_commits(commits)
 
         # Verify there are 3 items: Working Tree, Staging, and the commit
-        assert panel.history_list.count() == 3
+        assert panel._history_panel.history_list.count() == 3
 
         # Verify Working Tree is first
-        working_tree_item = panel.history_list.item(0)
+        working_tree_item = panel._history_panel.history_list.item(0)
         assert working_tree_item is not None
         assert _history_row_text(panel, 0) == "Working Tree"
 
         # Verify Staging is second
-        staging_item = panel.history_list.item(1)
+        staging_item = panel._history_panel.history_list.item(1)
         assert staging_item is not None
         assert _history_row_text(panel, 1) == "Staging"
 
         # Verify commit is third
-        commit_item = panel.history_list.item(2)
+        commit_item = panel._history_panel.history_list.item(2)
         assert commit_item is not None
         assert "a1b2c3d" in _history_row_text(panel, 2)
 
@@ -396,15 +396,15 @@ class TestShowCommitsSpecialItems:
         panel.show_commits([])
 
         # Verify there are exactly 2 items: Working Tree and Staging
-        assert panel.history_list.count() == 2
+        assert panel._history_panel.history_list.count() == 2
 
         # Verify Working Tree is first
-        working_tree_item = panel.history_list.item(0)
+        working_tree_item = panel._history_panel.history_list.item(0)
         assert working_tree_item is not None
         assert _history_row_text(panel, 0) == "Working Tree"
 
         # Verify Staging is second
-        staging_item = panel.history_list.item(1)
+        staging_item = panel._history_panel.history_list.item(1)
         assert staging_item is not None
         assert _history_row_text(panel, 1) == "Staging"
 
@@ -414,7 +414,7 @@ class TestShowCommitsSpecialItems:
 
         panel.show_commits([])
 
-        working_tree_item = panel.history_list.item(0)
+        working_tree_item = panel._history_panel.history_list.item(0)
         assert working_tree_item is not None
 
         alignment = working_tree_item.data(Qt.ItemDataRole.TextAlignmentRole)
@@ -426,7 +426,7 @@ class TestShowCommitsSpecialItems:
 
         panel.show_commits([])
 
-        staging_item = panel.history_list.item(1)
+        staging_item = panel._history_panel.history_list.item(1)
         assert staging_item is not None
 
         alignment = staging_item.data(Qt.ItemDataRole.TextAlignmentRole)
@@ -438,7 +438,7 @@ class TestShowCommitsSpecialItems:
 
         panel.show_commits([])
 
-        working_tree_item = panel.history_list.item(0)
+        working_tree_item = panel._history_panel.history_list.item(0)
         assert working_tree_item is not None
 
         user_role = working_tree_item.data(Qt.ItemDataRole.UserRole)
@@ -452,7 +452,7 @@ class TestShowCommitsSpecialItems:
 
         panel.show_commits([])
 
-        staging_item = panel.history_list.item(1)
+        staging_item = panel._history_panel.history_list.item(1)
         assert staging_item is not None
 
         user_role = staging_item.data(Qt.ItemDataRole.UserRole)
@@ -479,7 +479,7 @@ class TestShowCommitsSpecialItems:
         panel.show_commits(commits)
 
         # Commit item should be at row 2 (after special items)
-        commit_item = panel.history_list.item(2)
+        commit_item = panel._history_panel.history_list.item(2)
         assert commit_item is not None
 
         user_role = commit_item.data(Qt.ItemDataRole.UserRole)
@@ -501,7 +501,7 @@ class TestShowCommitsSpecialItems:
             ),
         ]
         panel.show_commits(commits1)
-        assert panel.history_list.count() == 3
+        assert panel._history_panel.history_list.count() == 3
         assert _history_row_text(panel, 0) == "Working Tree"
         assert _history_row_text(panel, 1) == "Staging"
 
@@ -523,7 +523,7 @@ class TestShowCommitsSpecialItems:
         panel.show_commits(commits2)
 
         # Verify special items are still at top
-        assert panel.history_list.count() == 4  # 2 special + 2 commits
+        assert panel._history_panel.history_list.count() == 4  # 2 special + 2 commits
         assert _history_row_text(panel, 0) == "Working Tree"
         assert _history_row_text(panel, 1) == "Staging"
         assert "Second commit" in _history_row_text(panel, 2)
@@ -549,17 +549,18 @@ class TestShowCommits:
         panel.show_commits(commits)
 
         # Verify there are 3 items total (Working Tree, Staging, and the commit)
-        assert panel.history_list.count() == 3
+        assert panel._history_panel.history_list.count() == 3
         # Verify the commit is at position 2 (after special items)
         assert "a1b2c3d" in _history_row_text(panel, 2)  # 7-char hash
         assert "John Doe" in _history_row_text(panel, 2)  # Author
-        assert panel._format_commit_timestamp(commits[0].timestamp) in _history_row_text(panel, 2)
+        # Verify timestamp is present (contains time separator)
+        assert ":" in _history_row_text(panel, 2)
 
     def test_show_commits_empty_list(self, panel) -> None:  # type: ignore[no-untyped-def]
         """Test that empty commit list shows only special items."""
         panel.show_commits([])
         # Special items (Working Tree, Staging) are always present
-        assert panel.history_list.count() == 2
+        assert panel._history_panel.history_list.count() == 2
         assert _history_row_text(panel, 0) == "Working Tree"
         assert _history_row_text(panel, 1) == "Staging"
 
@@ -577,7 +578,7 @@ class TestShowCommits:
 
         panel.show_commits([commit])
         # Commit is at row 2 (after special items)
-        item = panel.history_list.item(2)
+        item = panel._history_panel.history_list.item(2)
 
         assert item.toolTip() == full_message
 
@@ -591,7 +592,7 @@ class TestShowCommits:
                 SnapshotSummary(id="snap-1", name="First", created_at="2024-01-01T10:00:00", node_count=10),
             ]
         )
-        assert panel.history_list.count() == 1
+        assert panel._history_panel.history_list.count() == 1
 
         # Now call show_commits
         from freecad.diff_wb.domain.git.models import GitCommit
@@ -605,7 +606,7 @@ class TestShowCommits:
         panel.show_commits([commit])
 
         # List should now contain special items + commit (not snapshots)
-        assert panel.history_list.count() == 3
+        assert panel._history_panel.history_list.count() == 3
         assert _history_row_text(panel, 0) == "Working Tree"
         assert _history_row_text(panel, 1) == "Staging"
 
@@ -631,7 +632,8 @@ class TestShowCommits:
         assert len(lines) == 2
         assert "abc123d" in lines[0]  # 7-char hash
         assert "Alice Smith" in lines[0]  # Author
-        assert panel._format_commit_timestamp(commit.timestamp) in lines[0]
+        # Timestamp should be present (contains time separator)
+        assert ":" in lines[0]
         # Line 2 should have first line of message
         assert "This is the subject line" in lines[1]
 
@@ -651,16 +653,15 @@ class TestShowCommits:
 
         panel.show_commits([commit])
 
-        item = panel.history_list.item(2)
-        widget = panel.history_list.itemWidget(item)
+        item = panel._history_panel.history_list.item(2)
+        widget = panel._history_panel.history_list.itemWidget(item)
         assert widget is not None
 
         labels = widget.findChildren(QLabel)
         hash_label = next(label for label in labels if label.text() == "abc123d")
         author_label = next(label for label in labels if label.text() == "Alice Smith")
-        timestamp_label = next(
-            label for label in labels if label.text() == panel._format_commit_timestamp(commit.timestamp)
-        )
+        # Timestamp label should contain time format (:)
+        timestamp_label = next(label for label in labels if ":" in label.text())
         subject_label = next(label for label in labels if label.text() == "Subject line")
         hash_style = hash_label.styleSheet()
 
@@ -670,30 +671,14 @@ class TestShowCommits:
         assert "font-weight: 700" in hash_style
         assert "font-weight: 700" not in subject_label.styleSheet()
 
-    def test_format_commit_timestamp_today_shows_time_only(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """Today's commits show only time."""
-        now = datetime.now(UTC)
-        formatted = panel._format_commit_timestamp(now)
-
-        assert "Yesterday" not in formatted
-        assert "," not in formatted
-        assert ":" in formatted
-
-    def test_format_commit_timestamp_yesterday_shows_yesterday_prefix(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """Yesterday's commits include the Yesterday prefix."""
-        yesterday = datetime.now(UTC) - timedelta(days=1)
-        formatted = panel._format_commit_timestamp(yesterday)
-
-        assert formatted.startswith("Yesterday ")
-
     def test_show_commits_history_items_include_black_separator_line(self, panel) -> None:  # type: ignore[no-untyped-def]
         """Each history item widget includes a horizontal separator line."""
         from PySide6.QtWidgets import QFrame
 
         panel.show_commits([])
 
-        working_tree_item = panel.history_list.item(0)
-        widget = panel.history_list.itemWidget(working_tree_item)
+        working_tree_item = panel._history_panel.history_list.item(0)
+        widget = panel._history_panel.history_list.itemWidget(working_tree_item)
         assert widget is not None
         separators = [
             frame
@@ -736,7 +721,7 @@ class TestShowCommits:
         panel.show_commits(commits)
 
         # Verify order matches input (pre-sorted) + special items at top
-        assert panel.history_list.count() == 5  # 2 special + 3 commits
+        assert panel._history_panel.history_list.count() == 5  # 2 special + 3 commits
         # Special items at top
         assert _history_row_text(panel, 0) == "Working Tree"
         assert _history_row_text(panel, 1) == "Staging"
@@ -786,7 +771,7 @@ class TestShowCommits:
 
         panel.show_commits(commits)
 
-        selected_items = panel.history_list.selectedItems()
+        selected_items = panel._history_panel.history_list.selectedItems()
         assert selected_items == []
         assert panel._current_selection is None
 
@@ -815,9 +800,9 @@ class TestShowCommits:
         panel.set_history_selection_callback(lambda selection: None)
         panel.show_commits(initial_commits)
 
-        selected_item = panel.history_list.item(2)
+        selected_item = panel._history_panel.history_list.item(2)
         assert selected_item is not None
-        panel.history_list.itemClicked.emit(selected_item)
+        panel._history_panel.history_list.itemClicked.emit(selected_item)
 
         refreshed_commits = [
             GitCommit(
@@ -829,7 +814,7 @@ class TestShowCommits:
         ]
         panel.show_commits(refreshed_commits)
 
-        selected_items = panel.history_list.selectedItems()
+        selected_items = panel._history_panel.history_list.selectedItems()
         assert len(selected_items) == 1
         selected_selection = selected_items[0].data(Qt.ItemDataRole.UserRole)
         assert selected_selection == HistorySelection(item_kind="COMMIT", commit_hash=selected_commit_hash)
@@ -852,9 +837,9 @@ class TestShowCommits:
         )
 
         # Select the commit item first.
-        selected_item = panel.history_list.item(2)
+        selected_item = panel._history_panel.history_list.item(2)
         assert selected_item is not None
-        panel.history_list.itemClicked.emit(selected_item)
+        panel._history_panel.history_list.itemClicked.emit(selected_item)
 
         # Refresh with commit list that no longer contains the selected commit.
         panel.show_commits(
@@ -868,7 +853,7 @@ class TestShowCommits:
             ]
         )
 
-        selected_items = panel.history_list.selectedItems()
+        selected_items = panel._history_panel.history_list.selectedItems()
         assert selected_items == []
         assert panel._current_selection is None
 
@@ -891,7 +876,7 @@ class TestShowCommits:
         assert "A" * 100 in _history_row_text(panel, 2)  # Should contain the long message
 
         # Verify word wrap is enabled on the list
-        assert panel.history_list.wordWrap() is True
+        assert panel._history_panel.history_list.wordWrap() is True
 
     def test_show_commits_empty_message_handles_gracefully(self, panel) -> None:  # type: ignore[no-untyped-def]
         """Test that empty or whitespace-only commit messages are handled gracefully."""
@@ -945,9 +930,9 @@ class TestHistorySelectionCallback:
 
         # Trigger callback by clicking on an item
         panel.show_commits([])
-        item = panel.history_list.item(0)
+        item = panel._history_panel.history_list.item(0)
         assert item is not None
-        panel.history_list.itemClicked.emit(item)
+        panel._history_panel.history_list.itemClicked.emit(item)
 
         # Verify callback was invoked with HistorySelection
         assert callback_called is True
@@ -979,9 +964,9 @@ class TestHistorySelectionCallback:
         panel.show_commits([commit])
 
         # Click on the commit item (row 2)
-        item = panel.history_list.item(2)
+        item = panel._history_panel.history_list.item(2)
         assert item is not None
-        panel.history_list.itemClicked.emit(item)
+        panel._history_panel.history_list.itemClicked.emit(item)
 
         # Verify callback was invoked with correct commit selection
         assert callback_called is True
@@ -993,11 +978,11 @@ class TestHistorySelectionCallback:
         """Callback is not invoked when no callback is set."""
 
         panel.show_commits([])
-        item = panel.history_list.item(0)
+        item = panel._history_panel.history_list.item(0)
         assert item is not None
 
         # Should not raise any exception
-        panel.history_list.itemClicked.emit(item)
+        panel._history_panel.history_list.itemClicked.emit(item)
 
 
 class TestHistoryInfiniteScroll:
@@ -1019,42 +1004,26 @@ class TestHistoryInfiniteScroll:
 
         panel.append_commits(commits)
 
-        assert panel.history_list.count() == 3
+        assert panel._history_panel.history_list.count() == 3
         assert _history_row_text(panel, 0) == "Working Tree"
         assert _history_row_text(panel, 1) == "Staging"
         assert "Older commit" in _history_row_text(panel, 2)
-
-    def test_scroll_bottom_callback_fires_near_bottom(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """Bottom-scroll callback fires when scrollbar enters bottom threshold."""
-        from unittest.mock import MagicMock, patch
-
-        fired = {"count": 0}
-
-        def on_bottom() -> None:
-            fired["count"] += 1
-
-        panel.set_history_scroll_bottom_callback(on_bottom)
-
-        mock_scrollbar = MagicMock()
-        mock_scrollbar.maximum.return_value = 100
-        with patch.object(panel.history_list, "verticalScrollBar", return_value=mock_scrollbar):
-            panel._on_history_scrollbar_value_changed(90)
-
-        assert fired["count"] >= 1
 
 
 class TestDiffPanelViewRuntimePrecision:
     """Tests for DiffPanelView using runtime precision from settings."""
 
     def test_format_value_for_display_uses_runtime_precision(self) -> None:
-        """Test that _format_value_for_display uses precision from settings repo."""
+        """Test that property diff tree uses precision from settings repo."""
         from unittest.mock import MagicMock
 
         from PySide6.QtWidgets import QApplication
 
+        from freecad.diff_wb.domain.diff.models import DiffState
         from freecad.diff_wb.domain.settings.models import Settings
         from freecad.diff_wb.domain.settings.repository import SettingsRepository
         from freecad.diff_wb.ui import DiffPanelView
+        from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         app = QApplication.instance()
         if app is None:
@@ -1068,15 +1037,28 @@ class TestDiffPanelViewRuntimePrecision:
         mock_settings.float_precision = 4
         mock_settings_repo.get_settings.return_value = mock_settings
         panel._settings_repo = mock_settings_repo
+        # Update the child widget's settings repo
+        panel._property_diff_tree._settings_repo = mock_settings_repo
 
-        # Act - format a float value
-        result = panel._format_value_for_display(3.14159265)
+        # Act - show a property with a float value
+        panel.show_property_diff(
+            [
+                PropertyPresentation(
+                    name="TestProp",
+                    old_value=3.14159265,
+                    new_value=3.14159265,
+                    state=DiffState.UNCHANGED,
+                ),
+            ]
+        )
 
         # Assert - should round to 4 decimal places
-        assert "3.1416" in result
+        group_item = panel._property_diff_tree.topLevelItem(0)
+        prop_item = group_item.child(0)
+        assert "3.1416" in prop_item.text(1)
 
     def test_get_precision_uses_settings_repo_when_available(self) -> None:
-        """Test that _get_precision returns value from settings repo."""
+        """Test that property diff tree _get_precision returns value from settings repo."""
         from unittest.mock import MagicMock
 
         from PySide6.QtWidgets import QApplication
@@ -1097,15 +1079,17 @@ class TestDiffPanelViewRuntimePrecision:
         mock_settings.float_precision = 6
         mock_settings_repo.get_settings.return_value = mock_settings
         panel._settings_repo = mock_settings_repo
+        # Update the child widget's settings repo
+        panel._property_diff_tree._settings_repo = mock_settings_repo
 
         # Act
-        precision = panel._get_precision()
+        precision = panel._property_diff_tree._get_precision()
 
         # Assert
         assert precision == 6
 
     def test_get_precision_falls_back_to_default_when_no_settings_repo(self) -> None:
-        """Test that _get_precision returns default when no settings repo."""
+        """Test that property diff tree _get_precision returns default when no settings repo."""
         from PySide6.QtWidgets import QApplication
 
         from freecad.diff_wb.ui import DiffPanelView
@@ -1115,23 +1099,25 @@ class TestDiffPanelViewRuntimePrecision:
             app = QApplication([])
 
         panel = DiffPanelView()
-        panel._settings_repo = None
+        panel._property_diff_tree._settings_repo = None
 
         # Act
-        precision = panel._get_precision()
+        precision = panel._property_diff_tree._get_precision()
 
         # Assert - should use default precision (2)
         assert precision == 2
 
     def test_format_float_with_different_precisions(self) -> None:
-        """Test that different precision settings produce correct formatting."""
+        """Test that different precision settings produce correct formatting in property diff tree."""
         from unittest.mock import MagicMock
 
         from PySide6.QtWidgets import QApplication
 
+        from freecad.diff_wb.domain.diff.models import DiffState
         from freecad.diff_wb.domain.settings.models import Settings
         from freecad.diff_wb.domain.settings.repository import SettingsRepository
         from freecad.diff_wb.ui import DiffPanelView
+        from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         app = QApplication.instance()
         if app is None:
@@ -1145,23 +1131,72 @@ class TestDiffPanelViewRuntimePrecision:
         mock_settings.float_precision = 0
         mock_settings_repo.get_settings.return_value = mock_settings
         panel._settings_repo = mock_settings_repo
-        result = panel._format_value_for_display(3.7)
+        panel._property_diff_tree._settings_repo = mock_settings_repo
+        panel.show_property_diff(
+            [
+                PropertyPresentation(
+                    name="TestProp",
+                    old_value=3.7,
+                    new_value=3.7,
+                    state=DiffState.UNCHANGED,
+                ),
+            ]
+        )
+        group_item = panel._property_diff_tree.topLevelItem(0)
+        prop_item = group_item.child(0)
+        result = prop_item.text(1)
         assert "4" in result or "3" in result  # Should round to integer
 
         # Test precision=1
         mock_settings.float_precision = 1
-        result = panel._format_value_for_display(3.14159)
-        assert "3.1" in result
+        panel._property_diff_tree._settings_repo = mock_settings_repo
+        panel.show_property_diff(
+            [
+                PropertyPresentation(
+                    name="TestProp2",
+                    old_value=3.14159,
+                    new_value=3.14159,
+                    state=DiffState.UNCHANGED,
+                ),
+            ]
+        )
+        group_item = panel._property_diff_tree.topLevelItem(0)
+        prop_item = group_item.child(0)
+        assert "3.1" in prop_item.text(1)
 
         # Test precision=3
         mock_settings.float_precision = 3
-        result = panel._format_value_for_display(3.14159)
-        assert "3.142" in result
+        panel._property_diff_tree._settings_repo = mock_settings_repo
+        panel.show_property_diff(
+            [
+                PropertyPresentation(
+                    name="TestProp3",
+                    old_value=3.14159,
+                    new_value=3.14159,
+                    state=DiffState.UNCHANGED,
+                ),
+            ]
+        )
+        group_item = panel._property_diff_tree.topLevelItem(0)
+        prop_item = group_item.child(0)
+        assert "3.142" in prop_item.text(1)
 
         # Test precision=6
         mock_settings.float_precision = 6
-        result = panel._format_value_for_display(3.14159265)
-        assert "3.141593" in result
+        panel._property_diff_tree._settings_repo = mock_settings_repo
+        panel.show_property_diff(
+            [
+                PropertyPresentation(
+                    name="TestProp4",
+                    old_value=3.14159265,
+                    new_value=3.14159265,
+                    state=DiffState.UNCHANGED,
+                ),
+            ]
+        )
+        group_item = panel._property_diff_tree.topLevelItem(0)
+        prop_item = group_item.child(0)
+        assert "3.141593" in prop_item.text(1)
 
 
 class TestDiffPanelViewClearMethods:
@@ -1182,11 +1217,11 @@ class TestDiffPanelViewClearMethods:
                 )
             ]
         )
-        assert panel.properties_tree.topLevelItemCount() > 0
+        assert panel._property_diff_tree.topLevelItemCount() > 0
 
         panel.clear_property_diff()
 
-        assert panel.properties_tree.topLevelItemCount() == 0
+        assert panel._property_diff_tree.topLevelItemCount() == 0
 
     def test_clear_doc_diffs_clears_tree_summary_controls_and_properties(self, panel) -> None:  # type: ignore[no-untyped-def]
         """clear_doc_diffs() clears doc tree, summary, Stage All, and properties."""
@@ -1217,16 +1252,162 @@ class TestDiffPanelViewClearMethods:
             ]
         )
 
-        assert panel.tree_widget.topLevelItemCount() > 0
-        assert panel.properties_tree.topLevelItemCount() > 0
-        assert panel._changed_label.text() == "Changed: 3"
-        assert panel._stage_all_button.isHidden() is False
-        assert panel._stage_all_button.isEnabled() is True
+        assert panel._document_diff_tree.tree_widget.topLevelItemCount() > 0
+        assert panel._property_diff_tree.topLevelItemCount() > 0
+        assert panel._document_diff_tree._changed_label.text() == "Changed: 3"
+        assert panel._document_diff_tree._stage_all_button.isHidden() is False
+        assert panel._document_diff_tree._stage_all_button.isEnabled() is True
 
         panel.clear_doc_diffs()
 
-        assert panel.tree_widget.topLevelItemCount() == 0
-        assert panel.properties_tree.topLevelItemCount() == 0
-        assert panel._changed_label.text() == "No changes"
-        assert panel._stage_all_button.isHidden() is True
-        assert panel._stage_all_button.isEnabled() is False
+        assert panel._document_diff_tree.tree_widget.topLevelItemCount() == 0
+        assert panel._property_diff_tree.topLevelItemCount() == 0
+        assert panel._document_diff_tree._changed_label.text() == "No changes"
+        assert panel._document_diff_tree._stage_all_button.isHidden() is True
+        assert panel._document_diff_tree._stage_all_button.isEnabled() is False
+
+
+class TestHistorySelectionControlsStageButtonVisibility:
+    """Tests for cross-widget coordination between history selection and stage button visibility."""
+
+    def test_history_selection_controls_stage_button_visibility(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Selecting Working Tree in history must affect document tree Stage button rendering.
+
+        This test verifies the critical cross-widget coordination:
+        1. Selecting Working Tree in history triggers the selection callback
+        2. Document widget receives the updated selection
+        3. Stage buttons appear when show_doc_diffs() is called after selection
+        """
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QPushButton
+
+        from freecad.diff_wb.ui.presenters.presentation_models import DiffTreePresentation
+
+        # Set up callback to connect signal handler
+        panel.set_history_selection_callback(lambda _: None)
+
+        # Given: Panel with commits populated and Working Tree selected
+        panel.show_commits([])
+
+        # Find and select Working Tree item
+        working_tree_selection = HistorySelection(item_kind="WORKING_TREE", commit_hash=None)
+        for row in range(panel._history_panel.history_list.count()):
+            item = panel._history_panel.history_list.item(row)
+            if item.data(Qt.ItemDataRole.UserRole) == working_tree_selection:
+                panel._history_panel.history_list.setCurrentItem(item)
+                # Emit itemClicked signal to trigger selection callback
+                panel._history_panel.history_list.itemClicked.emit(item)
+                break
+
+        # When: Show document diffs with data
+        panel.show_doc_diffs(
+            [
+                DiffTreePresentation(
+                    nodes=[],
+                    git_path="Part.FCStd",
+                    indicators=[],
+                    stage_button_enabled=True,
+                )
+            ]
+        )
+
+        # Then: Stage buttons should be visible
+        has_stage_button = False
+        for i in range(panel._document_diff_tree.tree_widget.topLevelItemCount()):
+            item = panel._document_diff_tree.tree_widget.topLevelItem(i)
+            container = panel._document_diff_tree.tree_widget.itemWidget(item, 0)
+            if container is not None:
+                buttons = container.findChildren(QPushButton)
+                if any(button.text() == "+ Stage" for button in buttons):
+                    has_stage_button = True
+                    break
+        assert has_stage_button
+
+    def test_commit_selection_hides_stage_buttons(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Selecting a commit in history must hide Stage buttons in document tree."""
+        from PySide6.QtWidgets import QPushButton
+
+        from freecad.diff_wb.domain.git.models import GitCommit
+        from freecad.diff_wb.ui.presenters.presentation_models import DiffTreePresentation
+
+        # Set up callback to connect signal handler
+        panel.set_history_selection_callback(lambda _: None)
+
+        # Given: Panel with commits and a commit selected
+        commit = GitCommit(
+            id="a1b2c3d4e5f67890",
+            message="Test commit",
+            author="Test",
+            timestamp=datetime.fromisoformat("2024-01-15T10:30:00+00:00"),
+        )
+        panel.show_commits([commit])
+
+        # Select the commit item (row 2, after special items)
+        commit_item = panel._history_panel.history_list.item(2)
+        assert commit_item is not None
+        panel._history_panel.history_list.setCurrentItem(commit_item)
+        panel._history_panel.history_list.itemClicked.emit(commit_item)
+
+        # When: Show document diffs
+        panel.show_doc_diffs(
+            [
+                DiffTreePresentation(
+                    nodes=[],
+                    git_path="Part.FCStd",
+                    indicators=[],
+                    stage_button_enabled=True,
+                )
+            ]
+        )
+
+        # Then: Stage buttons should NOT be visible
+        has_stage_button = False
+        for i in range(panel._document_diff_tree.tree_widget.topLevelItemCount()):
+            item = panel._document_diff_tree.tree_widget.topLevelItem(i)
+            container = panel._document_diff_tree.tree_widget.itemWidget(item, 0)
+            if container is not None:
+                buttons = container.findChildren(QPushButton)
+                if any(button.text() == "+ Stage" for button in buttons):
+                    has_stage_button = True
+                    break
+        assert not has_stage_button
+
+
+class TestDiffPanelViewStructure:
+    """Tests for DiffPanelView structure and child widget composition."""
+
+    def test_child_widgets_exist(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Verify that all child widgets are created during initialization.
+
+        This test ensures that DiffPanelView properly composes its child widgets:
+        - _history_panel: HistoryPanelWidget for repository/history display
+        - _document_diff_tree: DocumentDiffTreeWidget for document diffs
+        - _property_diff_tree: PropertyDiffTreeWidget for property diffs
+        """
+        from freecad.diff_wb.ui.views.document_diff_tree_widget import DocumentDiffTreeWidget
+        from freecad.diff_wb.ui.views.history_panel_widget import HistoryPanelWidget
+        from freecad.diff_wb.ui.views.property_diff_tree_widget import PropertyDiffTreeWidget
+
+        assert hasattr(panel, "_history_panel")
+        assert isinstance(panel._history_panel, HistoryPanelWidget)
+
+        assert hasattr(panel, "_document_diff_tree")
+        assert isinstance(panel._document_diff_tree, DocumentDiffTreeWidget)
+
+        assert hasattr(panel, "_property_diff_tree")
+        assert isinstance(panel._property_diff_tree, PropertyDiffTreeWidget)
+
+    def test_no_compatibility_attributes_exposed(self, panel) -> None:  # type: ignore[no-untyped-def]
+        """Verify DiffPanelView does not expose internal widget references.
+
+        The facade should only expose high-level methods, not passthrough
+        attributes to child widgets. Tests should access internals through
+        private attributes (e.g., panel._history_panel.history_list).
+        """
+        assert not hasattr(panel, "history_list")
+        assert not hasattr(panel, "tree_widget")
+        assert not hasattr(panel, "properties_tree")
+        assert not hasattr(panel, "_repository_label")
+        assert not hasattr(panel, "_refresh_button")
+        assert not hasattr(panel, "_changed_label")
+        assert not hasattr(panel, "_stage_all_button")

@@ -37,16 +37,26 @@ class TestDiffPanelView:
         assert panel is not None
 
     def test_diff_panel_has_ui_components(self, panel) -> None:  # type: ignore[no-untyped-def]
-        """Test DiffPanelView has required UI widgets.
+        """Test DiffPanelView has required child widgets and UI components.
 
-        Verifies presence of:
-        - tree_widget: QTreeWidget for displaying diff tree
-        - properties_tree: QTreeWidget for property details (replaces QTableWidget)
-        - history_list: QListWidget for history/commit selection
+        Verifies presence of child widgets:
+        - _history_panel: HistoryPanelWidget containing history_list
+        - _document_diff_tree: DocumentDiffTreeWidget containing tree_widget
+        - _property_diff_tree: PropertyDiffTreeWidget for property diffs
+
+        Note: DiffPanelView is a facade pattern and does not expose internal
+        widget references directly. Tests should access internals through
+        private attributes.
         """
-        assert hasattr(panel, "tree_widget"), "Missing tree_widget"
-        assert hasattr(panel, "properties_tree"), "Missing properties_tree"
-        assert hasattr(panel, "history_list"), "Missing history_list"
+        # Check child widgets exist
+        assert hasattr(panel, "_history_panel"), "Missing _history_panel"
+        assert hasattr(panel, "_document_diff_tree"), "Missing _document_diff_tree"
+        assert hasattr(panel, "_property_diff_tree"), "Missing _property_diff_tree"
+
+        # Verify child widgets have their internal components
+        assert hasattr(panel._history_panel, "history_list"), "Missing history_list in _history_panel"
+        assert hasattr(panel._document_diff_tree, "tree_widget"), "Missing tree_widget in _document_diff_tree"
+        assert hasattr(panel._property_diff_tree, "topLevelItemCount"), "Missing tree methods in _property_diff_tree"
 
     def test_diff_panel_implements_protocols(self, panel) -> None:  # type: ignore[no-untyped-def]
         """Test DiffPanelView implements required protocol methods.

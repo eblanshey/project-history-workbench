@@ -1,6 +1,6 @@
 #!/bin/bash
 # Wrapper script to run Python scripts with FreeCAD AppImage bindings
-# The FreeCAD AppImage has been extracted to: /home/flyer/Programs/freecad_extracted/squashfs-root
+# The FreeCAD AppImage should be extracted to a directory and set to the $FREECAD_ROOT env variable.
 
 # Check if FREECAD_ROOT is set, otherwise exit with error. This is the source of the extracted freecad appimage.
 # Sample value: /home/user/Programs/freecad_extracted/squashfs-root
