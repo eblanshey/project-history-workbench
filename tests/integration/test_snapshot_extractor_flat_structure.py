@@ -119,7 +119,7 @@ class TestSnapshotExtractorFlatStructure:
                 if second_obj and first_obj:
                     assert (
                         second_obj.name == root_occurrences[1].after or first_obj.name == root_occurrences[1].after
-                    ), f"Second root should reference first root by name"
+                    ), "Second root should reference first root by name"
         finally:
             freecad_app.closeDocument(doc.Name)
 
@@ -236,11 +236,9 @@ class TestSnapshotExtractorFlatStructure:
             snapshot = extractor.extract_tree(doc)
 
             # Find the Part object (should be root)
-            part_obj = snapshot.find_object("Part")
             part_occ = next((occ for occ in snapshot.occurrences if occ.path == "Part"), None)
 
             # Find Body object (should be child of Part)
-            body_obj = snapshot.find_object("Body_MyBody")
             body_occ = next((occ for occ in snapshot.occurrences if occ.path == "Part/Body_MyBody"), None)
 
             if part_occ:

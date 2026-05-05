@@ -19,6 +19,7 @@ class TestGitPortAdapterCommit:
     def setup_method(self) -> None:
         """Set up test fixtures before each test method."""
         self.adapter = GitPortAdapter()
+        self.adapter._git_executable = "git"
 
     def test_commit_success(self) -> None:
         """Test successful commit returns True.
@@ -109,6 +110,8 @@ class TestGitPortAdapterCommit:
                 cwd="/path/to/repo",
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -132,6 +135,8 @@ class TestGitPortAdapterCommit:
                 cwd="/custom/repo/path",
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -249,5 +254,7 @@ class TestGitPortAdapterCommit:
                 cwd="/path/to/repo",
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )

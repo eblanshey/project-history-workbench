@@ -156,3 +156,44 @@ def test_get_dirty_paths_handles_mixed_status_codes():
         # -  M: modified in WT but not staged (dirty)
         # - ??: untracked (dirty)
         assert set(result) == {"modified_twice.py", "unstaged_modified.py", "untracked.txt"}
+
+
+def test_get_dirty_paths_handles_z_paths_with_newlines():
+    """Given NUL-delimited porcelain output, embedded newlines are preserved."""
+    mock_result = subprocess.CompletedProcess(
+        args=["git", "status", "--porcelain", "-z"],
+        returncode=0,
+        stdout=" M path/with\nnewline.FCStd\x00?? new\nfile.FCStd\x00",
+        stderr="",
+    )
+
+    with patch.object(subprocess, "run", return_value=mock_result):
+        adapter = GitPortAdapter()
+        result = adapter.get_dirty_paths("/path/to/repo")
+
+        assert set(result) == {"path/with\nnewline.FCStd", "new\nfile.FCStd"}
+
+
+def test_get_dirty_paths_preserves_z_path_spaces():
+    """Given NUL-delimited porcelain output, raw path spaces are preserved."""
+    mock_result = subprocess.CompletedProcess(
+        args=["git", "status", "--porcelain", "-z"],
+        returncode=0,
+        stdout=" M  leading and trailing .FCStd \x00",
+        stderr="",
+    )
+
+    with patch.object(subprocess, "run", return_value=mock_result):
+        adapter = GitPortAdapter()
+        result = adapter.get_dirty_paths("/path/to/repo")
+
+        assert result == [" leading and trailing .FCStd "]
+
+
+def test_get_dirty_paths_handles_bad_cwd_os_error():
+    """Given subprocess raises OSError, returns empty list."""
+    with patch.object(subprocess, "run", side_effect=OSError("bad cwd")):
+        adapter = GitPortAdapter()
+        result = adapter.get_dirty_paths("/path/to/repo")
+
+        assert result == []

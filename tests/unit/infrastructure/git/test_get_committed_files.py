@@ -18,6 +18,7 @@ class TestGitPortAdapterGetCommittedFiles:
     def setup_method(self) -> None:
         """Set up test fixtures before each test method."""
         self.adapter = GitPortAdapter()
+        self.adapter._git_executable = "git"
 
     def test_get_committed_files_success(self) -> None:
         """Test successful parsing of git diff-tree output returning FCStd files.
@@ -27,9 +28,9 @@ class TestGitPortAdapterGetCommittedFiles:
         paths to those FCStd files.
         """
         mock_result = subprocess.CompletedProcess(
-            args=["git", "diff-tree", "--root", "--no-commit-id", "--name-only", "-r", "abc123"],
+            args=["git", "diff-tree", "--root", "--no-commit-id", "--name-only", "-z", "-r", "abc123"],
             returncode=0,
-            stdout="path/to/document.FCStd\npath/to/another.FCStd\n",
+            stdout="path/to/document.FCStd\x00path/to/another.FCStd\x00",
             stderr="",
         )
 
@@ -37,10 +38,12 @@ class TestGitPortAdapterGetCommittedFiles:
             result = self.adapter.get_committed_files("/path/to/repo", "abc123")
 
             mock_run.assert_called_once_with(
-                ["git", "diff-tree", "--root", "--no-commit-id", "--name-only", "-r", "abc123"],
+                ["git", "diff-tree", "--root", "--no-commit-id", "--name-only", "-z", "-r", "abc123"],
                 cwd="/path/to/repo",
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -55,7 +58,7 @@ class TestGitPortAdapterGetCommittedFiles:
         mock_result = subprocess.CompletedProcess(
             args=["git", "diff-tree", "--root", "--no-commit-id", "--name-only", "-r", "abc123"],
             returncode=0,
-            stdout="README.md\npath/to/document.FCStd\nsrc/main.py\npath/to/model.FCStd\nconfig.yaml\n",
+            stdout="README.md\x00path/to/document.FCStd\x00src/main.py\x00path/to/model.FCStd\x00config.yaml\x00",
             stderr="",
         )
 
@@ -83,7 +86,7 @@ class TestGitPortAdapterGetCommittedFiles:
         mock_result = subprocess.CompletedProcess(
             args=["git", "diff-tree", "--root", "--no-commit-id", "--name-only", "-r", commit_ref],
             returncode=0,
-            stdout="path/to/document.FCStd\n",
+            stdout="path/to/document.FCStd\x00",
             stderr="",
         )
 
@@ -91,10 +94,12 @@ class TestGitPortAdapterGetCommittedFiles:
             result = self.adapter.get_committed_files("/path/to/repo", commit_ref)
 
             mock_run.assert_called_once_with(
-                ["git", "diff-tree", "--root", "--no-commit-id", "--name-only", "-r", commit_ref],
+                ["git", "diff-tree", "--root", "--no-commit-id", "--name-only", "-z", "-r", commit_ref],
                 cwd="/path/to/repo",
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -110,7 +115,7 @@ class TestGitPortAdapterGetCommittedFiles:
         mock_result = subprocess.CompletedProcess(
             args=["git", "diff-tree", "--root", "--no-commit-id", "--name-only", "-r", "root_hash"],
             returncode=0,
-            stdout="initial.FCStd\nproject.FCStd\n",
+            stdout="initial.FCStd\x00project.FCStd\x00",
             stderr="",
         )
 
@@ -128,7 +133,7 @@ class TestGitPortAdapterGetCommittedFiles:
         mock_result = subprocess.CompletedProcess(
             args=["git", "diff-tree", "--root", "--no-commit-id", "--name-only", "-r", "abc123"],
             returncode=0,
-            stdout="README.md\nsrc/main.py\nconfig.yaml\n",
+            stdout="README.md\x00src/main.py\x00config.yaml\x00",
             stderr="",
         )
 
@@ -195,16 +200,16 @@ class TestGitPortAdapterGetCommittedFiles:
 
             assert result == []
 
-    def test_get_committed_files_with_trailing_newlines(self) -> None:
-        """Test handling of output with trailing newlines.
+    def test_get_committed_files_with_trailing_nuls(self) -> None:
+        """Test handling of output with trailing NULs.
 
-        Given git diff-tree output with trailing newlines, when get_committed_files
+        Given git diff-tree output with trailing NULs, when get_committed_files
         is called, then empty lines are filtered out and only valid paths returned.
         """
         mock_result = subprocess.CompletedProcess(
             args=["git", "diff-tree", "--root", "--no-commit-id", "--name-only", "-r", "abc123"],
             returncode=0,
-            stdout="path/to/document.FCStd\npath/to/another.FCStd\n\n\n",
+            stdout="path/to/document.FCStd\x00path/to/another.FCStd\x00\x00\x00",
             stderr="",
         )
 
@@ -212,3 +217,17 @@ class TestGitPortAdapterGetCommittedFiles:
             result = self.adapter.get_committed_files("/path/to/repo", "abc123")
 
             assert result == ["path/to/document.FCStd", "path/to/another.FCStd"]
+
+    def test_get_committed_files_handles_filename_with_newline(self) -> None:
+        """Given NUL-delimited output, filenames containing newlines remain intact."""
+        mock_result = subprocess.CompletedProcess(
+            args=["git", "diff-tree", "--root", "--no-commit-id", "--name-only", "-z", "-r", "abc123"],
+            returncode=0,
+            stdout="path/with\nnewline.FCStd\x00README.md\x00",
+            stderr="",
+        )
+
+        with patch.object(subprocess, "run", return_value=mock_result):
+            result = self.adapter.get_committed_files("/path/to/repo", "abc123")
+
+            assert result == ["path/with\nnewline.FCStd"]

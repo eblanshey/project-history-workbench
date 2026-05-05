@@ -20,6 +20,7 @@ class TestGitPortAdapter:
     def setup_method(self) -> None:
         """Set up test fixtures before each test method."""
         self.adapter = GitPortAdapter()
+        self.adapter._git_executable = "git"
 
     @pytest.mark.parametrize(
         "path",
@@ -52,6 +53,8 @@ class TestGitPortAdapter:
                 cwd=path,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=5,
             )
 
@@ -108,6 +111,8 @@ class TestGitPortAdapter:
                 cwd="/parent/directory",
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=5,
             )
 
@@ -213,6 +218,7 @@ class TestGitPortAdapterGetCommits:
     def setup_method(self) -> None:
         """Set up test fixtures before each test method."""
         self.adapter = GitPortAdapter()
+        self.adapter._git_executable = "git"
 
     def test_get_commits_success_single_commit(self) -> None:
         """Test successful commit retrieval with a single commit."""
@@ -233,6 +239,8 @@ class TestGitPortAdapterGetCommits:
                 cwd="/path/to/repo",
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
             )
 
@@ -322,6 +330,8 @@ class TestGitPortAdapterGetCommits:
                 cwd="/path/to/repo",
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
             )
 
@@ -401,6 +411,8 @@ class TestGitPortAdapterGetCommits:
                 cwd="/parent/directory",
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
             )
 
@@ -485,6 +497,7 @@ class TestGitPortAdapterIsPathInRepository:
     def setup_method(self) -> None:
         """Set up test fixtures before each test method."""
         self.adapter = GitPortAdapter()
+        self.adapter._git_executable = "git"
 
     @pytest.mark.parametrize(
         "git_root,path,expected",
@@ -554,12 +567,52 @@ class TestGitPortAdapterIsPathInRepository:
         assert result is False
 
 
+class TestGitPortAdapterStageFiles:
+    """Tests for the stage_files method of GitPortAdapter."""
+
+    def setup_method(self) -> None:
+        """Set up test fixtures before each test method."""
+        self.adapter = GitPortAdapter()
+        self.adapter._git_executable = "git"
+
+    def test_stage_files_uses_pathspec_separator(self) -> None:
+        """Given paths that look like options, git add receives -- separator."""
+        mock_result = subprocess.CompletedProcess(
+            args=["git", "add", "-v", "--", "-weird.FCStd"],
+            returncode=0,
+            stdout="add '-weird.FCStd'\n",
+            stderr="",
+        )
+
+        with patch.object(subprocess, "run", return_value=mock_result) as mock_run:
+            result = self.adapter.stage_files("/path/to/repo", ["-weird.FCStd"])
+
+            assert result is True
+            mock_run.assert_called_once_with(
+                ["git", "add", "-v", "--", "-weird.FCStd"],
+                cwd="/path/to/repo",
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=30,
+            )
+
+    def test_stage_files_handles_bad_cwd_os_error(self) -> None:
+        """Given subprocess raises OSError, returns False."""
+        with patch.object(subprocess, "run", side_effect=OSError("bad cwd")):
+            result = self.adapter.stage_files("/path/to/repo", ["file.FCStd"])
+
+            assert result is False
+
+
 class TestGitPortAdapterGetStagedPaths:
     """Tests for the get_staged_paths method of GitPortAdapter."""
 
     def setup_method(self) -> None:
         """Set up test fixtures before each test method."""
         self.adapter = GitPortAdapter()
+        self.adapter._git_executable = "git"
 
     def test_get_staged_paths_returns_staged_fcstd_files(self) -> None:
         """Test that staged .FCStd files are returned correctly.
@@ -581,10 +634,12 @@ class TestGitPortAdapterGetStagedPaths:
             result = self.adapter.get_staged_paths("/path/to/repo")
 
             mock_run.assert_called_once_with(
-                ["git", "status", "--porcelain"],
+                ["git", "status", "--porcelain", "-z"],
                 cwd="/path/to/repo",
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -682,6 +737,48 @@ class TestGitPortAdapterGetStagedPaths:
 
             assert result == ["path/with spaces/document.FCStd"]
 
+    def test_get_staged_paths_handles_z_renamed_fcstd_target(self) -> None:
+        """Given status -z rename output, returns renamed FCStd target path."""
+        mock_result = subprocess.CompletedProcess(
+            args=["git", "status", "--porcelain", "-z"],
+            returncode=0,
+            stdout="R  new/path/document.FCStd\x00old/path/document.FCStd\x00",
+            stderr="",
+        )
+
+        with patch.object(subprocess, "run", return_value=mock_result):
+            result = self.adapter.get_staged_paths("/path/to/repo")
+
+            assert result == ["new/path/document.FCStd"]
+
+    def test_get_staged_paths_preserves_z_leading_path_space(self) -> None:
+        """Given status -z raw paths, leading spaces are preserved."""
+        mock_result = subprocess.CompletedProcess(
+            args=["git", "status", "--porcelain", "-z"],
+            returncode=0,
+            stdout="A   leading.FCStd\x00",
+            stderr="",
+        )
+
+        with patch.object(subprocess, "run", return_value=mock_result):
+            result = self.adapter.get_staged_paths("/path/to/repo")
+
+            assert result == [" leading.FCStd"]
+
+    def test_get_staged_paths_handles_z_path_with_newline(self) -> None:
+        """Given status -z raw paths, embedded newlines are preserved."""
+        mock_result = subprocess.CompletedProcess(
+            args=["git", "status", "--porcelain", "-z"],
+            returncode=0,
+            stdout="A  path/with\nnewline.FCStd\x00",
+            stderr="",
+        )
+
+        with patch.object(subprocess, "run", return_value=mock_result):
+            result = self.adapter.get_staged_paths("/path/to/repo")
+
+            assert result == ["path/with\nnewline.FCStd"]
+
     def test_get_staged_paths_timeout(self) -> None:
         """Test handling of subprocess timeout."""
         with patch.object(subprocess, "run", side_effect=subprocess.TimeoutExpired(cmd="git", timeout=30)):
@@ -717,6 +814,7 @@ class TestGitPortAdapterGetFileContents:
     def setup_method(self) -> None:
         """Set up test fixtures before each test method."""
         self.adapter = GitPortAdapter()
+        self.adapter._git_executable = "git"
 
     def test_get_file_contents_from_index(self) -> None:
         """Test getting file contents from the index (staged version).
@@ -739,6 +837,8 @@ class TestGitPortAdapterGetFileContents:
                 cwd="/path/to/repo",
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -765,6 +865,8 @@ class TestGitPortAdapterGetFileContents:
                 cwd="/path/to/repo",
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 

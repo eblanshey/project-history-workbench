@@ -6,6 +6,7 @@
 """GitPort adapter implementation using git CLI."""
 
 import os
+import shutil
 import subprocess
 from codecs import decode as codecs_decode
 from datetime import datetime
@@ -27,6 +28,32 @@ class GitPortAdapter(GitPort):
         No public attributes.
     """
 
+    def __init__(self) -> None:
+        """Initialize adapter with cached git executable path."""
+        self._git_executable = shutil.which("git")
+
+    def _run_git(
+        self,
+        args: list[str],
+        *,
+        cwd: str,
+        timeout: int,
+    ) -> subprocess.CompletedProcess[str] | None:
+        """Run git command with consistent encoding and error handling."""
+        if self._git_executable is None:
+            Log.warning("Git command not found - git may not be installed or not in PATH")
+            return None
+
+        return subprocess.run(
+            [self._git_executable, *args],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+        )
+
     def find_top_level_git_path(self, path: str) -> str | None:
         """Find git root using git CLI.
 
@@ -47,13 +74,9 @@ class GitPortAdapter(GitPort):
             cwd_path = os.path.dirname(path)
 
         try:
-            result = subprocess.run(
-                ["git", "rev-parse", "--show-toplevel"],
-                cwd=cwd_path,
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
+            result = self._run_git(["rev-parse", "--show-toplevel"], cwd=cwd_path, timeout=5)
+            if result is None:
+                return None
             if result.returncode == 0:
                 return result.stdout.strip()
             return None
@@ -87,50 +110,17 @@ class GitPortAdapter(GitPort):
             cwd_path = os.path.dirname(path)
 
         try:
-            result = subprocess.run(
-                ["git", "log", f"-n{limit}", "--format=%H%x00%B%x00%an%x00%aI%x00"],
+            result = self._run_git(
+                ["log", f"-n{limit}", "--format=%H%x00%B%x00%an%x00%aI%x00"],
                 cwd=cwd_path,
-                capture_output=True,
-                text=True,
                 timeout=10,
             )
+            if result is None:
+                return []
+
             if result.returncode != 0:
                 Log.warning(f"Git log failed with return code {result.returncode}: {result.stderr.strip()}")
                 return []
-
-            output = result.stdout.strip()
-            if not output:
-                return []
-
-            # Split by null byte to get all fields
-            # Each commit has 4 fields: hash, message, author, timestamp
-            # The trailing %x00 after timestamp creates an extra empty element
-            parts = output.split("\x00")
-
-            commits = []
-            # Process in groups of 4 (hash, message, author, timestamp)
-            for i in range(0, len(parts) - 3, 4):
-                # Git inserts a newline between pretty-format entries. When using
-                # null-byte field delimiters this can prefix the next commit hash
-                # with "\n". Strip whitespace from scalar fields to keep values valid.
-                commit_hash = parts[i].strip()
-                full_message = parts[i + 1]
-                author = parts[i + 2].strip()
-                timestamp = parts[i + 3].strip()
-
-                if commit_hash:  # Skip empty entries
-                    # Parse ISO format timestamp into datetime instance
-                    timestamp_dt = datetime.fromisoformat(timestamp)
-                    commits.append(
-                        GitCommit(
-                            id=commit_hash,
-                            message=full_message,
-                            author=author,
-                            timestamp=timestamp_dt,
-                        )
-                    )
-
-            return commits
         except subprocess.TimeoutExpired:
             Log.warning(f"Git log command timed out for path: {path}")
             return []
@@ -140,6 +130,40 @@ class GitPortAdapter(GitPort):
         except (NotADirectoryError, OSError) as e:
             Log.warning(f"Git error for path {path}: {e}")
             return []
+
+        output = result.stdout.strip()
+        if not output:
+            return []
+
+        # Split by null byte to get all fields
+        # Each commit has 4 fields: hash, message, author, timestamp
+        # The trailing %x00 after timestamp creates an extra empty element
+        parts = output.split("\x00")
+
+        commits = []
+        # Process in groups of 4 (hash, message, author, timestamp)
+        for i in range(0, len(parts) - 3, 4):
+            # Git inserts a newline between pretty-format entries. When using
+            # null-byte field delimiters this can prefix the next commit hash
+            # with "\n". Strip whitespace from scalar fields to keep values valid.
+            commit_hash = parts[i].strip()
+            full_message = parts[i + 1]
+            author = parts[i + 2].strip()
+            timestamp = parts[i + 3].strip()
+
+            if commit_hash:  # Skip empty entries
+                # Parse ISO format timestamp into datetime instance
+                timestamp_dt = datetime.fromisoformat(timestamp)
+                commits.append(
+                    GitCommit(
+                        id=commit_hash,
+                        message=full_message,
+                        author=author,
+                        timestamp=timestamp_dt,
+                    )
+                )
+
+        return commits
 
     def is_path_in_repository(self, git_root: str, path: str) -> bool:
         """Check if a path is within the git repository.
@@ -157,20 +181,17 @@ class GitPortAdapter(GitPort):
         if not git_root or not path:
             return False
 
-        # Normalize paths to handle different separators and relative components
-        normalized_git_root = os.path.normpath(git_root).rstrip(os.sep)
-        normalized_path = os.path.normpath(path)
+        normalized_git_root = os.path.normcase(os.path.abspath(git_root))
+        normalized_path = os.path.normcase(os.path.abspath(path))
 
-        # Check if path starts with git_root
-        # We need to ensure we're matching at a directory boundary
-        if normalized_path == normalized_git_root:
-            return True
-
-        # Check if path is a subdirectory/file within git_root
-        return normalized_path.startswith(normalized_git_root + os.sep)
+        try:
+            return os.path.commonpath([normalized_git_root, normalized_path]) == normalized_git_root
+        except ValueError:
+            # Different drives on Windows cannot share common path.
+            return False
 
     def get_dirty_paths(self, git_root: str) -> list[str]:
-        """Get dirty paths using git status --porcelain.
+        """Get dirty paths using git status --porcelain -z.
 
         Filters for modified (M) and untracked (??) files only, as these are
         the only ones that can be staged via `git add`.
@@ -183,47 +204,97 @@ class GitPortAdapter(GitPort):
             Empty list if repo is clean or not a git repo.
         """
         try:
-            result = subprocess.run(
-                ["git", "status", "--porcelain"],
-                cwd=git_root,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-
-            if result.returncode != 0:
+            # Use NUL-delimited porcelain output.
+            # Why: newline-delimited output cannot safely represent filenames
+            # containing embedded newlines, and quoted-path parsing is trickier.
+            # With -z, git uses ASCII NUL as record separator and raw paths.
+            # NUL is represented in Python string literals as "\x00".
+            result = self._run_git(["status", "--porcelain", "-z"], cwd=git_root, timeout=30)
+            if result is None or result.returncode != 0:
                 return []
 
-            dirty_paths = []
-            # Don't use .strip() on the whole output - it removes leading spaces
-            # from lines like " M file.txt" which are valid porcelain format.
-            # Instead, strip each line individually when checking if empty.
-            for line in result.stdout.split("\n"):
-                line = line.rstrip()  # Only strip trailing whitespace
-                if not line:
-                    continue
-
-                parsed = self._parse_git_status_line(line)
-                if parsed and self._is_dirty_status(parsed["status"], parsed["rel_path"]):
-                    dirty_paths.append(parsed["rel_path"])
-
-            return dirty_paths
-
+            status_entries = self._parse_status_output_entries(result.stdout)
+            return [
+                str(entry["rel_path"])
+                for entry in status_entries
+                if self._is_dirty_status(str(entry["wt_status"]), str(entry["rel_path"]))
+            ]
         except subprocess.TimeoutExpired:
             Log.warning("Git status command timed out")
             return []
         except FileNotFoundError:
             Log.warning("Git command not found - may not be installed")
             return []
+        except (NotADirectoryError, OSError) as e:
+            Log.warning(f"Git status failed: {e}")
+            return []
+
+    def _parse_status_output_entries(self, stdout: str) -> list[dict[str, str | int]]:
+        """Parse git status porcelain output into normalized status entries."""
+        parsed_entries: list[dict[str, str | int]] = []
+        if "\x00" in stdout:
+            # NUL-delimited mode (-z): each entry ends with NUL ('\x00').
+            # Split by NUL and ignore final empty fragment if present.
+            entries = [entry for entry in stdout.split("\x00") if entry]
+            index = 0
+            while index < len(entries):
+                parsed = self._parse_git_status_entry_z(entries, index)
+                if parsed is None:
+                    index += 1
+                    continue
+                parsed_entries.append(parsed)
+                index += int(parsed["consumed"])
+            return parsed_entries
+
+        for line in stdout.split("\n"):
+            line = line.rstrip()
+            if not line:
+                continue
+            parsed_line = self._parse_git_status_line(line)
+            if parsed_line is not None:
+                parsed_entries.append(
+                    {
+                        "index_status": line[0],
+                        "wt_status": parsed_line["status"],
+                        "rel_path": parsed_line["rel_path"],
+                        "consumed": 1,
+                    }
+                )
+        return parsed_entries
 
     def _parse_git_status_line(self, line: str) -> dict[str, str] | None:
         """Parse a git status porcelain line into status and path components.
 
-        Git porcelain format: "<index_status><wt_status> <path>"
-        - Position 0: Index/staging area status
-        - Position 1: Working tree status (what determines if file can be staged)
-        - Position 2: Space separator
-        - Position 3+: File path relative to git root
+        Git porcelain line format: "<index_status><wt_status> <path>"
+        - Position 0: index/staging area status
+        - Position 1: working tree status (drives dirty detection)
+        - Position 2: space separator
+        - Position 3+: repository-relative path
+
+        Examples:
+            " M file.txt" -> index=space, wt=M (modified, not staged)
+            "M  file.txt" -> index=M, wt=space (staged only)
+            "MM file.txt" -> index=M, wt=M (staged + modified again)
+            "?? file.txt" -> untracked
+        """
+        if len(line) < 4:
+            return None
+
+        wt_status = line[1]
+        rel_path = self._normalize_porcelain_path(line[3:])
+
+        valid_statuses = ("M", "?", "A", "D", "R", "U", "T", "C", " ")
+        if wt_status not in valid_statuses:
+            return None
+
+        return {"status": wt_status, "rel_path": rel_path}
+
+    def _parse_git_status_entry_z(self, entries: list[str], index: int) -> dict[str, str | int] | None:
+        """Parse one NUL-delimited porcelain v1 entry from git status -z.
+
+        Git porcelain format with ``-z`` emits NUL-separated entries:
+        - Normal entries: ``<index_status><wt_status> <path>\0``
+        - Rename/copy entries: ``<index_status><wt_status> <new_path>\0<old_path>\0``
 
         Examples:
             " M file.txt" → index=space, wt=M → modified but NOT yet staged
@@ -232,25 +303,41 @@ class GitPortAdapter(GitPort):
             "?? file.txt" → index=?, wt=? → untracked
 
         Args:
-            line: A single line from git status --porcelain output.
+            entries: NUL-delimited output entries from git status.
+            index: Entry index to parse.
 
         Returns:
-            Dictionary with 'status' and 'rel_path' keys, or None if parsing fails.
-            The 'status' field contains the working tree status character.
+            Dictionary with parsed statuses/path and consumed entry count,
+            or None if parsing fails.
         """
-        if len(line) < 4:
+        entry = entries[index]
+        if len(entry) < 3:
             return None
 
-        # Extract working tree status (position 1) and path (position 3+)
-        wt_status = line[1]
-        rel_path = self._normalize_porcelain_path(line[3:])
+        index_status = entry[0]
+        wt_status = entry[1]
+        rel_path = entry[3:] if len(entry) > 3 else ""
+        consumed = 1
+
+        if index_status in ("R", "C"):
+            # For rename/copy in -z mode, git emits two NUL-separated path fields:
+            # new path in current entry, old path in next entry. We care about
+            # target/new path for downstream matching/staging logic.
+            if index + 1 >= len(entries):
+                return None
+            consumed = 2
 
         # Only process lines with valid status characters
         valid_statuses = ("M", "?", "A", "D", "R", "U", "T", "C", " ")
         if wt_status not in valid_statuses:
             return None
 
-        return {"status": wt_status, "rel_path": rel_path}
+        return {
+            "index_status": index_status,
+            "wt_status": wt_status,
+            "rel_path": rel_path,
+            "consumed": consumed,
+        }
 
     def _normalize_porcelain_path(self, path: str) -> str:
         """Normalize porcelain path by decoding git-quoted paths.
@@ -312,20 +399,18 @@ class GitPortAdapter(GitPort):
         if not paths:
             return True
 
+        # Use git add with -v for verbose output
         try:
-            # Use git add with -v for verbose output
-            result = subprocess.run(
-                ["git", "add", "-v"] + paths,
-                cwd=git_root,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
+            result = self._run_git(["add", "-v", "--", *paths], cwd=git_root, timeout=30)
+            if result is None:
+                return False
+
             if result.returncode == 0:
                 for line in result.stdout.strip().split("\n"):
                     if line:
                         Log.debug(f"Staged: {line}")
                 return True
+
             Log.warning(f"Git add failed: {result.stderr.strip()}")
             return False
         except subprocess.TimeoutExpired:
@@ -334,9 +419,12 @@ class GitPortAdapter(GitPort):
         except FileNotFoundError:
             Log.warning("Git command not found")
             return False
+        except (NotADirectoryError, OSError) as e:
+            Log.warning(f"Git add failed: {e}")
+            return False
 
     def get_staged_paths(self, git_root: str) -> list[str]:
-        """Get staged FCStd file paths using git status --porcelain.
+        """Get staged FCStd file paths using git status --porcelain -z.
 
         Filters for files that are staged in the index (position 0 status is not space).
         Only returns files with .FCStd extension.
@@ -348,41 +436,24 @@ class GitPortAdapter(GitPort):
             List of relative paths (from git root) that are staged and are FCStd files.
         """
         try:
-            result = subprocess.run(
-                ["git", "status", "--porcelain"],
-                cwd=git_root,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-
-            if result.returncode != 0:
+            result = self._run_git(["status", "--porcelain", "-z"], cwd=git_root, timeout=30)
+            if result is None or result.returncode != 0:
                 return []
 
-            staged_paths = []
-            for line in result.stdout.split("\n"):
-                line = line.rstrip()
-                if not line:
-                    continue
-
-                # Parse porcelain format: "<index_status><wt_status> <path>"
-                if len(line) < 4:
-                    continue
-
-                index_status = line[0]
-                rel_path = self._normalize_porcelain_path(line[3:])
-
-                # Check if staged (index_status is not space and not untracked "?") and is FCStd file
-                if index_status not in (" ", "?") and rel_path.endswith(".FCStd"):
-                    staged_paths.append(rel_path)
-
-            return staged_paths
-
+            status_entries = self._parse_status_output_entries(result.stdout)
+            return [
+                str(entry["rel_path"])
+                for entry in status_entries
+                if str(entry["index_status"]) not in (" ", "?") and str(entry["rel_path"]).endswith(".FCStd")
+            ]
         except subprocess.TimeoutExpired:
             Log.warning("Git status command timed out")
             return []
         except FileNotFoundError:
             Log.warning("Git command not found")
+            return []
+        except (NotADirectoryError, OSError) as e:
+            Log.warning(f"Git status failed: {e}")
             return []
 
     def get_file_contents(self, git_root: str, commit: str | None, git_path: str) -> str | None:
@@ -396,27 +467,24 @@ class GitPortAdapter(GitPort):
         Returns:
             File contents as string, or None if not found or error.
         """
+        # Get from index using :<path> syntax, or from specific commit
         try:
-            # Get from index using :<path> syntax, or from specific commit
-            cmd = ["git", "show", f":{git_path}"] if commit is None else ["git", "show", f"{commit}:{git_path}"]
-
-            result = subprocess.run(
-                cmd,
-                cwd=git_root,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
+            args = ["show", f":{git_path}"] if commit is None else ["show", f"{commit}:{git_path}"]
+            result = self._run_git(args, cwd=git_root, timeout=30)
+            if result is None:
+                return None
 
             if result.returncode == 0:
                 return result.stdout
             return None
-
         except subprocess.TimeoutExpired:
             Log.warning(f"Git show command timed out for {git_path}")
             return None
         except FileNotFoundError:
             Log.warning("Git command not found")
+            return None
+        except (NotADirectoryError, OSError) as e:
+            Log.warning(f"Git show failed for {git_path}: {e}")
             return None
 
     def file_exists(self, git_root: str, commit: str | None, git_path: str) -> bool:
@@ -432,13 +500,9 @@ class GitPortAdapter(GitPort):
         """
         try:
             target = f":{git_path}" if commit is None else f"{commit}:{git_path}"
-            result = subprocess.run(
-                ["git", "cat-file", "-e", target],
-                cwd=git_root,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
+            result = self._run_git(["cat-file", "-e", target], cwd=git_root, timeout=30)
+            if result is None:
+                return False
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError, NotADirectoryError, OSError):
             return False
@@ -456,16 +520,14 @@ class GitPortAdapter(GitPort):
             True if git commit succeeded, False otherwise.
         """
         try:
-            result = subprocess.run(
-                ["git", "commit", "-m", message],
-                cwd=git_root,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
+            result = self._run_git(["commit", "-m", message], cwd=git_root, timeout=30)
+            if result is None:
+                return False
+
             if result.returncode == 0:
                 Log.debug(f"Commit successful: {result.stdout.strip()}")
                 return True
+
             Log.warning(f"Git commit failed: {result.stderr.strip()}")
             return False
         except subprocess.TimeoutExpired:
@@ -494,19 +556,21 @@ class GitPortAdapter(GitPort):
             Empty list if no FCStd files changed or error occurred.
         """
         try:
-            result = subprocess.run(
-                # --root: include root commits (diff against empty tree)
-                # --no-commit-id: suppress the commit hash output line
-                # --name-only: show only file paths, no diffs
-                # -r: recurse into subdirectories
-                ["git", "diff-tree", "--root", "--no-commit-id", "--name-only", "-r", commit],
+            result = self._run_git(
+                [
+                    "diff-tree",
+                    "--root",
+                    "--no-commit-id",
+                    "--name-only",
+                    "-z",
+                    "-r",
+                    commit,
+                ],
                 cwd=git_root,
-                capture_output=True,
-                text=True,
                 timeout=30,
             )
-            if result.returncode != 0:
+            if result is None or result.returncode != 0:
                 return []
-            return [line for line in result.stdout.strip().split("\n") if line and line.endswith(".FCStd")]
+            return [path for path in result.stdout.split("\x00") if path and path.endswith(".FCStd")]
         except (subprocess.TimeoutExpired, FileNotFoundError, NotADirectoryError, OSError):
             return []

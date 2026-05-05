@@ -53,8 +53,8 @@ class TestPropertyViewerPhase6:
                     nodes_by_name[obj.name].append((occ, obj))
 
             # Find a TechDraw dimension (has SavedGeometry)
-            for obj_name, occurrences in nodes_by_name.items():
-                for occ, node in occurrences:
+            for _obj_name, occurrences in nodes_by_name.items():
+                for _occ, node in occurrences:
                     if node.type_id.startswith("TechDraw::DrawViewDimension"):
                         # Check properties - SavedGeometry should NOT be in the list
                         prop_names = list(node.properties.keys())
@@ -100,8 +100,8 @@ class TestPropertyViewerPhase6:
                     nodes_by_name[obj.name].append((occ, obj))
 
             # Check that properties have groups
-            for obj_name, occurrences in nodes_by_name.items():
-                for occ, node in occurrences:
+            for _obj_name, occurrences in nodes_by_name.items():
+                for _occ, node in occurrences:
                     for prop_name, prop in node.properties.items():
                         # Each property should have a group
                         assert hasattr(prop, "group"), f"Property {prop_name} should have group"
@@ -111,8 +111,8 @@ class TestPropertyViewerPhase6:
                             pytest.fail(f"Property {prop_name} has empty group - should map to Base")
 
             # Find a PartDesign::Pad to check its property groups
-            for obj_name, occurrences in nodes_by_name.items():
-                for occ, node in occurrences:
+            for _obj_name, occurrences in nodes_by_name.items():
+                for _occ, node in occurrences:
                     if node.type_id == "PartDesign::Pad":
                         # Should have properties like "Length" in "Side1" group
                         has_side1 = any(prop.group == "Side1" for prop in node.properties.values())
@@ -253,8 +253,8 @@ class TestPropertyViewerPhase6:
 
             # Get properties from first node with properties
             test_node = None
-            for obj_name, occurrences in nodes_by_name.items():
-                for occ, node in occurrences:
+            for _obj_name, occurrences in nodes_by_name.items():
+                for _occ, node in occurrences:
                     if node.properties:
                         test_node = node
                         break
@@ -328,8 +328,8 @@ class TestPropertyViewerPhase6:
 
             # Track which object types we've seen
             object_types = set()
-            for obj_name, occurrences in nodes_by_name.items():
-                for occ, node in occurrences:
+            for _obj_name, occurrences in nodes_by_name.items():
+                for _occ, node in occurrences:
                     object_types.add(node.type_id)
 
             # Document should have various object types
