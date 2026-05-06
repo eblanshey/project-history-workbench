@@ -22,7 +22,7 @@ from ...application.actions.result_models import (
 )
 from ...application.actions.stage_documents import StageDocumentsAction
 from ...domain.diff.engine import DiffResult
-from ...domain.diff.models import DiffState, NodeDiff, PropertyPathDiff
+from ...domain.diff.models import DiffState, NodeDiff, PropertyDiff, PropertyPathDiff
 from ...domain.freecad_ports import DocumentLike
 from ...domain.git.models import GitRepository
 from ...domain.settings import SettingsRepository
@@ -185,6 +185,13 @@ def _insert_path_diff(root: _PathTreeNode, pd: PropertyPathDiff) -> None:
             node.children["__expr__"] = expr_node
 
 
+def _set_subtree_state(node: _PathTreeNode, state: DiffState) -> None:
+    """Set one state on a whole path tree."""
+    node.state = state
+    for child in node.children.values():
+        _set_subtree_state(child, state)
+
+
 def _collect_leaf_values(node: _PathTreeNode, include_expr: bool = False) -> tuple[list[Any], list[Any]]:
     """Recursively collect leaf values from all descendants.
 
@@ -303,6 +310,50 @@ def _path_tree_to_presentations(node: _PathTreeNode, precision: int) -> list[Pro
             )
         )
     return out
+
+
+def _build_property_presentation(
+    prop_diff: PropertyDiff,
+    precision: int,
+    group: str | None,
+) -> PropertyPresentation:
+    """Build UI presentation for one property diff."""
+    root_path = next((pd for pd in prop_diff.path_diffs if pd.path == "."), None)
+    root_state = _property_root_state(prop_diff, root_path)
+    root = _PathTreeNode(name=prop_diff.property_name, state=root_state)
+    for pd in prop_diff.path_diffs:
+        _insert_path_diff(root, pd)
+
+    if prop_diff.state in (DiffState.ADDED, DiffState.DELETED):
+        _set_subtree_state(root, prop_diff.state)
+
+    prop_old_value, prop_new_value = _property_root_values(root, precision)
+    return PropertyPresentation(
+        name=prop_diff.property_name,
+        state=root.state,
+        old_value=prop_old_value,
+        new_value=prop_new_value,
+        children=_path_tree_to_presentations(root, precision),
+        group=group,
+    )
+
+
+def _property_root_state(prop_diff: PropertyDiff, root_path: PropertyPathDiff | None) -> DiffState:
+    """Return state for property root without inheriting child path changes."""
+    if prop_diff.state in (DiffState.ADDED, DiffState.DELETED):
+        return prop_diff.state
+    return root_path.value_state if root_path else DiffState.UNCHANGED
+
+
+def _property_root_values(root: _PathTreeNode, precision: int) -> tuple[Any, Any]:
+    """Return formatted old and new values for a property root row."""
+    old_value = root.old_value
+    new_value = root.new_value
+    if old_value is None and new_value is None and root.children:
+        old_leaf_values, new_leaf_values = _collect_leaf_values(root, include_expr=False)
+        old_value = _derive_container_summary(old_leaf_values, precision)
+        new_value = _derive_container_summary(new_leaf_values, precision)
+    return _format_pv(old_value, precision), _format_pv(new_value, precision)
 
 
 class DiffPresenter:
@@ -851,42 +902,7 @@ class DiffPresenter:
                 prop_diff.new_value if prop_diff.new_value is not None else prop_diff.old_value
             )
 
-            # Build nested path tree from path_diffs. Root state comes from the
-            # "." path's value_state only — expression changes and child path
-            # changes do not affect the parent row color.
-            root_path = next((pd for pd in prop_diff.path_diffs if pd.path == "."), None)
-            root_state = root_path.value_state if root_path else DiffState.UNCHANGED
-            root = _PathTreeNode(name=prop_diff.property_name, state=root_state)
-            for pd in prop_diff.path_diffs:
-                _insert_path_diff(root, pd)
-
-            # Map root "." values to the property top row
-            prop_old_value = root.old_value
-            prop_new_value = root.new_value
-
-            if prop_old_value is None and prop_new_value is None and root.children:
-                # Derive container summary from descendant leaf values
-                old_leaf_values, new_leaf_values = _collect_leaf_values(root, include_expr=False)
-                prop_old_value = _derive_container_summary(old_leaf_values, precision)
-                prop_new_value = _derive_container_summary(new_leaf_values, precision)
-
-            # Format PropertyPathValue to display values
-            prop_old_value = _format_pv(prop_old_value, precision)
-            prop_new_value = _format_pv(prop_new_value, precision)
-
-            # Convert path tree to presentations (excludes root itself)
-            children = _path_tree_to_presentations(root, precision)
-
-            presentations.append(
-                PropertyPresentation(
-                    name=prop_diff.property_name,
-                    state=root.state,
-                    old_value=prop_old_value,
-                    new_value=prop_new_value,
-                    children=children,
-                    group=group,
-                )
-            )
+            presentations.append(_build_property_presentation(prop_diff, precision, group))
 
         return presentations
 

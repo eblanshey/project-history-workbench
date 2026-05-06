@@ -1,9 +1,11 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 # File responsibility: Unit tests for DiffPresenter._transform_property_diffs method,
-# verifying that property row states reflect only value changes (not expression or child changes).
+# verifying property row state rules for values, expressions, children, and whole-property changes.
 """Unit tests for DiffPresenter property transformation logic."""
 
 from unittest.mock import MagicMock
+
+import pytest
 
 from freecad.diff_wb.application.actions.create_document_diffs import CreateDocumentDiffsAction
 from freecad.diff_wb.application.actions.get_dirty_documents import GetDirtyDocumentsAction
@@ -11,7 +13,14 @@ from freecad.diff_wb.application.actions.get_open_eligible_documents import GetO
 from freecad.diff_wb.application.actions.stage_documents import StageDocumentsAction
 from freecad.diff_wb.domain.diff.models import DiffState, NodeDiff, PropertyDiff
 from freecad.diff_wb.domain.tree import Property
-from freecad.diff_wb.domain.tree.data_path import PropertyPathType, PropertyPathValue, VectorData
+from freecad.diff_wb.domain.tree.data_path import (
+    ListData,
+    PlacementData,
+    PrimitiveData,
+    PropertyPathType,
+    PropertyPathValue,
+    VectorData,
+)
 from freecad.diff_wb.ui.presenters.diff_presenter import DiffPresenter
 from freecad.diff_wb.ui.state import UIState
 from tests.fakes.fake_diff_view import FakeDiffView
@@ -37,6 +46,26 @@ def _find_expr_child(children: list) -> dict | None:
         if child.name == "Expression":
             return child
     return None
+
+
+def _nested_list_property() -> Property:
+    """Create a nested list property with no root path row."""
+    return Property(
+        value=ListData(
+            paths={},
+            items=[
+                ListData(
+                    paths={},
+                    items=[
+                        PrimitiveData(
+                            paths={".": PropertyPathValue(PropertyPathType.INT, 1)},
+                        )
+                    ],
+                )
+            ],
+        ),
+        group="Base",
+    )
 
 
 class TestTransformPropertyDiffsExpressionOnly:
@@ -160,9 +189,81 @@ class TestTransformPropertyDiffsDeletedAdded:
         assert expr_child is not None
         assert expr_child.state == DiffState.ADDED
 
+    @pytest.mark.parametrize(
+        ("old_value", "new_value", "expected_state"),
+        [
+            (None, _nested_list_property(), DiffState.ADDED),
+            (_nested_list_property(), None, DiffState.DELETED),
+        ],
+    )
+    def test_nested_whole_property_change_marks_root_and_containers(
+        self,
+        old_value: Property | None,
+        new_value: Property | None,
+        expected_state: DiffState,
+    ) -> None:
+        """Whole nested property change => root and container rows use same state."""
+        _, presenter = _make_presenter()
+        prop_diff = PropertyDiff(property_name="Constraints", old_value=old_value, new_value=new_value)
+        node_diff = NodeDiff(path="Sketch", type_id="Sketcher::SketchObject", property_diffs=[prop_diff])
+
+        presentations = presenter._transform_property_diffs(node_diff)
+        prop = presentations[0]
+        container = prop.children[0]
+        leaf = container.children[0]
+
+        assert prop.state == expected_state
+        assert container.state == expected_state
+        assert leaf.state == expected_state
+
 
 class TestTransformPropertyDiffsComplexProperty:
     """Tests that parent rows in complex properties don't inherit child states."""
+
+    def test_placement_base_z_changed_parent_rows_unchanged(self) -> None:
+        """Placement.Base.z change => Placement and Base rows UNCHANGED."""
+        _, presenter = _make_presenter()
+        old_val = Property(
+            value=PlacementData(
+                paths={
+                    "Base.x": PropertyPathValue(PropertyPathType.QUANTITY, 0.0, unit="mm"),
+                    "Base.y": PropertyPathValue(PropertyPathType.QUANTITY, 0.0, unit="mm"),
+                    "Base.z": PropertyPathValue(PropertyPathType.QUANTITY, 0.0, unit="mm"),
+                    "Rotation.Angle": PropertyPathValue(PropertyPathType.QUANTITY, 0.0, unit="deg"),
+                    "Rotation.Axis.x": PropertyPathValue(PropertyPathType.FLOAT, 0.0),
+                    "Rotation.Axis.y": PropertyPathValue(PropertyPathType.FLOAT, 0.0),
+                    "Rotation.Axis.z": PropertyPathValue(PropertyPathType.FLOAT, 1.0),
+                }
+            ),
+            group="Base",
+        )
+        new_val = Property(
+            value=PlacementData(
+                paths={
+                    "Base.x": PropertyPathValue(PropertyPathType.QUANTITY, 0.0, unit="mm"),
+                    "Base.y": PropertyPathValue(PropertyPathType.QUANTITY, 0.0, unit="mm"),
+                    "Base.z": PropertyPathValue(PropertyPathType.QUANTITY, 10.0, unit="mm"),
+                    "Rotation.Angle": PropertyPathValue(PropertyPathType.QUANTITY, 0.0, unit="deg"),
+                    "Rotation.Axis.x": PropertyPathValue(PropertyPathType.FLOAT, 0.0),
+                    "Rotation.Axis.y": PropertyPathValue(PropertyPathType.FLOAT, 0.0),
+                    "Rotation.Axis.z": PropertyPathValue(PropertyPathType.FLOAT, 1.0),
+                }
+            ),
+            group="Base",
+        )
+        prop_diff = PropertyDiff(property_name="Placement", old_value=old_val, new_value=new_val)
+        node_diff = NodeDiff(path="Pad", type_id="PartDesign::Pad", property_diffs=[prop_diff])
+
+        presentations = presenter._transform_property_diffs(node_diff)
+        prop = presentations[0]
+        base_child = next((c for c in prop.children if c.name == "Base"), None)
+        assert base_child is not None
+        z_child = next((c for c in base_child.children if c.name == "z"), None)
+
+        assert prop.state == DiffState.UNCHANGED
+        assert base_child.state == DiffState.UNCHANGED
+        assert z_child is not None
+        assert z_child.state == DiffState.MODIFIED
 
     def test_sub_path_changed_parent_unchanged(self) -> None:
         """Only sub-path changed => parent rows UNCHANGED, only leaf MODIFIED."""
