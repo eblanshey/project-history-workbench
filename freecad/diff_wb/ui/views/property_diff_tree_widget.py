@@ -3,12 +3,11 @@
 from typing import Any
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QBrush, QColor
+from PySide6.QtGui import QBrush, QColor, QPalette
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QHeaderView,
     QLineEdit,
-    QStyledItemDelegate,
     QStyleOptionViewItem,
     QTreeWidget,
     QTreeWidgetItem,
@@ -20,6 +19,7 @@ from ...domain.diff.models import DiffState
 from ...domain.settings import SettingsRepository
 from ...utils import format_float
 from ..presenters.presentation_models import PropertyPresentation
+from .diff_theme import DIFF_STATE_ROLE, DiffItemDelegate, background_for_state, foreground_for_background
 
 
 __all__ = ["PropertyDiffTreeWidget"]
@@ -77,7 +77,7 @@ def _update_upper_sequence_start(char: str, upper_sequence_start: int, index: in
     return -1
 
 
-class _PropertyValueDelegate(QStyledItemDelegate):
+class _PropertyValueDelegate(DiffItemDelegate):
     """Delegate allowing double-click text selection without persisting edits."""
 
     def createEditor(self, parent: QWidget, option: QStyleOptionViewItem, index) -> QWidget:  # type: ignore[override]
@@ -139,12 +139,6 @@ class _PropertyValueDelegate(QStyledItemDelegate):
 
 class PropertyDiffTreeWidget(QTreeWidget):
     """Widget that renders grouped property diffs in three columns."""
-
-    ADDED_COLOR = QColor(200, 255, 200)
-    DELETED_COLOR = QColor(255, 200, 200)
-    MODIFIED_COLOR = QColor(200, 200, 255)
-    UNCHANGED_COLOR = QColor(240, 240, 240)
-    GROUP_HEADER_COLOR = QColor(220, 220, 220)
 
     def __init__(self, parent: QWidget | None = None, settings_repo: SettingsRepository | None = None) -> None:
         super().__init__(parent)
@@ -213,10 +207,7 @@ class PropertyDiffTreeWidget(QTreeWidget):
         item = QTreeWidgetItem([group_name, "", ""])
         # Make header non-selectable
         item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsSelectable)
-        # Apply gray background to all 3 columns
-        item.setBackground(0, QBrush(self.GROUP_HEADER_COLOR))
-        item.setBackground(1, QBrush(self.GROUP_HEADER_COLOR))
-        item.setBackground(2, QBrush(self.GROUP_HEADER_COLOR))
+        self._apply_group_header_colors(item)
         # Make the group header bold
         font = item.font(0)
         font.setBold(True)
@@ -277,8 +268,7 @@ class PropertyDiffTreeWidget(QTreeWidget):
         # Use pre-computed children from domain instead of computing diffs
         self._add_child_items(item, prop.children)
 
-        # Apply the state-derived background color to all 3 columns
-        self._apply_background_to_all_columns(item, bg_color)
+        self._apply_diff_state_to_all_columns(item, prop.state, bg_color)
 
         return item
 
@@ -300,7 +290,7 @@ class PropertyDiffTreeWidget(QTreeWidget):
         self,
         state: DiffState,
         prop: PropertyPresentation,
-    ) -> tuple[QColor, str, str]:
+    ) -> tuple[QColor | None, str, str]:
         """Get background color and display values based on property state.
 
         For UNCHANGED state, the same value is shown in both columns for
@@ -316,17 +306,17 @@ class PropertyDiffTreeWidget(QTreeWidget):
         """
         if state == DiffState.ADDED:
             new_val = self._format_value_for_display(prop.new_value) if prop.new_value is not None else ""
-            return self.ADDED_COLOR, "", new_val
+            return background_for_state(state, self.palette()), "", new_val
         if state == DiffState.DELETED:
             old_val = self._format_value_for_display(prop.old_value) if prop.old_value is not None else ""
-            return self.DELETED_COLOR, old_val, ""
+            return background_for_state(state, self.palette()), old_val, ""
         if state == DiffState.MODIFIED:
             old_str = self._format_value_for_display(prop.old_value) if prop.old_value is not None else ""
             new_str = self._format_value_for_display(prop.new_value) if prop.new_value is not None else ""
-            return self.MODIFIED_COLOR, old_str, new_str
+            return background_for_state(state, self.palette()), old_str, new_str
         # UNCHANGED - show same value in both columns
         new_str = self._format_value_for_display(prop.new_value) if prop.new_value is not None else ""
-        return self.UNCHANGED_COLOR, new_str, new_str
+        return None, new_str, new_str
 
     def _add_child_items(
         self,
@@ -361,8 +351,7 @@ class PropertyDiffTreeWidget(QTreeWidget):
             # Store expansion intent (will be applied after tree is built)
             child_item.setData(0, Qt.ItemDataRole.UserRole + 1, self._presentation_has_changes(child))
 
-            # Apply background color based on state
-            self._apply_child_background_by_state(child_item, child.state)
+            self._apply_child_diff_state(child_item, child.state)
 
             # Recursively add grandchildren (pre-computed, no diffing needed)
             self._add_child_items(child_item, child.children)
@@ -392,31 +381,39 @@ class PropertyDiffTreeWidget(QTreeWidget):
             return old_val, new_val
         return new_val, new_val
 
-    def _apply_child_background_by_state(self, child_item: QTreeWidgetItem, state: DiffState) -> None:
-        """Apply background color to a child item based on its state.
+    def _apply_child_diff_state(self, child_item: QTreeWidgetItem, state: DiffState) -> None:
+        """Apply semantic diff color to a child item based on its state.
 
         Args:
             child_item: The child QTreeWidgetItem.
             state: The state of the child (DiffState enum).
         """
-        if state == DiffState.ADDED:
-            self._apply_background_to_all_columns(child_item, self.ADDED_COLOR)
-        elif state == DiffState.DELETED:
-            self._apply_background_to_all_columns(child_item, self.DELETED_COLOR)
-        elif state == DiffState.MODIFIED:
-            self._apply_background_to_all_columns(child_item, self.MODIFIED_COLOR)
-        # UNCHANGED: no background
+        self._apply_diff_state_to_all_columns(child_item, state, background_for_state(state, self.palette()))
 
-    def _apply_background_to_all_columns(self, item: QTreeWidgetItem, color: QColor) -> None:
-        """Apply background color to all 3 columns of a tree item.
+    def _apply_diff_state_to_all_columns(self, item: QTreeWidgetItem, state: DiffState, color: QColor | None) -> None:
+        """Apply diff state data and optional background to all 3 columns.
 
         Args:
             item: The QTreeWidgetItem to apply background to.
             color: The QColor to use as background.
         """
-        item.setBackground(0, QBrush(color))
-        item.setBackground(1, QBrush(color))
-        item.setBackground(2, QBrush(color))
+        if color is None:
+            return
+        foreground = foreground_for_background(color, self.palette())
+        for column in range(3):
+            item.setData(column, DIFF_STATE_ROLE, state)
+            item.setBackground(column, QBrush(color))
+            item.setForeground(column, QBrush(foreground))
+
+    def _apply_group_header_colors(self, item: QTreeWidgetItem) -> None:
+        """Apply theme palette colors to group header row."""
+        background = self.palette().color(QPalette.ColorRole.AlternateBase)
+        if not background.isValid() or background == self.palette().color(QPalette.ColorRole.Base):
+            background = self.palette().color(QPalette.ColorRole.Button)
+        foreground = foreground_for_background(background, self.palette())
+        for column in range(3):
+            item.setBackground(column, QBrush(background))
+            item.setForeground(column, QBrush(foreground))
 
     def _create_property_tooltip(self, old_value_str: str, new_value_str: str) -> str:
         """Create tooltip text for a property row.

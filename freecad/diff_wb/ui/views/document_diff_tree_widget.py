@@ -3,7 +3,7 @@
 from collections.abc import Callable
 
 from PySide6.QtCore import QCoreApplication, Qt
-from PySide6.QtGui import QBrush, QColor
+from PySide6.QtGui import QBrush
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 from ...domain.diff.models import DiffState
 from ..presenters.presentation_models import DiffTreePresentation, DocumentStatusIndicator, NodePresentation
 from ..translation_strings import DIFF_SUMMARY_CHANGED_LABEL, STAGE_ALL_LABEL
+from .diff_theme import DIFF_STATE_ROLE, DiffItemDelegate, background_for_state, foreground_for_background
 from .models import HistorySelection
 
 
@@ -27,10 +28,6 @@ __all__ = ["DocumentDiffTreeWidget"]
 class DocumentDiffTreeWidget(QWidget):
     """Middle-column widget that renders document/node diffs and staging actions."""
 
-    ADDED_COLOR = QColor(200, 255, 200)
-    DELETED_COLOR = QColor(255, 200, 200)
-    MODIFIED_COLOR = QColor(200, 200, 255)
-
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._on_add_button_callback: Callable[[str], None] | None = None
@@ -38,6 +35,7 @@ class DocumentDiffTreeWidget(QWidget):
         self._on_node_selection_callback: Callable[[str, str], None] | None = None
         self._current_selection: HistorySelection | None = None
         self._stage_buttons: dict[str, QPushButton] = {}
+        self._diff_item_delegate: DiffItemDelegate | None = None
         self._setup_ui()
 
     @property
@@ -66,6 +64,8 @@ class DocumentDiffTreeWidget(QWidget):
         self._tree_widget.setHeaderLabels(["Tree"])
         self._tree_widget.setColumnCount(1)
         self._tree_widget.header().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self._diff_item_delegate = DiffItemDelegate(self._tree_widget)
+        self._tree_widget.setItemDelegate(self._diff_item_delegate)
         self._tree_widget.itemClicked.connect(self._on_tree_item_clicked)
 
         layout = QVBoxLayout(self)
@@ -262,18 +262,24 @@ class DocumentDiffTreeWidget(QWidget):
         item.setData(0, Qt.ItemDataRole.UserRole, node.path)
         item.setData(0, Qt.ItemDataRole.UserRole + 1, node.has_changes)
 
-        if node.state == DiffState.ADDED:
-            item.setBackground(0, QBrush(self.ADDED_COLOR))
-        elif node.state == DiffState.DELETED:
-            item.setBackground(0, QBrush(self.DELETED_COLOR))
-        elif node.state == DiffState.MODIFIED:
-            item.setBackground(0, QBrush(self.MODIFIED_COLOR))
+        self._apply_diff_state(item, node.state)
 
         for child in node.children:
             child_item = self._create_tree_item(child)
             item.addChild(child_item)
 
         return item
+
+    def _apply_diff_state(self, item: QTreeWidgetItem, state: DiffState) -> None:
+        """Apply semantic diff coloring data to a tree item."""
+        if state == DiffState.UNCHANGED:
+            return
+        item.setData(0, DIFF_STATE_ROLE, state)
+        background = background_for_state(state, self._tree_widget.palette())
+        if background is None:
+            return
+        item.setBackground(0, QBrush(background))
+        item.setForeground(0, QBrush(foreground_for_background(background, self._tree_widget.palette())))
 
     def show_summary(self, changed_docs: int) -> None:
         """Display count of documents that contain changes.

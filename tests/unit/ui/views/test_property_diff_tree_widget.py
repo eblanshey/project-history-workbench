@@ -1,9 +1,10 @@
 """File responsibility: Unit tests for PropertyDiffTreeWidget component."""
 
 import pytest
-from PySide6.QtGui import QColor
+from PySide6.QtCore import Qt
 
 from freecad.diff_wb.domain.diff.models import DiffState
+from freecad.diff_wb.ui.views.diff_theme import DIFF_STATE_ROLE
 
 
 @pytest.fixture(scope="module")
@@ -50,11 +51,11 @@ class TestPropertyDiffTreeWidgetShowPropertyDiff:
         assert widget.topLevelItemCount() == 0
 
     @pytest.mark.parametrize(
-        ("state,old_val,new_val,col1,col2,expected_bg"),
+        ("state,old_val,new_val,col1,col2"),
         [
-            (DiffState.ADDED, None, "25.0", "", "25.0", QColor(200, 255, 200)),
-            (DiffState.DELETED, "15.0", None, "15.0", "", QColor(255, 200, 200)),
-            (DiffState.MODIFIED, "10.0", "20.0", "10.0", "20.0", QColor(200, 200, 255)),
+            (DiffState.ADDED, None, "25.0", "", "25.0"),
+            (DiffState.DELETED, "15.0", None, "15.0", ""),
+            (DiffState.MODIFIED, "10.0", "20.0", "10.0", "20.0"),
         ],
     )
     def test_state_variant_colors_and_columns(
@@ -65,9 +66,8 @@ class TestPropertyDiffTreeWidgetShowPropertyDiff:
         new_val,
         col1,
         col2,
-        expected_bg,  # type: ignore[no-untyped-def]
     ) -> None:
-        """Parametrized test for ADDED/DELETED/MODIFIED state coloring and column values."""
+        """Parametrized test for changed state coloring data and column values."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         properties = [
@@ -88,12 +88,13 @@ class TestPropertyDiffTreeWidgetShowPropertyDiff:
         assert prop_item is not None
         assert prop_item.text(1) == col1
         assert prop_item.text(2) == col2
-        assert prop_item.background(0).color() == expected_bg
-        assert prop_item.background(1).color() == expected_bg
-        assert prop_item.background(2).color() == expected_bg
+        for column in range(3):
+            assert prop_item.data(column, DIFF_STATE_ROLE) == state
+            assert prop_item.background(column).style() != Qt.BrushStyle.NoBrush
+            assert prop_item.foreground(column).style() != Qt.BrushStyle.NoBrush
 
-    def test_property_with_unchanged_state_gray_background(self, widget) -> None:  # type: ignore[no-untyped-def]
-        """show_property_diff() includes all properties with UNCHANGED state shown with gray background."""
+    def test_property_with_unchanged_state_uses_normal_background(self, widget) -> None:  # type: ignore[no-untyped-def]
+        """show_property_diff() includes UNCHANGED properties with normal theme background."""
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         # Given: Mix of changed and unchanged properties
@@ -132,17 +133,15 @@ class TestPropertyDiffTreeWidgetShowPropertyDiff:
         assert "Another Changed" in names
         assert "Unchanged Prop" in names
 
-        # Find the unchanged property and verify its background is gray
+        # Find the unchanged property and verify it has no custom diff background
         unchanged_index = names.index("Unchanged Prop")
         unchanged_item = group_item.child(unchanged_index)
         # For UNCHANGED, both columns show the same value
         assert unchanged_item.text(1) == "50.0"  # Value in left column
         assert unchanged_item.text(2) == "50.0"  # Same value in right column
-        # Check background color is gray (light gray = 240, 240, 240) on all columns
-        bg_color = unchanged_item.background(0).color()
-        assert bg_color.red() == 240
-        assert bg_color.green() == 240
-        assert bg_color.blue() == 240
+        for column in range(3):
+            assert unchanged_item.data(column, DIFF_STATE_ROLE) is None
+            assert unchanged_item.background(column).style() == Qt.BrushStyle.NoBrush
 
 
 class TestPropertyDiffTreeWidgetGroupHeaders:

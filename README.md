@@ -36,6 +36,7 @@ Use it when you want to answer questions like:
 - **Expression tracking:** Compare property values and expressions independently.
 - **Snapshot-based comparison:** Capture document state at meaningful points in time and diff the result.
 - **Multi-document support:** Open and compare multiple FreeCAD documents in one repository.
+- **Theme-aware highlighting:** Keep diff colors readable across FreeCAD light and dark themes.
 - **Git-aware workflow:** Compare the working tree, staging area, and historical commits without replacing your regular git client.
 
 ## How It Works

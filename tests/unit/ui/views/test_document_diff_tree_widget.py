@@ -7,9 +7,10 @@ including tree rendering, staging controls, and callback wiring.
 from __future__ import annotations
 
 import pytest
-from PySide6.QtGui import QColor
+from PySide6.QtCore import Qt
 
 from freecad.diff_wb.domain.diff.models import DiffState
+from freecad.diff_wb.ui.views.diff_theme import DIFF_STATE_ROLE
 from freecad.diff_wb.ui.views.document_diff_tree_widget import DocumentDiffTreeWidget
 
 
@@ -60,15 +61,15 @@ class TestShowDocDiffNodeColorsAndUserRole:
     """Tests for node colors and Qt.UserRole path storage."""
 
     @pytest.mark.parametrize(
-        ("state", "expected_bg"),
+        "state",
         [
-            (DiffState.ADDED, QColor(200, 255, 200)),
-            (DiffState.DELETED, QColor(255, 200, 200)),
-            (DiffState.MODIFIED, QColor(200, 200, 255)),
+            DiffState.ADDED,
+            DiffState.DELETED,
+            DiffState.MODIFIED,
         ],
     )
-    def test_node_state_colors(self, widget, state, expected_bg) -> None:  # type: ignore[no-untyped-def]
-        """Nodes display with correct background color per diff state."""
+    def test_node_state_colors(self, widget, state) -> None:  # type: ignore[no-untyped-def]
+        """Nodes display with theme-aware color data per diff state."""
 
         from freecad.diff_wb.ui.presenters.presentation_models import NodePresentation
 
@@ -87,13 +88,12 @@ class TestShowDocDiffNodeColorsAndUserRole:
         assert root_item is not None
         child_item = root_item.child(0)
         assert child_item is not None
-        bg_color = child_item.background(0).color()
-        assert bg_color == expected_bg
+        assert child_item.data(0, DIFF_STATE_ROLE) == state
+        assert child_item.background(0).style() != Qt.BrushStyle.NoBrush
+        assert child_item.foreground(0).style() != Qt.BrushStyle.NoBrush
 
     def test_unchanged_nodes_shown_without_color(self, widget) -> None:  # type: ignore[no-untyped-def]
         """UNCHANGED nodes display without custom color (default background)."""
-        from PySide6.QtGui import QColor
-
         from freecad.diff_wb.ui.presenters.presentation_models import NodePresentation
 
         unchanged_node = NodePresentation(
@@ -111,10 +111,8 @@ class TestShowDocDiffNodeColorsAndUserRole:
         assert root_item is not None
         child_item = root_item.child(0)
         assert child_item is not None
-        bg_color = child_item.background(0).color()
-        assert bg_color != QColor(200, 255, 200)
-        assert bg_color != QColor(255, 200, 200)
-        assert bg_color != QColor(200, 200, 255)
+        assert child_item.data(0, DIFF_STATE_ROLE) is None
+        assert child_item.background(0).style() == Qt.BrushStyle.NoBrush
 
     def test_path_stored_in_user_role_for_retrieval(self, widget) -> None:  # type: ignore[no-untyped-def]
         """Node paths are stored in Qt.UserRole for later property lookup."""
