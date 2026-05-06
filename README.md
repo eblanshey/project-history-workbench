@@ -143,6 +143,14 @@ An `.FCStd` file is a ZIP archive. With compression disabled, more of the docume
 
 For large or long-lived CAD repositories, also consider Git LFS for `.FCStd` files. There is a [PR in FreeCAD](https://github.com/FreeCAD/FreeCAD/pull/28312) that addresses file formats for versioning. See [this comment](https://github.com/FreeCAD/FreeCAD/issues/11936#issuecomment-4054297851) for more git-related discussions.
 
+## Contributors
+
+Contributions are welcome. Please open an issue for bugs, confusing diffs, setup problems, documentation gaps, or feature requests. Pull requests that improve reliability, better diffing, FreeCAD compatibility, documentation, contributor tooling, or macOS and Windows development workflows are especially helpful. Development so far has happened on Linux, so additional platform setup notes and test instructions are welcome.
+
+- [Development setup](docs/DevSetup.md): Set up a live FreeCAD workbench checkout, install dependencies, and configure the FreeCAD AppImage runtime for tests.
+- [Development guidelines](docs/Development.md): Coding standards, testing strategy, logging, translations, dependency injection, and common contributor workflows.
+- [Architecture](docs/Architecture.md): Layer responsibilities, runtime flow, composition roots, and snapshot/diff pipeline.
+
 ## Roadmap
 
 - [ ] Unstage documents from inside DiffCAD

@@ -85,9 +85,6 @@ dmypy.json
 .github-token
 github_token.txt
 
-# AI
-AGENTS.md
-
 # other
 
 # Opencode AI configuration

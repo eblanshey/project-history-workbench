@@ -33,9 +33,9 @@ packages = ["freecad"]
 "freecad/diff_wb/resources" = "freecad/diff_wb/resources"
 
 [project.urls]
-Homepage = "https://github.com/royw/freecad_diff_workbench"
-Repository = "https://github.com/royw/freecad_diff_workbench"
-Issues = "https://github.com/royw/freecad_diff_workbench/issues"
+Homepage = "https://github.com/eblanshey/DiffCAD"
+Repository = "https://github.com/eblanshey/DiffCAD"
+Issues = "https://github.com/eblanshey/DiffCAD/issues"
 
 [tool.mypy]
 python_version = "3.12"

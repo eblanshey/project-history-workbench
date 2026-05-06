@@ -1,4 +1,4 @@
-# FreeCAD preferences page API exploration (Phase 1)
+# FreeCAD preferences page API exploration
 
 ## Verification baseline
 - FreeCAD source/runtime revision used for verification: `adf77600e2526bf02804524f0d1991ab1c534abe`
@@ -68,16 +68,16 @@ Implication for this task:
 - Radio mode flags map naturally to bool storage.
 - Multiline custom lists map naturally to text storage (ASCII string payload in ParamGet).
 
-Encoding note for later phases:
+Encoding note:
 
 - `PrefTextEdit` currently persists through ASCII-oriented ParamGet calls (`GetASCII`/`SetASCII`).
-- Non-ASCII input behavior is not guaranteed by this Phase 1 exploration and must be explicitly validated in a later implementation phase (or constrained/documented as ASCII-only if validation fails).
+- Non-ASCII input behavior is not guaranteed by this exploration and should be explicitly validated before accepting non-ASCII preference values.
 
 ## Registration location + non-duplication strategy
 
 Confirmed registration point: `DiffWorkbench.Initialize` in `freecad/diff_wb/entrypoints/workbench.py`.
 
-Strategy locked for implementation phases:
+Registration strategy:
 
 - Register preference page in `Initialize()` (first activation lifecycle hook for workbench wiring).
 - Guard registration with an explicit one-time flag on the workbench class to prevent duplicate page registration when module reload/tests instantiate more than once.

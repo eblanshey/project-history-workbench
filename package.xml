@@ -42,10 +42,10 @@
 
     <!--[ Urls ]―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――-->
 
-    <url type="documentation">https://github.com/eblanshey/freecad_diff_workbench</url>
-    <url branch="main" type="repository">https://github.com/eblanshey/freecad_diff_workbench</url>
-    <url type="bugtracker">https://github.com/eblanshey/freecad_diff_workbench/issues</url>
-    <url type="readme">https://github.com/eblanshey/freecad_diff_workbench/blob/main/README.md</url>
+    <url type="documentation">https://github.com/eblanshey/DiffCAD</url>
+    <url branch="master" type="repository">https://github.com/eblanshey/DiffCAD</url>
+    <url type="bugtracker">https://github.com/eblanshey/DiffCAD/issues</url>
+    <url type="readme">https://github.com/eblanshey/DiffCAD/blob/master/README.md</url>
 
     <!--[ Content ]――――――――――――――――――――――――――――――――――――――――――――――――――――――――――-->
 

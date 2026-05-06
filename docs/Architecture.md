@@ -1,639 +1,336 @@
-# Architecture: Layered Architecture with DDD Principles
+# Architecture
 
-## Overview
+DiffCAD uses a layered architecture with domain-driven and ports-and-adapters patterns. The goal is to keep FreeCAD, Qt, git, and filesystem details at the edges while core comparison behavior remains understandable and testable.
 
-The Diff Workbench uses a **layered architecture** with Domain-Driven Design (DDD) principles. The architecture enforces clear separation of concerns through distinct layers and dependency inversion via ports/interfaces.
+## Design Principles
 
-### Architectural Style
+- Dependencies point inward where practical: entry points and UI call application actions; application actions coordinate domain services; infrastructure adapts external systems.
+- Domain concepts are explicit: snapshots, diffs, settings, tree paths, and git state have dedicated models and services.
+- Application actions are small use cases. They coordinate dependencies and return result objects rather than directly updating UI.
+- UI state stays in the UI layer. The application container does not own presenter state or view state.
+- External systems are represented through ports. Real FreeCAD and git implementations live in infrastructure; tests usually use fakes.
+- FreeCAD startup work stays minimal. The workbench registers commands first, then creates the diff panel when activated or opened.
 
-**Hybrid Approach**: Layered architecture with hexagonal (ports & adapters) principles
-- **Layered**: Clear vertical separation (UI → Application → Domain → Infrastructure)
-- **Hexagonal**: Domain defines interfaces (ports), infrastructure implements them (adapters)
-- **DDD**: Rich domain models organized by workbench capabilities
+## Frontend And Backend Analogy
 
-### Key Principles
+DiffCAD is a desktop FreeCAD workbench, but its internal shape is close to a frontend/backend application.
 
-1. **Dependency Rule**: Dependencies point inward. Outer layers (UI, Infrastructure) depend on inner layers (Domain), never the reverse.
+### Backend
 
-2. **Single Responsibility**: Each module has one clear responsibility aligned with domain concepts.
+The application and domain layers act like the backend.
 
-3. **Testability**: Domain layer is pure Python with no external dependencies. Infrastructure adapters can be swapped with fakes for testing.
+| Backend concept | DiffCAD implementation |
+| --- | --- |
+| API endpoint | Application action with an `execute()` method. |
+| Business logic | Domain services, models, and algorithms. |
+| Request/response result | Result models returned by application actions. |
+| Database or external service | Infrastructure adapters for FreeCAD, git, and snapshot files. |
+| Dependency injection container | `ApplicationContainer`, which wires actions, services, repositories, and ports. |
 
-4. **Explicit Public APIs**: Each module uses `__all__` to define its public interface. Internal helpers use `_prefix` convention.
+Application actions are similar to API endpoints: they accept inputs, coordinate services, and return results. They should not hold UI state between calls.
 
-5. **Lazy Initialization**: Container and commands created on first workbench activation, not at FreeCAD startup.
+The domain layer contains backend business concepts: snapshots, diffs, settings, tree paths, and git workflow rules.
 
----
+### Frontend
 
-## Frontend/Backend Analogy
+The UI layer acts like the frontend.
 
-Understanding the layer structure becomes intuitive when viewed through the familiar lens of frontend and backend development:
+| Frontend concept | DiffCAD implementation |
+| --- | --- |
+| State store | `UIState`, currently holding session state such as the detected repository. |
+| Component/controller | Presenters that react to user events and action results. |
+| Rendered view | Qt widgets under `ui/views/`. |
+| View contract | Protocols under `ui/protocols/`. |
 
-### Backend (Domain + Application Layers)
+Presenters call backend-like application actions, transform results for display, and update views through protocols. Views own Qt rendering and translation. UI state stays in the UI layer, not in the application container or domain services.
 
-The **Domain** and **Application** layers together form the backend of this workbench:
+## Runtime Flow
 
-| Backend Concept          | Diff Workbench Implementation |
-|--------------------------|-------------------------------|
-| **Business Logic**       | Domain layer - pure Python entities, services, and algorithms |
-| **API Endpoints**        | Application layer - stateless actions that execute and return results |
-| **Database**             | Infrastructure layer - adapters for FreeCAD API and persistence |
-| **Inversion of Control** | ApplicationContainer - wires dependencies, provides action access |
-
-The Application layer acts as a stateless API. When a command executes (e.g., "take snapshot"), the action performs the operation and returns a result. No state is stored between calls.
-
-### Frontend (UI Layer)
-
-The **UI layer** mirrors a frontend JavaScript application:
-
-| Frontend Concept | Diff Workbench Implementation |
-|------------------|-------------------------------|
-| **State Store** | UIState - holds GitRepository, lives alongside presenters |
-| **Components** | Presenters - transform domain data into view calls |
-| **Views/Rendered Output** | Qt widgets - actual FreeCAD UI panels |
-| **Component State** | Ephemeral presenter state (loading flags, etc.) |
-
-The UI layer holds frontend-only state (UIState) and transforms backend results into user-visible content.
-
----
-
-## Layer Definitions
-
-### Entry Points (`entrypoints/`)
-
-**Responsibility**: FreeCAD workbench lifecycle and command registration. Thin wrappers that wire FreeCAD API to application layer.
-
-**Characteristics**:
-- Contains `workbench.py` and `commands.py`
-- `workbench.py`: Implements FreeCAD lifecycle methods (`Initialize`, `Activated`, `Deactivated`)
-- Commands registered in `Initialize()` (called once on first activation)
-- Commands access container via `get_container()` at execution time
-- No business logic - delegates to application layer
-
-**Structure** (`freecad/diff_wb/entrypoints/`):
-```
-entrypoints/
-├── __init__.py
-├── workbench.py                   # DiffWorkbench class
-└── commands.py                    # Command definitions
+```text
+FreeCAD loads init_gui.py
+        |
+        v
+Workbench.Initialize()
+        |
+        |-- create FreeCAD runtime context
+        |-- create ApplicationContainer
+        |-- configure Log with FreeCADLogger
+        |-- register FreeCAD commands
+        |-- register preferences page
+        v
+Workbench.Activated() or Open Diff Window command
+        |
+        v
+compose_and_register_ui(container)
+        |
+        |-- create UIState
+        |-- create DiffPanelView
+        |-- create presenters
+        |-- register presenters in UIRegistry
+        |-- detect active git repository
+        v
+Presenter executes application actions
+        |
+        v
+Domain services and infrastructure adapters perform work
 ```
 
----
+## Layer Responsibilities
 
-### 1. Domain Layer (`domain/`)
+### Entry Points
 
-**Responsibility**: Core workbench logic and concepts. Pure Python with NO external dependencies.
+Location: `freecad/diff_wb/entrypoints/`
 
-**Characteristics**:
-- Contains workbench rules, entities, and value objects
-- Defines repository interfaces (ports) but doesn't implement them
-- Can be tested without FreeCAD or any external system
-- No imports from `infrastructure/`, `application/`, or `ui/`
+Entry points integrate with FreeCAD's workbench and command APIs.
 
-**Structure** (`freecad/diff_wb/domain/`):
-```
-domain/
-├── tree/                          # Shared tree models
-│   ├── __init__.py               # __all__ = ["TreeNode", "Property", "Vector", ...]
-│   ├── node.py                   # TreeNode dataclass
-│   └── property.py               # Property, Vector, Rotation, Placement dataclasses
-│
-├── snapshots/                     # Snapshot domain concept
-│   ├── __init__.py               # __all__ = ["Snapshot", "SnapshotRepository"]
-│   ├── models.py                 # Snapshot dataclass
-│   ├── extractor.py              # Tree extraction logic (uses FreeCAD port)
-│   └── repository.py             # SnapshotRepository protocol + InMemory implementation
-│
-├── diff/                          # Diff domain concept
-│   ├── __init__.py               # __all__ = ["DiffResult", "NodeDiff", "PropertyDiff"]
-│   ├── models.py                 # DiffResult, NodeDiff, PropertyDiff, DiffState
-│   ├── engine.py                 # DiffEngine orchestration (uses SettingsRepository)
-│   └── comparator.py             # TreeComparator, PropertyComparator algorithms
-│
-├── settings/                      # Settings domain concept
-│   ├── __init__.py               # __all__ = ["Settings", "SettingsRepository"]
-│   ├── models.py                 # Settings dataclass (excluded_types, excluded_properties)
-│   └── repository.py             # SettingsRepository protocol
-│
-└── logging/                       # Logging domain concept
-    ├── __init__.py               # __all__ = ["Logger"]
-    └── logger.py                 # Logger protocol
-```
+- `workbench.py` defines `DiffWorkbench`, registers toolbars/menus, creates the application container, registers preferences, and opens the diff panel.
+- `commands.py` defines FreeCAD command classes and delegates work to presenters or application actions.
+- Entry points may access the global container through `freecad/diff_wb/_container.py`.
+- Entry points should stay thin. They translate FreeCAD callbacks into application or UI calls.
 
-**Key Interfaces (Ports)**:
-- `SnapshotRepository` - Interface for snapshot storage operations
-- `SettingsRepository` - Interface for settings access
-- `Logger` - Interface for logging operations
+### UI Layer
 
-### 2. Application Layer (`application/`)
+Location: `freecad/diff_wb/ui/`
 
-**Responsibility**: Stateless API endpoints (actions/queries) that coordinate domain objects to perform workbench operations. Like a backend API, it executes operations and returns results without storing state between calls.
+The UI layer owns presenter state, Qt views, and view protocols.
 
-**Characteristics**:
-- Contains stateless actions (use cases)
-- Each action receives dependencies via constructor, executes, returns result
-- No state stored in the container between operations
-- Depends on domain layer only
+- `composer.py` is the UI composition root. It creates views, presenters, and `UIState`.
+- `state.py` stores UI-only state such as the detected `GitRepository`.
+- `registry.py` stores globally reachable UI objects needed by FreeCAD commands.
+- `presenters/` transforms application results into view updates.
+- `protocols/` defines presenter-facing view contracts.
+- `views/` contains Qt widgets and preferences UI.
+- `translation_strings.py` is the central source for user-facing UI text.
 
-**Structure** (`freecad/diff_wb/application/`):
-```
-application/
-├── __init__.py
-├── actions/                       # Use cases / commands (stateless)
-│   ├── commands/
-│   │   ├── take_snapshot.py      # TakeSnapshot action
-│   │   └── compare_snapshots.py  # CompareSnapshots action
-│   ├── queries/
-│   │   └── list_snapshots.py     # ListSnapshots query
-│   └── __init__.py
-├── di/                            # Dependency injection
-│   ├── container.py              # ApplicationContainer (stateless factory)
-│   └── ports_factory.py          # Port creation
-└── presenters/                    # Application presenters
-    └── presentation_models.py    # Result dataclasses
-```
+Presenters depend on view protocols and application actions. Views render Qt widgets and perform translation. Presenters should pass raw data, not translated UI strings.
 
-**Container as Stateless API Factory**:
+### Application Layer
 
-The `ApplicationContainer` acts as a factory for backend API endpoints. It wires dependencies once at startup and provides action access:
+Location: `freecad/diff_wb/application/`
 
-```python
-# Container provides action access (like API router)
-container = get_container()
-result = container.take_snapshot_action.execute()  # Stateless call
-```
+The application layer exposes workbench use cases as small action classes.
 
-The container does NOT hold state. Each action is stateless and reusable.
+- `actions/` contains use cases such as creating snapshots, creating document diffs, staging documents, committing staged files, reading settings, and finding repositories.
+- `actions/result_models.py` contains reusable result types.
+- `di/container.py` wires application actions, domain services, and infrastructure adapters.
 
-### 3. UI Layer (`ui/`)
+Actions should be stateless after construction. They receive dependencies through constructors, execute one operation, and return a result.
 
-**Responsibility**: User interface components (presenters, views, UIState). Like a frontend application, it transforms backend API results into user-visible content and holds frontend-only state.
+### Domain Layer
 
-**Characteristics**:
-- Contains presenters, view protocols, and Qt widgets
-- Holds UIState (frontend-only state like GitRepository)
-- Presenters transform application action results into view protocol calls
-- Views are Qt widgets that render the UI
-- Depends on application layer for behavior (executes actions)
+Location: `freecad/diff_wb/domain/`
 
-**Structure** (`freecad/diff_wb/ui/`):
-```
-ui/
-├── __init__.py
-├── presenters/                    # Presenters (transform data for views)
-│   ├── __init__.py
-│   ├── state.py                  # UIState - frontend state store
-│   ├── diff_presenter.py         # DiffPresenter - transforms DiffResult
-│   ├── snapshot_presenter.py     # SnapshotPresenter - formats results
-│   └── git_repository_presenter.py # GitRepositoryPresenter
-├── protocols/                     # View interfaces (ports)
-│   ├── diff_view.py              # DiffView protocol
-│   └── snapshot_view.py          # SnapshotView protocol
-└── views/                         # Qt view implementations
-    └── diff_panel.py             # Qt widget (two-column diff view)
+The domain layer contains core workbench concepts and contracts.
+
+- `diff/` contains diff models, comparison algorithms, and `DiffEngine`.
+- `git/` contains git models, git port protocols, and `GitService`.
+- `settings/` contains settings models, text codec helpers, persistence state, and `SettingsRepository`.
+- `snapshots/` contains snapshot models, snapshot serialization helpers, snapshot repository contracts, and `SnapshotExtractor`.
+- `tree/` contains tree nodes, property models, and data-path wrappers.
+- `config.py` contains default diff settings such as exclusions and float precision.
+- `freecad_ports.py` defines minimal FreeCAD-facing protocols used by domain/application code.
+
+Most domain code is pure Python. `domain/snapshots/gui_extractor.py` is a deliberate boundary exception: it imports `FreeCADGui` inside an isolated helper to match FreeCAD's visual tree through `claimChildren()`. Tests patch that boundary. If GUI extraction grows more complex, introduce a dedicated GUI port instead of spreading FreeCAD imports through the domain.
+
+### Infrastructure Layer
+
+Location: `freecad/diff_wb/infrastructure/`
+
+Infrastructure adapts external systems to project protocols.
+
+- `freecad/ports.py` adapts the runtime FreeCAD API to `FreeCadPort` and `AppPort`.
+- `freecad/settings_repo.py` persists diff settings through FreeCAD preferences.
+- `freecad/logger.py` sends `Log` output to the FreeCAD console.
+- `git/git_port_adapter.py` implements git operations by calling the git CLI.
+- `persistence/snapshot_yaml.py` writes snapshot YAML.
+- `persistence/snapshot_yaml_deserializer.py` reads snapshot YAML.
+
+Infrastructure can depend on domain and application types. Domain and application code should not depend on infrastructure implementations directly except where dependencies are wired in the container.
+
+## Current Source Layout
+
+```text
+freecad/diff_wb/
+├── _container.py
+├── init_gui.py
+├── resources.py
+├── utils.py
+├── version.py
+├── application/
+│   ├── actions/
+│   └── di/
+├── domain/
+│   ├── config.py
+│   ├── freecad_ports.py
+│   ├── diff/
+│   ├── git/
+│   ├── settings/
+│   ├── snapshots/
+│   └── tree/
+├── entrypoints/
+│   ├── commands.py
+│   └── workbench.py
+├── infrastructure/
+│   ├── freecad/
+│   ├── git/
+│   └── persistence/
+├── resources/
+│   ├── icons/
+│   ├── translations/
+│   └── ui/
+└── ui/
+    ├── composer.py
+    ├── registry.py
+    ├── state.py
+    ├── translation_strings.py
+    ├── presenters/
+    ├── protocols/
+    └── views/
 ```
 
-**Frontend/Backend Flow**:
+## Dependency Rules
 
-```
-UI Layer (Frontend)                 Application Layer (Backend API)
-─────────────────                   ─────────────────────────────
-Presenter                           Action (stateless)
-    │ execute()                         │
-    └──────────────────────────────────►│
-                                         │ use
-                                         ▼
-                                    Domain Layer
-                                         │
-                                    returns result
-                                         │
-UIState ◄── transform ──────────────────┘
-    │
-    ▼
-View Protocol ──► Qt Widget (rendered output)
+```text
+Entry Points
+    |
+    v
+UI Layer --------------+
+    |                  |
+    v                  |
+Application Layer      |
+    |                  |
+    v                  |
+Domain Layer <---------+
+    ^
+    |
+Infrastructure Layer
 ```
 
-**UIState**: Holds frontend-only state (e.g., detected GitRepository). Created by the UI composer at startup, lives alongside presenters. Not accessible to domain or application layers.
+- Entry points may call UI registries, presenters, commands, and application container accessors.
+- UI may call application actions and use domain models for display state.
+- Application may use domain services, domain models, and domain ports.
+- Domain should not import UI or application modules.
+- Infrastructure implements domain ports and can call external APIs.
+- The container is a composition mechanism, not application state.
 
-### UI View Composition Rules
+## Composition Roots
 
-Composite Qt views may be split into focused child widgets, but presenter-facing APIs should remain stable through view protocols. Presenters depend on the top-level view facade, not on child widgets.
+DiffCAD has two composition roots.
 
-Rules:
+### Application Composition
+
+`workbench.Initialize()` creates the FreeCAD runtime context and calls `create_application_container(ctx)`. The container wires:
+
+- FreeCAD adapters
+- git adapter and git service
+- settings repository
+- snapshot extractor
+- diff engine
+- application actions
+
+The container is stored through `set_container()` so FreeCAD command instances can access it at execution time.
+
+### UI Composition
+
+`compose_and_register_ui(container)` creates:
+
+- `UIState`
+- `DiffPanelView`
+- `DiffPresenter`
+- `GitRepositoryPresenter`
+
+It then registers UI objects in `ui_registry` for command access. UI composition happens when the diff panel is created, not during initial FreeCAD module import.
+
+## UI Composition Rules
+
+Composite Qt views may be split into focused child widgets, but presenter-facing APIs should remain stable through view protocols.
 
 - Presenters call view protocols, not concrete child widgets.
 - The UI composer wires presenters to top-level views only.
 - Top-level views act as facades for composed child widgets.
-- Child widgets must not import, instantiate, or call sibling child widgets.
+- Child widgets do not import, instantiate, or call sibling child widgets.
 - Child widgets expose callbacks/events upward and narrow setter methods downward.
 - Cross-widget side effects are coordinated by the top-level facade.
-- Cross-widget coordination must be tested at the facade level, not through child-to-child coupling.
+- Cross-widget coordination is tested at the facade level.
 
-Example:
+Example: `DiffPanelView` composes `HistoryPanelWidget`, `DocumentDiffTreeWidget`, and `PropertyDiffTreeWidget`. Selecting history in `HistoryPanelWidget` should not directly mutate `DocumentDiffTreeWidget`; `DiffPanelView` or a presenter coordinates the behavior.
 
-- `DiffPanelView` may compose `HistoryPanelWidget`, `DocumentDiffTreeWidget`, and `PropertyDiffTreeWidget`.
-- `HistoryPanelWidget` does not call `DocumentDiffTreeWidget`.
-- `DocumentDiffTreeWidget` does not call `PropertyDiffTreeWidget`.
-- `DiffPanelView` coordinates history selection affecting document stage-button visibility.
-- `DiffPanelView.clear_doc_diffs()` clears both the document tree and the property tree.
+## Snapshot And Diff Pipeline
 
-### 4. Infrastructure Layer (`infrastructure/`)
+DiffCAD stores textual snapshots next to `.FCStd` files so git can compare CAD model state.
 
-**Responsibility**: External dependencies and implementations. Adapts external systems to domain interfaces.
-
-**Characteristics**:
-- Contains adapters implementing domain ports
-- FreeCAD API integration
-- File I/O, database access, network calls
-- Can depend on any inner layer
-
-**Structure** (`freecad/diff_wb/infrastructure/`):
-```
-infrastructure/
-├── __init__.py
-├── freecad/                       # FreeCAD integration
-│   ├── __init__.py
-│   ├── ports.py                   # ALL port protocols, adapters, factories
-│   ├── settings_repo.py           # SettingsRepository implementation
-│   └── logger.py                  # Logger implementation (FreeCAD Console)
-│
-└── persistence/                   # Data persistence
-    ├── __init__.py
-    └── snapshot_repo.py           # SnapshotRepository implementations
+```text
+FreeCAD document
+        |
+        v
+SnapshotExtractor
+        |
+        v
+Snapshot model
+        |
+        |-- working tree snapshot from open document
+        |-- commit snapshot from YAML deserializer
+        v
+DiffEngine
+        |
+        v
+DiffResult
+        |
+        v
+DiffPresenter
+        |
+        v
+DiffPanelView
 ```
 
----
+Snapshots contain normalized object payloads and occurrence paths. This allows repeated or linked objects to be represented separately from object data. Diff comparison uses settings for exclusions and numeric precision.
 
-## Dependency Flow
+## Git Workflow Integration
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Entry Points                              │
-│              (workbench.py, commands.py)                     │
-└───────────────────────┬─────────────────────────────────────┘
-                         │ uses
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│  FRONTEND (UI Layer)                                        │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │ UIState (frontend state store)                      │    │
-│  │ Presenters (transform data)                         │    │
-│  │ Views (Qt widgets)                                  │    │
-│  └─────────────────────────────────────────────────────┘    │
-└───────────────────────┬─────────────────────────────────────┘
-                         │ executes actions
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│  BACKEND API (Application Layer)                             │
-│  ApplicationContainer (stateless factory)                    │
-│  Actions (stateless use cases)                               │
-└───────────────────────┬─────────────────────────────────────┘
-                         │ uses
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Domain Layer                            │
-│   (models, services, repository interfaces - workbench logic) │
-│                                                              │
-│   domain/tree/       ← Shared foundational models           │
-│   domain/snapshots/  ← Snapshot workbench concepts          │
-│   domain/diff/       ← Diff workbench concepts              │
-│   domain/settings/   ← Settings workbench concepts          │
-│   domain/logging/    ← Logging interface                    │
-└───────────────────────┬─────────────────────────────────────┘
-                         │ depends on interfaces (ports)
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   Infrastructure Layer                       │
-│    (adapters, implementations - external systems)            │
-│                                                              │
-│   infrastructure/freecad/    ← FreeCAD API adapter          │
-│   infrastructure/persistence/← Storage adapter              │
-└─────────────────────────────────────────────────────────────┘
-```
+Git support is implemented as domain service plus infrastructure adapter.
 
-**Key Rule**: Arrows point in the direction of dependencies. Inner layers have NO knowledge of outer layers. UIState lives in the frontend (UI layer) only.
+- `GitService` owns repository-level workflow rules.
+- `GitPort` defines git operations.
+- `GitPortAdapter` calls the git CLI.
+- Application actions use `GitService` to find repositories, list commits, stage files, detect staged/committed paths, and commit staged changes.
+- The UI stores the active `GitRepository` in `UIState` because repository selection is UI session state.
 
----
+DiffCAD supplements normal git clients. It focuses on CAD-specific staging, snapshot generation, and review.
 
-## Module Boundaries and Public APIs
+## Settings And Preferences
 
-### `__all__` Convention
+Default settings live in `domain/config.py`. Runtime settings are read and written through `SettingsRepository`, implemented by `FreeCADSettingsRepository` with FreeCAD preferences.
 
-Every `__init__.py` explicitly exports public API to define clear module boundaries:
+Settings affect diff computation and display. They do not affect snapshot generation.
+
+## Public APIs
+
+Module `__init__.py` files define public module APIs with `__all__` where useful. Importing from package-level modules is preferred when a symbol is exported there.
 
 ```python
-# domain/snapshots/__init__.py
-"""Snapshot domain module."""
-
-from .models import Snapshot
-from .repository import SnapshotRepository, InMemorySnapshotRepository
-
-__all__ = ["Snapshot", "SnapshotRepository", "InMemorySnapshotRepository"]
+from freecad.diff_wb.domain.diff import DiffEngine
+from freecad.diff_wb.domain.snapshots import Snapshot
+from freecad.diff_wb.domain.tree import Property
 ```
 
-Usage:
-```python
-# Public API (recommended)
-from freecad.diff_wb.domain.snapshots import Snapshot, SnapshotRepository
+Direct file imports are acceptable when a symbol is not part of a package API or when tests need focused access to implementation details.
 
-# Internal access (allowed for testing, but signals "not for production use")
-from freecad.diff_wb.domain.snapshots.extractor import _internal_helper
-```
+## Known Tradeoffs
 
-### Internal vs Public
-
-| Naming | Visibility | Use Case |
-|--------|-----------|----------|
-| `public_name` | Public | Part of module's API, documented |
-| `_internal_name` | Internal | Implementation detail, not for external use |
-| `__private_name` | Private | Name-mangled, avoid in favor of `_prefix` |
-
----
-
-## Classes vs Functions
-
-Use both appropriately based on the use case:
-
-### Use **Classes/Dataclasses** for:
-
-- **Domain models/entities** (data containers with minimal behavior)
-  - `TreeNode`, `Snapshot`, `Property`, `Vector`
-  - `DiffResult`, `NodeDiff`, `PropertyDiff`
-  - `Settings`, `SnapshotMetadata`
-
-- **Interfaces/Protocols** (abstract contracts)
-  - `SnapshotRepository`, `SettingsRepository`, `Logger`
-
-- **Implementations with state**
-   - `InMemorySnapshotRepository` (has `_snapshots` dict)
-   - `FreeCADLogger` (wraps FreeCadPort, infrastructure layer)
-   - `DiffEngine` (coordinates services via injected dependencies)
-
-### Use **Functions** for:
-
-- **Pure algorithms** (no state, deterministic)
-  - `build_path_index()`, `compare_nodes_by_path()`
-  - `compare_properties()`, `values_are_equal()`
-  - `filter_snapshot()`, `reconstruct_hierarchy()`
-
-- **Use cases / entry points**
-  - `extract_tree()`, `create_snapshot()`
-  - `compute_diff()` (when not wrapped in a class)
-
-- **Helper utilities**
-  - `should_exclude_property()`, `get_default_store()`
-
-### Guidelines
-
-| Aspect | Classes | Functions |
-|--------|---------|-----------|
-| **Data modeling** | ✅ Excellent (dataclasses) | ❌ Not suitable |
-| **State management** | ✅ Natural (instance vars) | ❌ Requires globals/closures |
-| **Algorithms** | ❌ Overkill | ✅ Perfect fit |
-| **Testing** | ✅ Easy (mock instances) | ✅ Easier (pure functions) |
-| **Composition** | ⚠️ Can be verbose | ✅ Simple |
-| **Pythonic** | ✅ For data/entities | ✅ For logic/utilities |
-
----
-
-## Dependency Injection
-
-Dependencies are injected at composition root (entrypoints) rather than created internally. This enables:
-
-1. **Testability**: Swap real implementations with fakes/mocks
-2. **Flexibility**: Change implementations without modifying domain code
-3. **Explicitness**: Dependencies are visible in constructors/function signatures
-
-### Pattern
-
-```python
-# Domain service accepts interfaces via constructor
-class DiffEngine:
-    def __init__(self, settings_repo: SettingsRepository):
-        self._settings_repo = settings_repo  # Injected dependency
-    
-    def compute_diff(self, old: Snapshot, new: Snapshot) -> DiffResult:
-        settings = self._settings_repo.get_settings()
-        # ... use settings
-```
-
-
-
----
-
-## Container and Context Usage Rules
-
-The Diff Workbench uses a hand-made IoC (Inversion of Control) container to wire dependencies at startup. This ensures the domain and application layers remain testable without FreeCAD dependencies.
-
-### Architecture Overview
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│ ENTRY POINTS (workbench.py, commands.py)                           │
-│   → Initialize(): create container, register commands              │
-│   → Commands: get_container() at execution                         │
-└────────────────────────┬────────────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│ BACKEND API FACTORY (application/di/container.py)                  │
-│   → Stateless factory - creates actions and ports                  │
-│   → set_container()/get_container() for global access              │
-│   → Does NOT hold UIState (that lives in UI layer)                 │
-└────────────────────────┬────────────────────────────────────────────┘
-                         │ injects into
-                         ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│ APPLICATION LAYER (actions, queries) - BACKEND API                 │
-│   → Receives ports via constructor                                 │
-│   → Stateless - execute() returns result, no state stored          │
-│   → NEVER imports CTX, container, or port factories                │
-└────────────────────────┬────────────────────────────────────────────┘
-                         │ uses
-                         ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│ DOMAIN LAYER (services, extractors)                                │
-│   → Defines port protocols (interfaces)                            │
-│   → Receives port implementations via constructor                  │
-│   → Testable with fakes - no FreeCAD needed                        │
-└─────────────────────────────────────────────────────────────────────┘
-
-All layers use centralized logging: `from utils import Log`
-```
-
-### Composition Root
-
-The composition root is `workbench.Initialize()`, called once on first activation:
-
-```python
-# workbench.Initialize()
-from ..utils import set_logger
-from ..infrastructure.freecad import FreeCADLogger
-
-ctx = get_freecad_runtime_context()
-container = create_application_container(ctx)
-set_logger(FreeCADLogger(ctx))  # Wire centralized logger
-set_container(container)
-register_commands(container)
-```
-
-`init_gui.py` is ultra-thin: translation setup, runtime context, workbench registration only.
-
-### Container Responsibilities
-
-The container (`application/di/container.py`) is a stateless factory that creates ports and wires actions. It provides `set_container()`/`get_container()` for global access. Logging goes through `utils.Log` (centralized), not container helpers.
-
-**What the container does NOT do:**
-- Does NOT hold UIState (that belongs to the UI layer)
-- Does NOT store state between action executions
-- Does NOT create presenters directly (that happens in the UI composer)
-
-**What the container does:**
-- Creates infrastructure ports (FreeCAD API adapters)
-- Wires actions with their dependencies
-- Provides action access to entry points
-
-### Layer Access Rules
-
-| Layer | Container | CTX | Port Factories | Logging | UIState |
-|-------|-----------|-----|----------------|---------|---------|
-| **Domain** | ❌ | ❌ | ❌ | ✅ Log.*() | ❌ |
-| **Application** | ❌ | ❌ | ❌ | ✅ Log.*() | ❌ |
-| **UI** | ❌ | ❌ | ❌ | ✅ Log.*() | ✅ (created here) |
-| **Infrastructure** | ✅ | ✅ | ✅ | ✅ Log.*() | ❌ |
-| **Entry Points** | get_container() | ❌ | ❌ | ✅ Log.*() | ❌ |
-
-### Consolidated Ports
-
-All port protocols, adapters, and factories live in `infrastructure/freecad/ports.py`. Factory functions require explicit `FreeCadContext` parameter - no automatic context creation.
-
-### Access Patterns
-
-Commands access container via `get_container()` at execution:
-
-```python
-from freecad.diff_wb._container import get_container
-from freecad.diff_wb.utils import Log
-
-def Activated(self):
-    container = get_container()
-    container.take_snapshot_action.execute()
-    Log.info("Snapshot completed")
-```
-
-Translation uses Qt's `QCoreApplication.translate()` in views.
-
-### Testing with Fakes
-
-Domain code is fully testable using fakes - no FreeCAD, container, or logger needed:
-
-```python
-# Unit test
-fake_port = FakeFreeCadPort()
-extractor = SnapshotExtractor(freecad_port=fake_port)
-result = extractor.extract_tree()
-```
-
-Set `set_logger(FakeLogger())` in tests to capture log output.
-
-### UI Layer Translation
-
-Translation happens in views via `QCoreApplication.translate()`. Presenters pass raw data; views handle translation and parameter substitution using Qt-style placeholders (`%1`, `%2`). See `ui/translation_strings.py` for templates.
-
----
-
-## Testing Strategy
-
-### Unit Tests (No FreeCAD)
-
-**Location**: `tests/unit/`
-
-**Coverage**:
-- Domain models and services
-- Repository interfaces (with fakes)
-- Diff algorithms
-- Tree extraction logic
-- Application actions and queries
-- Presenters
-- Entry point commands
-
-**Characteristics**:
-- Pure Python, no FreeCAD imports
-- Fast execution (< 1 second total)
-- Use inline fixtures or fakes from `tests/fakes/`
-
-### Integration Tests (With FreeCAD)
-
-**Location**: `tests/integration/`
-
-**Coverage**:
-- Infrastructure adapters
-- FreeCAD context handling
-- Full end-to-end workflows
-- Workbench loading and activation
-- UI widgets with FreeCAD runtime
-
-**Characteristics**:
-- Requires FreeCAD runtime via `run_with_freecad.sh`
-- Slower execution
-- Test real FreeCAD API interactions
-
-### Unit Tests vs Integration Tests
-
-**Unit Tests** (`tests/unit/`):
-- Focus: Error handling paths, input validation, orchestration logic
-- Dependencies: Fakes and mocks only
-- Examples: No document error, snapshot not found, extraction failures, command routing
-
-**Integration Tests** (`tests/integration/`):
-- Focus: Happy path with real domain services, end-to-end workflows
-- Dependencies: Real services (DiffEngine, SnapshotExtractor) + fake ports
-- Examples: Successful snapshot creation, complex diff scenarios, exclusion rules, workbench lifecycle
-
-**Principle**: Unit tests provide fast feedback for common errors; integration tests verify real services work together correctly.
-
----
-
-## Testing Directory Structure
-
-Tests use **strict mirroring** of source structure:
-
-```
-tests/
-├── unit/          ← mirrors freecad/diff_wb/ (domain, application, ui, infrastructure)
-├── integration/   ← FreeCAD runtime tests (workbench, application actions)
-├── fakes/         ← fake implementations for dependency injection
-└── conftest.py    ← pytest fixtures
-```
-
-**Running Tests**:
-- Unit tests: `task test`
-- Integration tests: `task test:integration`
-
----
-
-## Configuration Management
-
-### Hard-coded Defaults (Phase 1)
-
-Configuration defaults are stored in `config.py` at project root. These are used by `FreeCADSettingsRepository` as initial values.
-
-### FreeCAD Preferences (Phase 2+)
-
-Eventually, settings will be persisted via FreeCAD's Parameter system, readable/writable through `SettingsRepository`.
-
----
+- `SnapshotExtractor` currently reaches into `FreeCADGui` from the domain package to use `claimChildren()`. This keeps extraction behavior aligned with FreeCAD's visual tree, but it is an architectural exception that should stay isolated.
+- `ApplicationContainer` exposes small `log()` and `translate()` helpers for entry points. Core code should prefer `Log` and view-level translation patterns.
+- Some FreeCAD APIs are difficult to type precisely. Protocols in `domain/freecad_ports.py` intentionally model only the behavior DiffCAD uses.
 
 ## Glossary
 
-| Term | Definition |
-|------|------------|
-| **Domain** | Core workbench logic and concepts |
-| **Port** | Interface defined in domain layer (e.g., `SnapshotRepository`) |
-| **Adapter** | Implementation of a port in infrastructure layer (e.g., `InMemorySnapshotRepository`) |
-| **Use Case / Action** | Stateless application-level operation (e.g., "TakeSnapshot") that executes and returns a result |
-| **Entity** | Domain object with identity (e.g., `Snapshot`, `TreeNode`) |
-| **Value Object** | Immutable object defined by its attributes (e.g., `Property`, `Vector`) |
-| **Composition Root** | Location where dependencies are wired together (entrypoints) |
-| **UIState** | Frontend-only state store held in the UI layer (e.g., GitRepository), analogous to Redux/Pinia store |
-| **Presenter** | UI component that transforms domain/application data into view calls, analogous to React component |
+| Term | Meaning |
+| --- | --- |
+| Action | Application-layer use case object with an `execute()` method. |
+| Adapter | Infrastructure implementation of a port, such as `GitPortAdapter`. |
+| Application Container | Object that wires actions, services, repositories, and adapters. |
+| Composition Root | Place where dependencies are created and connected. |
+| Domain | Core model and behavior independent from presentation details. |
+| Port | Protocol that describes an external dependency. |
+| Presenter | UI coordinator that turns application results into view updates. |
+| Snapshot | Text-friendly representation of a FreeCAD document's model state. |
+| UIState | UI-session state owned by the UI layer, such as detected repository. |
