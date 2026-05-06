@@ -9,8 +9,6 @@ test files plus resource validation for all commands.
 
 from unittest.mock import MagicMock, Mock, patch
 
-import pytest
-
 from freecad.diff_wb.entrypoints.commands import (
     _OpenDiffWindowCommand,
     _RecomputeActiveDocumentCommand,

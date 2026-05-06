@@ -122,31 +122,6 @@ def _split_rel_path(path: str) -> list[str]:
     return tokens
 
 
-def _aggregate_states(states: list[DiffState]) -> DiffState:
-    """Roll up child states to a parent state.
-
-    Rules:
-    - No changed descendants -> UNCHANGED
-    - All changed descendants are ADDED -> ADDED
-    - All changed descendants are DELETED -> DELETED
-    - Mixed changes -> MODIFIED
-
-    Args:
-        states: List of DiffState values to aggregate.
-
-    Returns:
-        The aggregated DiffState.
-    """
-    changed = [s for s in states if s != DiffState.UNCHANGED]
-    if not changed:
-        return DiffState.UNCHANGED
-    if all(s == DiffState.ADDED for s in changed):
-        return DiffState.ADDED
-    if all(s == DiffState.DELETED for s in changed):
-        return DiffState.DELETED
-    return DiffState.MODIFIED
-
-
 def _format_pv(pv: Any, precision: int) -> Any:
     """Format a PropertyPathValue for UI display.
 
@@ -194,7 +169,7 @@ def _insert_path_diff(root: _PathTreeNode, pd: PropertyPathDiff) -> None:
     # Leaf value row (store PropertyPathValue for type-aware formatting later)
     node.old_value = pd.old_value
     node.new_value = pd.new_value
-    leaf_states = [pd.value_state]
+    node.state = pd.value_state
 
     # Nested expression row under leaf, if expression exists on either side
     if pd.old_value is not None or pd.new_value is not None:
@@ -208,27 +183,6 @@ def _insert_path_diff(root: _PathTreeNode, pd: PropertyPathDiff) -> None:
                 new_value=new_expr,
             )
             node.children["__expr__"] = expr_node
-            leaf_states.append(pd.expression_state)
-
-    node.state = _aggregate_states(leaf_states)
-
-
-def _rollup_states(node: _PathTreeNode) -> DiffState:
-    """Recursively roll up states from leaves to root.
-
-    Each node's state is updated to include the aggregated state of
-    all its descendants.
-
-    Args:
-        node: The node to start rolling up from.
-
-    Returns:
-        The aggregated state for this node.
-    """
-    child_states = [_rollup_states(c) for c in node.children.values()]
-    combined = _aggregate_states([node.state, *child_states])
-    node.state = combined
-    return combined
 
 
 def _collect_leaf_values(node: _PathTreeNode, include_expr: bool = False) -> tuple[list[Any], list[Any]]:
@@ -879,7 +833,8 @@ class DiffPresenter:
         Uses ``prop_diff.path_diffs`` to build a nested sub-path tree.
         Root "." path values are mapped to the property top row.
         Expression rows are nested under their corresponding path row.
-        Parent nodes get their state from descendants (rollup).
+        Each node's state reflects only its own value changes — expression
+        and child path changes do not propagate upward.
 
         Args:
             node_diff: Domain NodeDiff with property_diffs
@@ -896,11 +851,14 @@ class DiffPresenter:
                 prop_diff.new_value if prop_diff.new_value is not None else prop_diff.old_value
             )
 
-            # Build nested path tree from path_diffs
-            root = _PathTreeNode(name=prop_diff.property_name, state=prop_diff.state)
+            # Build nested path tree from path_diffs. Root state comes from the
+            # "." path's value_state only — expression changes and child path
+            # changes do not affect the parent row color.
+            root_path = next((pd for pd in prop_diff.path_diffs if pd.path == "."), None)
+            root_state = root_path.value_state if root_path else DiffState.UNCHANGED
+            root = _PathTreeNode(name=prop_diff.property_name, state=root_state)
             for pd in prop_diff.path_diffs:
                 _insert_path_diff(root, pd)
-            _rollup_states(root)
 
             # Map root "." values to the property top row
             prop_old_value = root.old_value
