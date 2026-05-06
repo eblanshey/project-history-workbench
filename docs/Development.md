@@ -69,6 +69,18 @@ Every package `__init__.py` must start with a module responsibility comment:
 
 Keep those comments accurate when files change.
 
+### Cyclomatic Complexity
+
+Keep function complexity at **B (5-10)** or better. Functions rated **C (10-20)** or higher must be refactored by extracting helper methods.
+
+Check complexity before submitting changes:
+
+```bash
+uv run radon cc --show-complexity --min B freecad/diff_wb
+```
+
+Target: No C-rated functions in the codebase.
+
 ## Dependency Injection
 
 Create dependencies at composition roots and pass them into classes or actions. Do not create FreeCAD, git, filesystem, or UI dependencies deep inside domain or application logic.
