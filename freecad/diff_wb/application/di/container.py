@@ -15,14 +15,11 @@ from ...domain.git.git_service import GitService
 from ...domain.git.ports import GitPort
 from ...domain.settings import SettingsRepository
 from ...domain.snapshots.gui_extractor import SnapshotExtractor
-from ...domain.snapshots.repository import InMemorySnapshotRepository
 from ...infrastructure.freecad.ports import get_app_port, get_port
 from ...infrastructure.freecad.settings_repo import FreeCADSettingsRepository
 from ...infrastructure.git.git_port_adapter import GitPortAdapter
 from ...infrastructure.persistence.snapshot_yaml_deserializer import SnapshotYamlDeserializer
 from ..actions.commands.commit_staging import CommitStagingAction
-from ..actions.commands.compare_snapshots import CompareSnapshotsAction
-from ..actions.commands.take_snapshot import TakeSnapshotAction
 from ..actions.create_diff import CreateDiffAction
 from ..actions.create_document_diffs import CreateDocumentDiffsAction
 from ..actions.create_document_snapshot_commit import CreateDocumentSnapshotForCommitAction
@@ -35,7 +32,6 @@ from ..actions.get_dirty_documents import GetDirtyDocumentsAction
 from ..actions.get_open_eligible_documents import GetOpenEligibleDocumentsAction
 from ..actions.get_staged_file_paths import GetStagedFilePathsAction
 from ..actions.open_all_documents_in_repository import OpenAllDocumentsInRepositoryAction
-from ..actions.queries.list_snapshots import ListSnapshotsAction
 from ..actions.recompute_all_open_documents import RecomputeAllOpenDocumentsAction
 from ..actions.save_diff_settings import SaveDiffSettingsAction
 from ..actions.stage_documents import StageDocumentsAction
@@ -65,9 +61,6 @@ class ApplicationContainer:
     _app_port: AppPort
 
     # Actions (application layer - pure orchestration, no UI)
-    take_snapshot_action: TakeSnapshotAction
-    compare_snapshots_action: CompareSnapshotsAction
-    list_snapshots_action: ListSnapshotsAction
     get_open_eligible_docs_action: GetOpenEligibleDocumentsAction
     create_working_snapshot_action: CreateDocumentSnapshotForWorkingTreeAction
     create_commit_snapshot_action: CreateDocumentSnapshotForCommitAction
@@ -137,7 +130,6 @@ def create_application_container(ctx: FreeCadContext) -> ApplicationContainer:
     app_port = get_app_port(ctx)
 
     # Create domain components
-    snapshot_repo = InMemorySnapshotRepository()
     settings_repo = FreeCADSettingsRepository(ctx)
 
     # Create domain services
@@ -147,21 +139,6 @@ def create_application_container(ctx: FreeCadContext) -> ApplicationContainer:
     # Create git detection components
     git_port = GitPortAdapter()
     git_service = GitService(git_port=git_port)
-
-    # Create actions (application layer - pure orchestration)
-    take_snapshot_action = TakeSnapshotAction(
-        freecad_port=freecad_port,
-        extractor=extractor,
-        snapshot_repo=snapshot_repo,
-    )
-
-    compare_snapshots_action = CompareSnapshotsAction(
-        snapshot_repo=snapshot_repo,
-        diff_engine=diff_engine,
-        settings_repo=settings_repo,
-    )
-
-    list_snapshots_action = ListSnapshotsAction(snapshot_repo=snapshot_repo)
 
     find_active_git_repository_action = FindActiveGitRepositoryAction(
         freecad_port=freecad_port,
@@ -208,9 +185,6 @@ def create_application_container(ctx: FreeCadContext) -> ApplicationContainer:
     return ApplicationContainer(
         _freecad_port=freecad_port,
         _app_port=app_port,
-        take_snapshot_action=take_snapshot_action,
-        compare_snapshots_action=compare_snapshots_action,
-        list_snapshots_action=list_snapshots_action,
         get_open_eligible_docs_action=get_open_eligible_docs_action,
         create_working_snapshot_action=create_working_snapshot_action,
         create_commit_snapshot_action=create_commit_snapshot_action,

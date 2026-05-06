@@ -31,7 +31,6 @@ class TestComposeAndRegisterUiReturnsView:
 
         # Create mock container with all required attributes
         mock_container = MagicMock(spec=ApplicationContainer)
-        mock_container.list_snapshots_action = MagicMock()
         mock_container.get_open_eligible_docs_action = MagicMock()
         mock_container.create_working_snapshot_action = MagicMock()
         mock_container.create_commit_snapshot_action = MagicMock()
@@ -64,7 +63,6 @@ class TestComposeCreatesUiState:
         """compose_and_register_ui should create a UIState instance."""
         # Create mock container with all required attributes
         mock_container = MagicMock(spec=ApplicationContainer)
-        mock_container.list_snapshots_action = MagicMock()
         mock_container.get_open_eligible_docs_action = MagicMock()
         mock_container.create_working_snapshot_action = MagicMock()
         mock_container.create_commit_snapshot_action = MagicMock()
@@ -91,67 +89,12 @@ class TestComposeCreatesUiState:
             MockUIState.assert_called_once_with(git_repository=None)
 
 
-class TestComposerRegistersSnapshotPresenter:
-    """Test that snapshot presenter is registered after composition."""
-
-    def _create_mock_container(self):
-        """Helper to create a mock container with all required attributes."""
-        mock_container = MagicMock(spec=ApplicationContainer)
-        mock_container.list_snapshots_action = MagicMock()
-        mock_container.get_open_eligible_docs_action = MagicMock()
-        mock_container.create_working_snapshot_action = MagicMock()
-        mock_container.create_commit_snapshot_action = MagicMock()
-        mock_container.create_diff_action = MagicMock()
-        mock_container.create_document_diffs_action = MagicMock()
-        mock_container.stage_documents_action = MagicMock()
-        mock_container.get_dirty_documents_action = MagicMock()
-        mock_container.get_staged_file_paths_action = MagicMock()
-        mock_container.get_committed_file_paths_action = MagicMock()
-        mock_container.get_committed_file_paths_action = MagicMock()
-        mock_container.find_active_git_repository_action = MagicMock()
-        mock_container.get_commits_action = MagicMock()
-        mock_container.settings_repo = MagicMock()
-        return mock_container
-
-    def test_snapshot_presenter_is_registered(self) -> None:
-        """After composition, ui_registry.snapshot_presenter should be set."""
-        mock_container = self._create_mock_container()
-
-        with patch("freecad.diff_wb.ui.composer.DiffPanelView"), patch("freecad.diff_wb.ui.composer.SnapshotPresenter"):
-            compose_and_register_ui(mock_container)
-
-            # Verify snapshot presenter is registered (not None and not raising error)
-            assert ui_registry._snapshot_presenter is not None
-
-    def test_snapshot_presenter_receives_correct_dependencies(self) -> None:
-        """SnapshotPresenter should receive view and list_snapshots_action."""
-        mock_container = self._create_mock_container()
-        mock_list_action = MagicMock()
-        mock_container.list_snapshots_action = mock_list_action
-
-        with (
-            patch("freecad.diff_wb.ui.composer.DiffPanelView") as MockView,
-            patch("freecad.diff_wb.ui.composer.SnapshotPresenter") as MockPresenter,
-        ):
-            mock_view = MagicMock()
-            MockView.return_value = mock_view
-
-            compose_and_register_ui(mock_container)
-
-            # Verify SnapshotPresenter was called with correct arguments
-            MockPresenter.assert_called_once()
-            call_args = MockPresenter.call_args
-            assert call_args.kwargs["view"] is mock_view
-            assert call_args.kwargs["list_snapshots_action"] is mock_list_action
-
-
 class TestComposerRegistersDiffPresenter:
     """Test that diff presenter is registered after composition."""
 
     def _create_mock_container(self):
         """Helper to create a mock container with all required attributes."""
         mock_container = MagicMock(spec=ApplicationContainer)
-        mock_container.list_snapshots_action = MagicMock()
         mock_container.get_open_eligible_docs_action = MagicMock()
         mock_container.create_working_snapshot_action = MagicMock()
         mock_container.create_commit_snapshot_action = MagicMock()
@@ -218,7 +161,6 @@ class TestComposerConnectsTreeWidgetCallback:
     def _create_mock_container(self):
         """Helper to create a mock container with all required attributes."""
         mock_container = MagicMock(spec=ApplicationContainer)
-        mock_container.list_snapshots_action = MagicMock()
         mock_container.get_open_eligible_docs_action = MagicMock()
         mock_container.create_working_snapshot_action = MagicMock()
         mock_container.create_commit_snapshot_action = MagicMock()
@@ -283,7 +225,6 @@ class TestComposerInitializesGitRepositoryPresenter:
     def _create_mock_container(self):
         """Helper to create a mock container with all required attributes."""
         mock_container = MagicMock(spec=ApplicationContainer)
-        mock_container.list_snapshots_action = MagicMock()
         mock_container.get_open_eligible_docs_action = MagicMock()
         mock_container.create_working_snapshot_action = MagicMock()
         mock_container.create_commit_snapshot_action = MagicMock()
@@ -366,7 +307,6 @@ class TestComposerWiresAllDependencies:
     def _create_mock_container(self):
         """Helper to create a mock container with all required attributes."""
         mock_container = MagicMock(spec=ApplicationContainer)
-        mock_container.list_snapshots_action = MagicMock()
         mock_container.get_open_eligible_docs_action = MagicMock()
         mock_container.create_working_snapshot_action = MagicMock()
         mock_container.create_commit_snapshot_action = MagicMock()
@@ -387,16 +327,10 @@ class TestComposerWiresAllDependencies:
 
         with (
             patch("freecad.diff_wb.ui.composer.DiffPanelView"),
-            patch("freecad.diff_wb.ui.composer.SnapshotPresenter") as MockSnapshotPresenter,
             patch("freecad.diff_wb.ui.composer.DiffPresenter") as MockDiffPresenter,
             patch("freecad.diff_wb.ui.composer.GitRepositoryPresenter") as MockGitPresenter,
         ):
             compose_and_register_ui(mock_container)
-
-            # SnapshotPresenter gets list_snapshots_action
-            assert (
-                MockSnapshotPresenter.call_args.kwargs["list_snapshots_action"] == mock_container.list_snapshots_action
-            )
 
             # DiffPresenter gets its actions
             assert (

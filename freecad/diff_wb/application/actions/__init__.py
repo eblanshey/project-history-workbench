@@ -1,6 +1,6 @@
 """Module responsibility: Action use cases."""
 
-from .commands import CompareSnapshotsAction, TakeSnapshotAction
+from .commands import CommitStagingAction
 from .create_diff import CreateDiffAction
 from .create_document_diffs import CreateDocumentDiffsAction
 from .create_document_snapshot_commit import CreateDocumentSnapshotForCommitAction
@@ -10,7 +10,6 @@ from .get_commits import GetCommitsAction
 from .get_diff_settings import GetDiffSettingsAction
 from .get_open_eligible_documents import GetOpenEligibleDocumentsAction
 from .open_all_documents_in_repository import OpenAllDocumentsInRepositoryAction
-from .queries import ListSnapshotsAction
 from .recompute_all_open_documents import RecomputeAllOpenDocumentsAction
 from .result_models import (
     CompareResult,
@@ -27,8 +26,7 @@ from .save_diff_settings import SaveDiffSettingsAction
 
 __all__ = [
     # Commands
-    "TakeSnapshotAction",
-    "CompareSnapshotsAction",
+    "CommitStagingAction",
     # Actions
     "FindActiveGitRepositoryAction",
     "GetCommitsAction",
@@ -41,8 +39,6 @@ __all__ = [
     "CreateDocumentSnapshotForCommitAction",
     "CreateDiffAction",
     "CreateDocumentDiffsAction",
-    # Queries
-    "ListSnapshotsAction",
     # Result models
     "Result",
     "SnapshotResult",

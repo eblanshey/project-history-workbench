@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .presenters.diff_presenter import DiffPresenter
     from .presenters.git_repository_presenter import GitRepositoryPresenter
-    from .presenters.snapshot_presenter import SnapshotPresenter
     from .state import UIState
 
 
@@ -24,21 +23,9 @@ class UIRegistry:
     """
 
     def __init__(self) -> None:
-        self._snapshot_presenter: SnapshotPresenter | None = None
         self._diff_presenter: DiffPresenter | None = None
         self._git_repository_presenter: GitRepositoryPresenter | None = None
         self._ui_state: UIState | None = None
-
-    @property
-    def snapshot_presenter(self) -> "SnapshotPresenter":
-        """Get snapshot presenter.
-
-        Raises:
-            RuntimeError: If not initialized (workbench not activated)
-        """
-        if self._snapshot_presenter is None:
-            raise RuntimeError("Snapshot presenter not initialized. Workbench must be activated first.")
-        return self._snapshot_presenter
 
     @property
     def diff_presenter(self) -> "DiffPresenter | None":
@@ -75,17 +62,12 @@ class UIRegistry:
         """Register git repository presenter."""
         self._git_repository_presenter = presenter
 
-    def register_snapshot_presenter(self, presenter: "SnapshotPresenter") -> None:
-        """Register snapshot presenter."""
-        self._snapshot_presenter = presenter
-
     def register_diff_presenter(self, presenter: "DiffPresenter") -> None:
         """Register diff presenter."""
         self._diff_presenter = presenter
 
     def clear(self) -> None:
         """Clear registry (for testing)."""
-        self._snapshot_presenter = None
         self._diff_presenter = None
         self._git_repository_presenter = None
         self._ui_state = None

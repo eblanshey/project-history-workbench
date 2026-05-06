@@ -1,4 +1,4 @@
-"""File responsibility: Protocol compliance tests for DiffView and SnapshotView.
+"""File responsibility: Protocol compliance tests for DiffView.
 
 These tests use runtime validation to ensure that view implementations
 properly conform to their protocol contracts. Since mypy's structural typing
@@ -17,7 +17,6 @@ from collections.abc import Callable
 from typing import Any
 
 from freecad.diff_wb.ui.protocols.diff_view import DiffView
-from freecad.diff_wb.ui.protocols.snapshot_view import SnapshotView
 from tests.unit.ui.protocols.protocol_validation import (
     assert_protocol_compliance,
     validate_protocol_compliance,
@@ -44,28 +43,6 @@ class TestDiffViewProtocolCompliance:
         for method_name in protocol_methods:
             assert hasattr(DiffPanelView, method_name), f"Missing method: {method_name}"
             assert callable(getattr(DiffPanelView, method_name)), f"Method not callable: {method_name}"
-
-    def test_show_loading_signature_compatibility(self) -> None:
-        """show_loading should accept at least no arguments (protocol contract)."""
-        import inspect
-
-        from freecad.diff_wb.ui.views.diff_panel_view import DiffPanelView
-
-        sig = inspect.signature(DiffPanelView.show_loading)
-        params = list(sig.parameters.values())
-
-        # Remove 'self' if present
-        if params and params[0].name == "self":
-            params = params[1:]
-
-        # All regular parameters must have defaults (protocol allows calling with no args)
-        # VAR_KEYWORD (**kwargs) and VAR_POSITIONAL (*args) don't have defaults but are flexible
-        for param in params:
-            if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
-                continue  # These are inherently optional
-            assert param.default != inspect.Parameter.empty, (
-                f"show_loading parameter '{param.name}' has no default, but protocol allows calling with no arguments"
-            )
 
     def test_show_doc_diff_accepts_list(self) -> None:
         """show_doc_diff must accept list parameter."""
@@ -98,60 +75,6 @@ class TestDiffViewProtocolCompliance:
 
         assert len(params) >= 1, "show_summary missing 'changed_docs' parameter"
         assert params[0].name == "changed_docs", f"Expected 'changed_docs' parameter, got '{params[0].name}'"
-
-
-class TestSnapshotViewProtocolCompliance:
-    """Tests verifying SnapshotView protocol compliance."""
-
-    def test_diff_panel_view_implements_snapshot_view(self) -> None:
-        """DiffPanelView must implement all SnapshotView protocol methods."""
-        from freecad.diff_wb.ui.views.diff_panel_view import DiffPanelView
-
-        # This will raise AssertionError if there are violations
-        assert_protocol_compliance(DiffPanelView, SnapshotView)
-
-    def test_snapshot_view_required_methods_exist(self) -> None:
-        """Verify all SnapshotView methods exist in implementation."""
-        from freecad.diff_wb.ui.views.diff_panel_view import DiffPanelView
-        from tests.unit.ui.protocols.protocol_validation import get_protocol_methods
-
-        protocol_methods = get_protocol_methods(SnapshotView)
-
-        for method_name in protocol_methods:
-            assert hasattr(DiffPanelView, method_name), f"Missing method: {method_name}"
-            assert callable(getattr(DiffPanelView, method_name)), f"Method not callable: {method_name}"
-
-    def test_show_success_signature(self) -> None:
-        """show_success must accept snapshot_name string."""
-        import inspect
-
-        from freecad.diff_wb.ui.views.diff_panel_view import DiffPanelView
-
-        sig = inspect.signature(DiffPanelView.show_success)
-        params = list(sig.parameters.values())
-
-        # Remove 'self' if present
-        if params and params[0].name == "self":
-            params = params[1:]
-
-        assert len(params) >= 1, "show_success missing 'snapshot_name' parameter"
-        assert params[0].name == "snapshot_name", f"Expected 'snapshot_name' parameter, got '{params[0].name}'"
-
-    def test_show_snapshots_accepts_list(self) -> None:
-        """show_snapshots must accept list of SnapshotSummary."""
-        import inspect
-
-        from freecad.diff_wb.ui.views.diff_panel_view import DiffPanelView
-
-        sig = inspect.signature(DiffPanelView.show_snapshots)
-        params = list(sig.parameters.values())
-
-        # Remove 'self' if present
-        if params and params[0].name == "self":
-            params = params[1:]
-
-        assert len(params) >= 1, "show_snapshots missing 'snapshots' parameter"
-        assert params[0].name == "snapshots", f"Expected 'snapshots' parameter, got '{params[0].name}'"
 
 
 class TestProtocolValidationUtility:

@@ -182,9 +182,6 @@ if Gui is not None:
                 self._subwindow.resize(900, 600)
                 self._subwindow.show()
 
-                # Note: Snapshots are loaded automatically after creation via SnapshotPresenter.present_result()
-                # No need to load on panel creation - commits are shown by GitRepositoryPresenter instead
-
                 # Connect window close cleanup
                 self._subwindow.destroyed.connect(self._on_subwindow_closed)
 

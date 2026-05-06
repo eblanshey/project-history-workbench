@@ -1,12 +1,10 @@
-"""File responsibility: Diff panel view with 3-column layout, implementing DiffView and SnapshotView protocols."""
+"""File responsibility: Diff panel view with 3-column layout, implementing DiffView protocol."""
 
 from collections.abc import Callable
-from typing import Any
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QSplitter, QVBoxLayout, QWidget
 
-from ...application.actions.result_models import SnapshotSummary
 from ...domain.git.models import GitCommit, GitRepository
 from ...domain.settings import SettingsRepository
 from ..presenters.presentation_models import (
@@ -24,7 +22,7 @@ __all__ = ["DiffPanelView", "HistorySelection"]
 
 
 class DiffPanelView(QWidget):
-    """3-column diff panel view implementing DiffView and SnapshotView protocols.
+    """3-column diff panel view implementing DiffView protocol.
 
     Provides a horizontal QSplitter with:
     - Left: HistoryPanelWidget for repository info and history list
@@ -32,15 +30,13 @@ class DiffPanelView(QWidget):
     - Right: PropertyDiffTreeWidget for property diffs
 
     Protocol Implementation:
-        This class implements the DiffView and SnapshotView protocols through
+        This class implements the DiffView protocol through
         structural subtyping (duck typing) rather than explicit inheritance to avoid
         metaclass conflicts between QWidget and Protocol classes.
 
         Implemented protocols:
-        - DiffView (freecad.diff_wb.ui.protocols.diff_view): show_loading, show_doc_diff,
-          show_summary, show_error, show_property_diff, show_repository
-        - SnapshotView (freecad.diff_wb.ui.protocols.snapshot_view): show_success,
-          show_error, show_loading, show_snapshots
+        - DiffView (freecad.diff_wb.ui.protocols.diff_view): show_doc_diff,
+          show_summary, show_property_diff, show_repository
 
         Protocol compliance is validated at runtime by tests in:
         tests/unit/ui/protocols/test_protocol_compliance.py
@@ -86,18 +82,6 @@ class DiffPanelView(QWidget):
         """Handle history panel selection changes to update document widget state."""
         self._current_selection = selection
         self._document_diff_tree.set_current_history_selection(selection)
-
-    # SnapshotView protocol methods
-    def show_snapshots(self, snapshots: list[SnapshotSummary]) -> None:
-        """Display list of available snapshots.
-
-        Delegates to HistoryPanelWidget.
-
-        Args:
-            snapshots: List of snapshot summaries containing id, name,
-                created_at (ISO format), and node_count.
-        """
-        self._history_panel.show_snapshots(snapshots)
 
     def show_commits(self, commits: list[GitCommit]) -> None:
         """Display git commits in the history list.
@@ -217,31 +201,6 @@ class DiffPanelView(QWidget):
             callback: A callable receiving (git_path, node_path) when a node is clicked.
         """
         self._document_diff_tree.set_node_selection_callback(callback)
-
-    def show_success(self, snapshot_name: str) -> None:
-        """Notify view of successful snapshot creation.
-
-        Logging is handled by the presenter to maintain separation of concerns.
-        This method can be extended in the future to provide UI feedback
-        (e.g., status bar message, notification) without depending on the container.
-
-        Args:
-            snapshot_name: The name of the created snapshot.
-        """
-        # No-op: logging handled by presenter. Future UI feedback can be added here.
-        pass
-
-    def show_error(self, error_message: str) -> None:
-        """Show error message."""
-        pass
-
-    def show_loading(
-        self,
-        message: str | None = None,
-        **kwargs: Any,
-    ) -> None:
-        """Show loading indicator."""
-        pass
 
     # DiffView protocol methods
     def show_doc_diff(self, nodes: list[NodePresentation], git_path: str = "") -> None:

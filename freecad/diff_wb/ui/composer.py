@@ -10,7 +10,6 @@ from ..ui.state import UIState
 from ..ui.views.diff_panel_view import DiffPanelView
 from .presenters.diff_presenter import DiffPresenter
 from .presenters.git_repository_presenter import GitRepositoryPresenter
-from .presenters.snapshot_presenter import SnapshotPresenter
 
 
 __all__ = ["compose_and_register_ui"]
@@ -41,13 +40,6 @@ def compose_and_register_ui(container: ApplicationContainer) -> DiffPanelView:
 
     # Create view with settings repo for runtime precision
     view = DiffPanelView(settings_repo=container.settings_repo)
-
-    # Create and register snapshot_presenter (doesn't need ui_state)
-    snapshot_presenter = SnapshotPresenter(
-        view=view,
-        list_snapshots_action=container.list_snapshots_action,
-    )
-    ui_registry.register_snapshot_presenter(snapshot_presenter)
 
     # Create and register diff_presenter (needs ui_state for git_repository)
     diff_presenter = DiffPresenter(

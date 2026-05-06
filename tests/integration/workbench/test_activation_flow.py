@@ -32,8 +32,6 @@ class TestWorkbenchActivationFlow:  # noqa: B024
         - _subwindow is set after activation
         - UI registry has presenters registered
         """
-        from freecad.diff_wb.ui.registry import ui_registry
-
         wb = initialized_workbench
 
         # Initially no subwindow
@@ -44,9 +42,6 @@ class TestWorkbenchActivationFlow:  # noqa: B024
 
         # Subwindow should now exist
         assert wb._subwindow is not None
-
-        # Verify UI registry has presenters registered (Phase 5 architecture)
-        assert ui_registry.snapshot_presenter is not None
 
     def test_workbench_reuses_existing_panel_on_reactivation(self, initialized_workbench: DiffWorkbench) -> None:
         """Test workbench reuses existing panel on re-activation.
@@ -74,8 +69,8 @@ class TestWorkbenchActivationFlow:  # noqa: B024
 
         This test verifies the composer correctly registers presenters in the UI registry.
         It checks that:
-        - SnapshotPresenter is registered in ui_registry
         - DiffPresenter is registered in ui_registry
+        - GitRepositoryPresenter is registered in ui_registry
         - Presenters have correct dependencies wired
         """
         from freecad.diff_wb._container import get_container
@@ -89,11 +84,11 @@ class TestWorkbenchActivationFlow:  # noqa: B024
         # Verify subwindow was created
         assert wb._subwindow is not None
 
-        # Verify presenters are in UI registry (Phase 5 architecture)
-        assert ui_registry.snapshot_presenter is not None
+        # Verify presenters are in UI registry
         assert ui_registry.diff_presenter is not None
+        assert ui_registry.git_repository_presenter is not None
 
         # Verify container has actions (not presenters)
         container = get_container()
-        assert container.take_snapshot_action is not None
-        assert container.compare_snapshots_action is not None
+        assert container.create_document_diffs_action is not None
+        assert container.get_commits_action is not None

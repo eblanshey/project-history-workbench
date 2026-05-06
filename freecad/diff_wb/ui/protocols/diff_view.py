@@ -38,12 +38,6 @@ class DiffView(Protocol):
     parameters. Presenters pass raw data only.
     """
 
-    def show_loading(self) -> None:
-        """Display loading indicator while diff is being computed.
-
-        Use DIFF_LOADING_MESSAGE from translation_strings.py for the message.
-        """
-
     def show_doc_diff(self, nodes: list[NodePresentation], git_path: str = "") -> None:
         """Display the diff tree.
 
@@ -59,13 +53,6 @@ class DiffView(Protocol):
             changed_docs: Number of changed documents.
 
         The view should use DIFF_SUMMARY_CHANGED_LABEL and append the count.
-        """
-
-    def show_error(self, message: str) -> None:
-        """Display error message.
-
-        Args:
-            error_message: The error message to display.
         """
 
     def show_property_diff(self, properties: list[PropertyPresentation]) -> None:

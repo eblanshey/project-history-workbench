@@ -412,27 +412,6 @@ class DiffPresenter:
                 pass
         return self._default_precision
 
-    def present_diff(self, diff_result: DiffResult) -> None:
-        """Transform domain data and call view methods to render UI.
-
-        Args:
-            diff_result: DiffResult from CompareSnapshotsAction.execute()
-        """
-        # Store diff result for property lookup (also add to dict for multi-doc support)
-        self._diff_result = diff_result
-        git_path = diff_result.new_snapshot.git_path or diff_result.new_snapshot.document_name
-        if git_path:
-            self._diff_results_by_path[git_path] = diff_result
-
-        # Transform domain objects to presentation models
-        nodes = [self._format_node(node) for node in diff_result.hierarchy.roots]
-
-        # Call view methods to trigger UI rendering
-        self._view.show_doc_diff(nodes, git_path)
-        has_changes = (diff_result.added_count + diff_result.deleted_count + diff_result.modified_count) > 0
-        changed_docs = 1 if has_changes else 0
-        self._view.show_summary(changed_docs=changed_docs)
-
     def on_history_item_selected(self, selection: HistorySelection) -> None:
         """Handle single item selection from history list.
 

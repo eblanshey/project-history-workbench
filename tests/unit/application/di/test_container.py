@@ -27,9 +27,6 @@ class TestApplicationContainer:
         container = create_application_container(ctx)
 
         # Verify
-        assert container.take_snapshot_action is not None
-        assert container.compare_snapshots_action is not None
-        assert container.list_snapshots_action is not None
         assert container.open_all_documents_in_repository_action is not None
         assert container.recompute_all_open_documents_action is not None
         assert container.create_document_diffs_action is not None
@@ -41,23 +38,6 @@ class TestApplicationContainer:
 
         # Execute
         container = create_application_container(ctx)
-
-        # Verify TakeSnapshotAction dependencies
-        take_action = container.take_snapshot_action
-        assert hasattr(take_action, "_freecad_port")
-        assert hasattr(take_action, "_extractor")
-        assert hasattr(take_action, "_snapshot_repo")
-
-        # Verify CompareSnapshotsAction dependencies
-        compare_action = container.compare_snapshots_action
-        assert hasattr(compare_action, "_snapshot_repo")
-        assert hasattr(compare_action, "_diff_engine")
-        assert hasattr(compare_action, "_settings_repo")
-        # Note: logger is no longer injected; uses static Log methods
-
-        # Verify ListSnapshotsAction dependencies
-        list_action = container.list_snapshots_action
-        assert hasattr(list_action, "_snapshot_repo")
 
         # Verify CreateDocumentDiffsAction dependencies
         create_document_diffs_action = container.create_document_diffs_action

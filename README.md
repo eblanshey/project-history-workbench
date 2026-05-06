@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.freecad.org/"><img alt="FreeCAD 1.0.2+" src="https://img.shields.io/badge/FreeCAD-1.0.2%2B-blue"></a>
+  <a href="https://www.freecad.org/"><img alt="FreeCAD 1.1+" src="https://img.shields.io/badge/FreeCAD-1.1%2B-blue"></a>
   <a href="https://www.python.org/"><img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-3776AB"></a>
   <a href="https://git-scm.com/"><img alt="Git required" src="https://img.shields.io/badge/Git-required-F05032"></a>
 </p>
@@ -53,14 +53,14 @@ DiffCAD supplements your existing git client. It intentionally focuses on CAD re
 
 DiffCAD requires:
 
-- FreeCAD 1.0.2 or newer
+- FreeCAD 1.1 or newer (earlier versions may work, but are untested)
 - Git installed and available on your global `PATH`
 
 DiffCAD is not yet available in the official FreeCAD Addon Manager repository. Until then, install it as a custom repository:
 
 1. Open FreeCAD.
 2. Go to **Edit > Preferences > Addon Manager > Custom repositories**.
-3. Add this repository URL: `https://github.com/eblanshey/freecad_diff_workbench`
+3. Add this repository URL: `https://github.com/eblanshey/DiffCAD`
 4. Set the branch to `master`.
 5. Open **Tools > Addon Manager**.
 6. Search for **Diff Workbench** and install it.
@@ -155,4 +155,4 @@ For large or long-lived CAD repositories, also consider Git LFS for `.FCStd` fil
 
 DiffCAD is early software built for real workflows. Expect rough edges, please report issues, and include sample documents when possible if a diff looks wrong.
 
-Bug reports and feature requests: <https://github.com/eblanshey/freecad_diff_workbench/issues>
+Bug reports and feature requests: <https://github.com/eblanshey/DiffCAD/issues>
