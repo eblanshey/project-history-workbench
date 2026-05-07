@@ -58,7 +58,7 @@ DiffCAD supplements your existing git client. It intentionally focuses on CAD re
 DiffCAD requires:
 
 - FreeCAD 1.1 or newer (earlier versions may work, but are untested)
-- Git installed and available on your global `PATH`
+- Git installed and available on your global `PATH` (see the Git Setup instructions below)
 
 DiffCAD is not yet available in the official FreeCAD Addon Manager repository. Until then, install it as a custom repository:
 
@@ -70,11 +70,27 @@ DiffCAD is not yet available in the official FreeCAD Addon Manager repository. U
 6. Search for **Diff Workbench** and install it.
 7. Restart FreeCAD.
 
+### Git Setup (Absolute Beginner)
+
+Don't be intimidated if you've never used Git before! If you have never used the command line, follow these steps exactly.
+
+1. Install Git from <https://git-scm.com/install>, then run installer with default options.
+2. Open terminal (`PowerShell` or `Command Prompt` on Windows, `Terminal` on macOS/Linux).
+3. Set identity, which will be used for your commits (savepoints): `git config --global user.name "Your Name"` and `git config --global user.email "you@example.com"`.
+4. Go to your project folder with `cd`, which stands for "change directory", using your OS path format:
+    - Windows: `cd C:\Users\YourName\Documents\MyFreeCADProject`
+    - macOS/Linux: `cd ~/Documents/MyFreeCADProject`
+5. Initialize repository: `git init .`
+6. Confirm setup: `git status`
+
+From here on you can use the workbench for all operations.
+
 ## First Run
 
-DiffCAD needs baseline snapshots before it can show useful diffs. For an existing project, create those snapshots before making new CAD changes.
+DiffCAD needs baseline snapshots before it can show useful diffs. For an existing project, create those snapshots before making new CAD changes. To more efficiently use disk space for versioning, see the FreeCAD Git Tips section below before making your first git commit.
 
-1. **Create or open a git repository:** If your project does not use git yet, initialize one with your normal git client or run `git init .` in the project directory.
+0. **(Optional) FreeCAD Compression:** to more efficiently use disk space for versioning, see the FreeCAD Git Tips section below.
+1. **Create or open a git repository:** If your project does not use git yet, initialize one with your normal git client or run `git init .` in the project directory (see git setup instructions above)
 2. **Open a project file:** Start FreeCAD and open any document inside the repository.
 3. **Refresh the repository:** Switch to the **Diff Workbench** and click **Refresh Git Repository**. DiffCAD detects the repository from the open document.
 4. **Open project documents:** Click **Open All Documents** to open all FreeCAD documents in the repository.
