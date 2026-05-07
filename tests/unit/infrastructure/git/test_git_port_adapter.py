@@ -12,6 +12,7 @@ from unittest.mock import patch
 import pytest
 
 from freecad.diff_wb.infrastructure.git import GitPortAdapter
+from freecad.diff_wb.utils import Log
 
 
 class TestGitPortAdapter:
@@ -132,10 +133,34 @@ class TestGitPortAdapter:
             stderr="fatal: not a git repository",
         )
 
-        with patch.object(subprocess, "run", return_value=mock_result):
+        with (
+            patch.object(subprocess, "run", return_value=mock_result),
+            patch.object(Log, "warning") as mock_warning,
+        ):
             result = self.adapter.find_top_level_git_path("/non/git/path")
 
             assert result is None
+            mock_warning.assert_not_called()
+
+    def test_find_top_level_path_warns_for_git_error(self) -> None:
+        """Test git errors are logged separately from non-repository paths."""
+        mock_result = subprocess.CompletedProcess(
+            args=["git", "rev-parse", "--show-toplevel"],
+            returncode=128,
+            stdout="",
+            stderr="fatal: detected dubious ownership in repository at '//server/share/repo'",
+        )
+
+        with (
+            patch.object(subprocess, "run", return_value=mock_result),
+            patch.object(Log, "warning") as mock_warning,
+        ):
+            result = self.adapter.find_top_level_git_path("//server/share/repo/file.FCStd")
+
+        assert result is None
+        mock_warning.assert_called_once()
+        assert "Git repository detection failed due to git error" in mock_warning.call_args[0][0]
+        assert "dubious ownership" in mock_warning.call_args[0][0]
 
     @pytest.mark.parametrize(
         ("side_effect",),
@@ -168,6 +193,39 @@ class TestGitPortAdapter:
 
             # Empty string stripped is still empty string
             assert result == ""
+
+    def test_run_git_suppresses_windows_console_window(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test Windows git commands run without opening a console window."""
+
+        class FakeStartupInfo:
+            """Minimal STARTUPINFO test double."""
+
+            def __init__(self) -> None:
+                self.dwFlags = 0
+                self.wShowWindow = 1
+
+        monkeypatch.setattr(os, "name", "nt")
+        monkeypatch.setattr(subprocess, "CREATE_NO_WINDOW", 0x08000000, raising=False)
+        monkeypatch.setattr(subprocess, "STARTF_USESHOWWINDOW", 1, raising=False)
+        monkeypatch.setattr(subprocess, "SW_HIDE", 0, raising=False)
+        monkeypatch.setattr(subprocess, "STARTUPINFO", FakeStartupInfo, raising=False)
+
+        mock_result = subprocess.CompletedProcess(
+            args=["git", "rev-parse", "--show-toplevel"],
+            returncode=0,
+            stdout="C:/repo\n",
+            stderr="",
+        )
+
+        with patch.object(subprocess, "run", return_value=mock_result) as mock_run:
+            result = self.adapter.find_top_level_git_path("C:/repo")
+
+        assert result == "C:/repo"
+        kwargs = mock_run.call_args.kwargs
+        assert kwargs["creationflags"] == 0x08000000
+        startupinfo = kwargs["startupinfo"]
+        assert startupinfo.dwFlags == 1
+        assert startupinfo.wShowWindow == 0
 
     @pytest.mark.parametrize(
         "returncode",

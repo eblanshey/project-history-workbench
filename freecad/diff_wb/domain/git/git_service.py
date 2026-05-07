@@ -7,11 +7,10 @@
 # dependencies.
 """Git domain service."""
 
-import os
-
 from ...utils import Log
 from ..freecad_ports import DocumentLike
 from .models import GitCommit, GitRepository
+from .paths import git_path_name, relative_git_path
 from .ports import GitPort
 
 
@@ -49,7 +48,7 @@ class GitService:
         git_root = self._git_port.find_top_level_git_path(path)
         if git_root is None:
             return None
-        name = os.path.basename(git_root)
+        name = git_path_name(git_root)
         return GitRepository(name=name, absolute_path=git_root)
 
     def get_commits(self, repo: GitRepository, limit: int = 20, skip: int = 0) -> list[GitCommit]:
@@ -107,7 +106,7 @@ class GitService:
                 doc_path = getattr(doc, "FileName", "")
                 if doc_path and self._git_port.is_path_in_repository(repo.absolute_path, doc_path):
                     # Get relative path from git root
-                    rel_path = os.path.relpath(doc_path, repo.absolute_path)
+                    rel_path = relative_git_path(doc_path, repo.absolute_path)
                     if rel_path in dirty_paths:
                         dirty_doc_paths.append(rel_path)
 

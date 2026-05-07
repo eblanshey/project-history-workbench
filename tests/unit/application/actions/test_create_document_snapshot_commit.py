@@ -135,6 +135,35 @@ objects: []
         assert result.data.snapshot.git_path == "assemblies/sub/Widget.FCStd"
         assert result.data.snapshot.document_name == "Widget.FCStd"
 
+    def test_execute_normalizes_windows_snapshot_path_for_git_lookup(self) -> None:
+        """Test: Windows separators are normalized before git snapshot lookup."""
+        mock_git_service = MagicMock(spec=GitService)
+        yaml_content = """v: 1
+timestamp: 2024-02-20T14:00:00+00:00
+uid: test-uuid-windows
+objects: []
+"""
+        mock_git_service.get_file_contents.return_value = yaml_content
+        mock_deserializer = MagicMock()
+        mock_deserializer.from_yaml.return_value = _snapshot("test-uuid-windows")
+
+        action = CreateDocumentSnapshotForCommitAction(
+            git_service=mock_git_service,
+            snapshot_deserializer=mock_deserializer,
+        )
+        repo = GitRepository(name="test-repo", absolute_path="C:/repo")
+
+        result = action.execute(repo, "HEAD", "assemblies\\sub\\Widget.FCStd")
+
+        assert result.is_success is True
+        assert result.data is not None
+        assert result.data.status == SnapshotLoadStatus.FOUND
+        mock_git_service.get_file_contents.assert_called_once_with(
+            repo,
+            "HEAD",
+            "assemblies/sub/.snapshots/Widget.yaml",
+        )
+
     def test_yaml_missing_and_fcstd_missing_returns_document_missing(self) -> None:
         """Test: Missing YAML + missing FCStd returns DOCUMENT_MISSING."""
         mock_git_service = MagicMock(spec=GitService)

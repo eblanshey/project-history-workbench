@@ -8,6 +8,7 @@ import os
 
 from ...domain.freecad_ports import FreeCadPort
 from ...domain.git.models import GitRepository
+from ...domain.git.paths import is_fcstd_path
 from ...utils import Log
 from .result_models import Result
 
@@ -37,7 +38,7 @@ class OpenAllDocumentsInRepositoryAction:
 
         for root, dirs, files in os.walk(repository_path):
             dirs[:] = [directory for directory in dirs if not directory.startswith(".")]
-            fcstd_paths.extend(os.path.join(root, filename) for filename in files if filename.endswith(".FCStd"))
+            fcstd_paths.extend(os.path.join(root, filename) for filename in files if is_fcstd_path(filename))
 
         return fcstd_paths
 

@@ -4,6 +4,10 @@
 # document not in git repo, and correct git_path, document_name, and nodes handling.
 """Unit tests for CreateDocumentSnapshotForWorkingTreeAction."""
 
+from unittest.mock import MagicMock
+
+import pytest
+
 from freecad.diff_wb.application.actions.create_document_snapshot_working import (
     CreateDocumentSnapshotForWorkingTreeAction,
 )
@@ -78,6 +82,28 @@ class TestCreateDocumentSnapshotForWorkingTreeActionSuccess:
         result = action.execute(repo, doc)
 
         # Assert
+        assert result.is_success is True
+        assert result.data is not None
+        assert result.data.git_path == "src/file.FCStd"
+
+    def test_snapshot_has_normalized_windows_git_path_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test Windows document paths are converted to Git-style relative paths."""
+        doc = MockDocument("C:\\repo\\src\\file.FCStd", "TestDoc")
+
+        git_service = MagicMock(spec=GitService)
+        git_service.get_eligible_docs.return_value = [doc]
+        extractor = SnapshotExtractor()
+
+        repo = GitRepository(name="repo", absolute_path="C:\\repo")
+        action = CreateDocumentSnapshotForWorkingTreeAction(git_service, extractor)
+
+        monkeypatch.setattr(
+            "freecad.diff_wb.domain.git.paths.os.path.relpath",
+            lambda path, root: "src\\file.FCStd",
+        )
+
+        result = action.execute(repo, doc)
+
         assert result.is_success is True
         assert result.data is not None
         assert result.data.git_path == "src/file.FCStd"

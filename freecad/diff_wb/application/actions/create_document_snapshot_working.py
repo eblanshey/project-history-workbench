@@ -8,6 +8,7 @@
 from ...domain.freecad_ports import DocumentLike
 from ...domain.git.git_service import GitService
 from ...domain.git.models import GitRepository
+from ...domain.git.paths import relative_git_path
 from ...domain.snapshots.gui_extractor import SnapshotExtractor
 from ...utils import Log
 from .result_models import Result
@@ -47,7 +48,7 @@ class CreateDocumentSnapshotForWorkingTreeAction:
             Log.warning(f"Document {doc_path} is not in the git repository")
             return Result.failure("Document is not in the git repository")
 
-        git_path = doc_path[len(repo.absolute_path) :].lstrip("/")
+        git_path = relative_git_path(doc_path, repo.absolute_path)
         try:
             snapshot = self._extractor.extract_tree(document, git_path=git_path)
         except Exception as e:  # noqa: BLE001

@@ -21,6 +21,7 @@ class TestOpenAllDocumentsInRepositoryAction:
         repo_root = tmp_path / "repo"
         repo_root.mkdir()
         (repo_root / "root.FCStd").write_text("", encoding="utf-8")
+        (repo_root / "lower.fcstd").write_text("", encoding="utf-8")
 
         nested_dir = repo_root / "models" / "subdir"
         nested_dir.mkdir(parents=True)
@@ -37,6 +38,7 @@ class TestOpenAllDocumentsInRepositoryAction:
         assert sorted(result.data) == sorted(
             [
                 str(repo_root / "root.FCStd"),
+                str(repo_root / "lower.fcstd"),
                 str(nested_dir / "nested.FCStd"),
             ]
         )

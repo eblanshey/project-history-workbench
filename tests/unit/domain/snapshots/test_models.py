@@ -41,3 +41,12 @@ class TestSnapshot:
             ],
         )
         assert snapshot.node_count == 2
+
+    def test_with_identity_normalizes_windows_git_path(self) -> None:
+        ts = datetime(2024, 1, 1, 0, 0, 0)
+        snapshot = Snapshot(snapshot_id="s", document_name="Doc", timestamp=ts)
+
+        result = snapshot.with_identity("assemblies\\sub\\Widget.FCStd")
+
+        assert result.git_path == "assemblies/sub/Widget.FCStd"
+        assert result.document_name == "Widget.FCStd"

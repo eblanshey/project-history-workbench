@@ -4,6 +4,7 @@
 
 from ...domain.git.git_service import GitService
 from ...domain.git.models import GitRepository
+from ...domain.git.paths import to_git_path
 from ...domain.snapshots import get_snapshot_yaml_path_for_document
 from ...domain.snapshots.serializer import SnapshotDeserializer
 from ...utils import Log
@@ -49,7 +50,8 @@ class CreateDocumentSnapshotForCommitAction:
             FOUND, DOCUMENT_MISSING, SNAPSHOT_MISSING, or INVALID_SNAPSHOT.
         """
         # Compute the YAML snapshot path from the FCStd git_path
-        yaml_git_path = str(get_snapshot_yaml_path_for_document(fcstd_git_path))
+        fcstd_git_path = to_git_path(fcstd_git_path)
+        yaml_git_path = to_git_path(str(get_snapshot_yaml_path_for_document(fcstd_git_path)))
 
         # Get file contents from git
         yaml_contents = self._git_service.get_file_contents(repo, commit, yaml_git_path)

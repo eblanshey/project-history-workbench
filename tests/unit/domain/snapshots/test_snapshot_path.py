@@ -49,3 +49,11 @@ class TestGetSnapshotYamlPathForDocument:
         result = get_snapshot_yaml_path_for_document(document_path)
 
         assert result.name == "my document.yaml"
+
+    def test_handles_windows_separators_in_git_path(self) -> None:
+        """Test: Windows-style git paths place snapshots beside document path."""
+        document_path = "assemblies\\sub\\Widget.FCStd"
+        result = get_snapshot_yaml_path_for_document(document_path)
+
+        expected = Path("assemblies/sub/.snapshots/Widget.yaml")
+        assert result == expected

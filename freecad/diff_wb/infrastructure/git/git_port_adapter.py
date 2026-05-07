@@ -10,8 +10,10 @@ import shutil
 import subprocess
 from codecs import decode as codecs_decode
 from datetime import datetime
+from typing import Any
 
 from freecad.diff_wb.domain.git.models import GitCommit
+from freecad.diff_wb.domain.git.paths import is_fcstd_path
 from freecad.diff_wb.domain.git.ports import GitPort
 from freecad.diff_wb.utils import Log
 
@@ -31,6 +33,27 @@ class GitPortAdapter(GitPort):
     def __init__(self) -> None:
         """Initialize adapter with cached git executable path."""
         self._git_executable = shutil.which("git")
+        Log.info(f"Git executable detected: {self._git_executable or '<not found>'}")
+
+    def _windows_no_console_kwargs(self) -> dict[str, Any]:
+        """Return subprocess options that suppress console windows on Windows."""
+        if os.name != "nt":
+            return {}
+
+        kwargs: dict[str, Any] = {}
+        create_no_window = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        if create_no_window:
+            kwargs["creationflags"] = create_no_window
+
+        startup_info_type = getattr(subprocess, "STARTUPINFO", None)
+        startf_use_show_window = getattr(subprocess, "STARTF_USESHOWWINDOW", 0)
+        if startup_info_type is not None and startf_use_show_window:
+            startup_info = startup_info_type()
+            startup_info.dwFlags |= startf_use_show_window
+            startup_info.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+            kwargs["startupinfo"] = startup_info
+
+        return kwargs
 
     def _run_git(
         self,
@@ -44,15 +67,17 @@ class GitPortAdapter(GitPort):
             Log.warning("Git command not found - git may not be installed or not in PATH")
             return None
 
-        return subprocess.run(
-            [self._git_executable, *args],
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout,
-        )
+        run_kwargs: dict[str, Any] = {
+            "cwd": cwd,
+            "capture_output": True,
+            "text": True,
+            "encoding": "utf-8",
+            "errors": "replace",
+            "timeout": timeout,
+        }
+        run_kwargs.update(self._windows_no_console_kwargs())
+
+        return subprocess.run([self._git_executable, *args], **run_kwargs)
 
     def find_top_level_git_path(self, path: str) -> str | None:
         """Find git root using git CLI.
@@ -79,9 +104,26 @@ class GitPortAdapter(GitPort):
                 return None
             if result.returncode == 0:
                 return result.stdout.strip()
+            if not self._is_not_git_repository_error(result.stderr):
+                Log.warning(
+                    "Git repository detection failed due to git error: "
+                    f"path={path}, cwd={cwd_path}, returncode={result.returncode}, stderr={result.stderr.strip()}"
+                )
             return None
-        except (subprocess.TimeoutExpired, FileNotFoundError, NotADirectoryError, OSError):
+        except subprocess.TimeoutExpired:
+            Log.warning(f"Git repository detection timed out for path: {path} (cwd={cwd_path})")
             return None
+        except FileNotFoundError:
+            Log.warning(f"Git executable disappeared before repository detection for path: {path}")
+            return None
+        except (NotADirectoryError, OSError) as e:
+            Log.warning(f"Git repository detection error for path {path} (cwd={cwd_path}): {e}")
+            return None
+
+    def _is_not_git_repository_error(self, stderr: str) -> bool:
+        """Return True when git reports the path is not inside a repository."""
+        normalized_stderr = stderr.lower()
+        return "not a git repository" in normalized_stderr
 
     def get_commits(self, path: str, limit: int = 20, skip: int = 0) -> list[GitCommit]:
         """Get recent commits using git CLI.
@@ -450,7 +492,7 @@ class GitPortAdapter(GitPort):
             return [
                 str(entry["rel_path"])
                 for entry in status_entries
-                if str(entry["index_status"]) not in (" ", "?") and str(entry["rel_path"]).endswith(".FCStd")
+                if str(entry["index_status"]) not in (" ", "?") and is_fcstd_path(str(entry["rel_path"]))
             ]
         except subprocess.TimeoutExpired:
             Log.warning("Git status command timed out")
@@ -577,6 +619,6 @@ class GitPortAdapter(GitPort):
             )
             if result is None or result.returncode != 0:
                 return []
-            return [path for path in result.stdout.split("\x00") if path and path.endswith(".FCStd")]
+            return [path for path in result.stdout.split("\x00") if path and is_fcstd_path(path)]
         except (subprocess.TimeoutExpired, FileNotFoundError, NotADirectoryError, OSError):
             return []

@@ -44,6 +44,16 @@ class TestGetRepository:
         assert result.name == "project"
         assert result.absolute_path == expected
 
+    def test_repository_name_handles_windows_path(self) -> None:
+        fake_port = FakeGitPort()
+        fake_port.add_git_repo("C:\\Users\\me\\project")
+        service = GitService(git_port=fake_port)
+
+        result = service.get_repository("C:\\Users\\me\\project")
+
+        assert result is not None
+        assert result.name == "project"
+
     @pytest.mark.parametrize(
         "query_path",
         [

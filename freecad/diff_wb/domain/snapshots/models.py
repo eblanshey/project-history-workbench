@@ -5,8 +5,8 @@
 
 from dataclasses import dataclass, field, replace
 from datetime import datetime
-from pathlib import PurePosixPath
 
+from ..git.paths import git_path_name, to_git_path
 from ..tree.property import Property
 
 
@@ -95,4 +95,5 @@ class Snapshot:
 
     def with_identity(self, git_path: str) -> "Snapshot":
         """Return copy with git_path set and document_name derived from it."""
-        return replace(self, git_path=git_path, document_name=PurePosixPath(git_path).name)
+        normalized_git_path = to_git_path(git_path)
+        return replace(self, git_path=normalized_git_path, document_name=git_path_name(normalized_git_path))

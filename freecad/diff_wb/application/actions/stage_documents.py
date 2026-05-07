@@ -5,11 +5,12 @@
 # to the git repository using git add.
 """Application action for staging documents to git."""
 
-import os
+from pathlib import Path
 
 from ...domain.freecad_ports import DocumentLike, FreeCadPort
 from ...domain.git.git_service import GitService
 from ...domain.git.models import GitRepository
+from ...domain.git.paths import relative_git_path, to_git_path
 from ...domain.snapshots import get_snapshot_yaml_path_for_document
 from ...domain.snapshots.models import Snapshot
 from ...infrastructure.persistence.snapshot_yaml import SnapshotYamlSerializer
@@ -37,7 +38,7 @@ class StageDocumentsAction:
             doc_path = getattr(doc, "FileName", "")
             if not doc_path:
                 continue
-            git_path = os.path.relpath(doc_path, repo.absolute_path)
+            git_path = relative_git_path(doc_path, repo.absolute_path)
             docs_by_git_path[git_path] = doc
         return docs_by_git_path
 
@@ -68,6 +69,7 @@ class StageDocumentsAction:
             if not git_path:
                 Log.warning(f"Snapshot has no git_path, cannot stage: {snapshot.document_name}")
                 continue
+            git_path = to_git_path(git_path)
 
             matching_doc = docs_by_git_path.get(git_path)
             if matching_doc is not None:
@@ -81,7 +83,7 @@ class StageDocumentsAction:
 
             # Get the yaml path (relative to git_path) and make it absolute
             yaml_path_relative = get_snapshot_yaml_path_for_document(git_path)
-            yaml_path = repo.absolute_path / yaml_path_relative
+            yaml_path = Path(repo.absolute_path) / yaml_path_relative
 
             # Create snapshot directory if it doesn't exist (use parent of yaml path)
             snapshot_dir = yaml_path.parent
@@ -103,7 +105,7 @@ class StageDocumentsAction:
             # Collect paths to stage (relative to git root)
             all_paths_to_stage.append(git_path)  # The FCStd file
             # Convert yaml_path to relative from repo root
-            yaml_relative = os.path.relpath(yaml_path, repo.absolute_path)
+            yaml_relative = relative_git_path(str(yaml_path), repo.absolute_path)
             all_paths_to_stage.append(yaml_relative)
 
         # Stage all files

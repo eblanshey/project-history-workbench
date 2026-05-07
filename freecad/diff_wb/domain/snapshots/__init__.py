@@ -9,6 +9,7 @@
 import os
 from pathlib import Path
 
+from ..git.paths import to_git_path
 from .models import Snapshot, SnapshotMetadata, SnapshotObject, SnapshotOccurrence
 from .repository import InMemorySnapshotRepository, SnapshotRepository
 from .serializer import SnapshotDeserializer
@@ -26,7 +27,8 @@ def get_snapshot_yaml_path_for_document(document_path: str) -> Path:
     Returns:
         Path to the YAML snapshot file.
     """
-    doc_path = Path(document_path)
+    normalized_document_path = to_git_path(document_path)
+    doc_path = Path(normalized_document_path)
     parent_dir = doc_path.parent
     doc_name = os.path.splitext(doc_path.name)[0]
     return parent_dir / ".snapshots" / f"{doc_name}.yaml"

@@ -8,7 +8,17 @@
 
 from .git_service import GitService
 from .models import GitCommit, GitRepository
+from .paths import git_path_name, is_fcstd_path, relative_git_path, to_git_path
 from .ports import GitPort
 
 
-__all__ = ["GitRepository", "GitCommit", "GitPort", "GitService"]
+__all__ = [
+    "GitRepository",
+    "GitCommit",
+    "GitPort",
+    "GitService",
+    "git_path_name",
+    "is_fcstd_path",
+    "relative_git_path",
+    "to_git_path",
+]
