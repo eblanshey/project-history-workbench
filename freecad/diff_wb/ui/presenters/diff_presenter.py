@@ -629,6 +629,9 @@ class DiffPresenter:
         # Remove staged file from dirty paths
         self._dirty_paths.discard(git_path)
 
+        # Clear stale property view tied to prior node selection
+        self.clear_property_diff()
+
         # Collapse the root tree item and disable the stage button
         self._view.collapse_tree_item(git_path)
         self._view.set_stage_button_enabled(git_path, enabled=False)

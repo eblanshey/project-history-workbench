@@ -1,5 +1,6 @@
 """File responsibility: Unit tests for DiffPresenter commit selection via application action."""
 
+from datetime import datetime
 from unittest.mock import MagicMock
 
 from freecad.diff_wb.application.actions.create_document_diffs import CreateDocumentDiffsAction
@@ -13,7 +14,9 @@ from freecad.diff_wb.application.actions.result_models import (
     Result,
 )
 from freecad.diff_wb.application.actions.stage_documents import StageDocumentsAction
+from freecad.diff_wb.domain.diff.models import DiffResult
 from freecad.diff_wb.domain.git.models import GitRepository
+from freecad.diff_wb.domain.snapshots.models import Snapshot
 from freecad.diff_wb.ui.presenters.diff_presenter import DiffPresenter
 from freecad.diff_wb.ui.presenters.presentation_models import NewFileIndicator, OldSnapshotMissingIndicator
 from freecad.diff_wb.ui.state import UIState
@@ -111,3 +114,26 @@ class TestDiffPresenterCommitSelection:
         presentations = show_trees_call["diff_trees"]
         assert isinstance(presentations[0].indicators[0], OldSnapshotMissingIndicator)
         assert presentations[0].indicators[0].tooltip == "Cannot find old snapshot. Diff cannot be generated."
+
+
+class TestDiffPresenterStageSingleDocument:
+    def test_stage_click_clears_property_panel(self) -> None:
+        view, presenter, _ = _make_presenter()
+        repo = GitRepository(name="repo", absolute_path="/tmp/repo")
+        presenter._ui_state.git_repository = repo
+
+        snapshot = Snapshot(
+            snapshot_id="s1",
+            document_name="doc.FCStd",
+            timestamp=datetime.now(),
+            git_path="doc.FCStd",
+        )
+        presenter._diff_results_by_path["doc.FCStd"] = DiffResult(
+            old_snapshot=snapshot,
+            new_snapshot=snapshot,
+        )
+        presenter._stage_documents.execute.return_value = Result.success(None)
+
+        presenter.on_add_button_clicked("doc.FCStd")
+
+        assert any(call["method"] == "clear_property_diff" for call in view.get_calls())
