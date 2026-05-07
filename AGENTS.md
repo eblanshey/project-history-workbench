@@ -22,7 +22,7 @@
 - All english words and phrases must use translations via the translation_strings.py file. Logs don't require translation.
 - Read the `docs/Architecture.md` guidelines when planning new features.
 - Do not remove useful line comments when refactoring
-- Keep cyclomatic complexity at B (5-10) or better in the src dir: `uv run radon cc freecad/diff_wb --no-assert -s`
+- Keep cyclomatic complexity at B (5-10) or better in the src dir: `uv run radon cc --min C freecad/diff_wb --no-assert -s`
 
 Terse like caveman. Technical substance exact. Only fluff die.
 Drop: articles, filler (just/really/basically), pleasantries, hedging.

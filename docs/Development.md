@@ -76,7 +76,7 @@ Keep function complexity at **B (5-10)** or better. Functions rated **C (10-20)*
 Check complexity before submitting changes:
 
 ```bash
-uv run radon cc --show-complexity --min B freecad/diff_wb
+uv run radon cc --min C freecad/diff_wb --no-assert -s
 ```
 
 Target: No C-rated functions in the codebase.

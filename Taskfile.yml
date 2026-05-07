@@ -41,7 +41,7 @@ tasks:
     desc: Run type checking with mypy
     summary: Validates type hints and catches type errors
     cmds:
-      - "{{.UV}} run mypy {{.CLI_ARGS | default .SRC}}"
+      - "{{.UV}} run mypy {{.CLI_ARGS | default \"freecad tests\"}}"
 
   check:docstrings:
     desc: Check that modules and public objects have docstrings
@@ -57,9 +57,9 @@ tasks:
     cmds:
       - echo "Checking complexity..."
       - |
-          OUTPUT=$(uv run radon cc --show-complexity {{.CLI_ARGS | default .SRC}} --min B 2>&1)
+          OUTPUT=$(uv run radon cc {{.CLI_ARGS | default .SRC}} --min C --no-assert -s 2>&1)
           if [ -z "$OUTPUT" ]; then
-            echo "✅ No complexity issues found (all functions rated A)"
+            echo "✅ No complexity issues found (all functions rated A or B)"
           else
             echo "$OUTPUT"
           fi
