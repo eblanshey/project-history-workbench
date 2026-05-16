@@ -192,7 +192,7 @@ CONFIGURE_GIT_GLOBAL_SAVE_FAILED_MESSAGE = (
 """Message shown when global git identity save fails and local save is available."""
 
 CONFIGURE_GIT_GLOBAL_CONFIG_NOT_WRITABLE_MESSAGE = (
-    "Global configuration option disabled because global config file not writeable."
+    "Global configuration option disabled because global config file not writable."
 )
 """Message shown when global git config cannot be written."""
 
