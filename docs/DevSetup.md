@@ -88,13 +88,13 @@ During development, restart FreeCAD after changing Python files. Resource files,
 Run all code quality checks:
 
 ```bash
-task check
+task quality:check
 ```
 
 Run unit tests:
 
 ```bash
-task test
+task test:unit
 ```
 
 Run integration tests:

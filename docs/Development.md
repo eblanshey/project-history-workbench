@@ -7,13 +7,13 @@ This guide describes how to make maintainable changes to DiffCAD. For environmen
 Run code quality checks before submitting changes:
 
 ```bash
-task check
+task quality:check
 ```
 
 Run unit tests:
 
 ```bash
-task test
+task test:unit
 ```
 
 Run integration tests when behavior touches FreeCAD, git workflows, snapshots, preferences, or workbench activation:
@@ -241,7 +241,7 @@ Use unit tests for fast feedback on pure behavior. Unit tests should not require
 Run unit tests with:
 
 ```bash
-task test
+task test:unit
 ```
 
 ### Integration Tests
