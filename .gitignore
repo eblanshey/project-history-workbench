@@ -90,6 +90,7 @@ github_token.txt
 
 # Opencode AI configuration
 .opencode/
+.kilo/
 
 # Pi directory
 .pi/

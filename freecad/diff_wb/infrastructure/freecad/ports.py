@@ -77,11 +77,9 @@ class FreeCadPortAdapter:
             return False
         gui_doc_typed = gui_doc
         try:
-            return bool(gui_doc_typed.isModified())
+            return bool(gui_doc_typed.Modified)
         except (AttributeError, RuntimeError, ReferenceError, ValueError, TypeError) as exc:
-            Log.warning(
-                f"Failed to check modified state for GUI document '{doc_name}': {exc}"
-            )
+            Log.warning(f"Failed to check modified state for GUI document '{doc_name}': {exc}")
             return False
 
     def save_document_if_modified(self, doc: DocumentLike) -> bool:

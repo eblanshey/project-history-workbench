@@ -2,7 +2,7 @@
 # File responsibility: Unit tests for FreeCadPortAdapter modified-save behavior.
 """Unit tests for FreeCadPortAdapter.save_document_if_modified."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, PropertyMock
 
 from freecad.diff_wb.domain.freecad_ports import FreeCadContext
 from freecad.diff_wb.infrastructure.freecad.ports import FreeCadPortAdapter
@@ -14,7 +14,7 @@ class TestFreeCadPortAdapterSaveIfModified:
         doc.Name = "Doc"
 
         gui_doc = MagicMock()
-        gui_doc.isModified.return_value = True
+        type(gui_doc).Modified = PropertyMock(return_value=True)
 
         gui = MagicMock()
         gui.getDocument.return_value = gui_doc
@@ -32,7 +32,7 @@ class TestFreeCadPortAdapterSaveIfModified:
         doc.Name = "Doc"
 
         gui_doc = MagicMock()
-        gui_doc.isModified.return_value = False
+        type(gui_doc).Modified = PropertyMock(return_value=False)
 
         gui = MagicMock()
         gui.getDocument.return_value = gui_doc

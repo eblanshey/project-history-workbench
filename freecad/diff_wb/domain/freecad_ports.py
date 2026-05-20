@@ -70,7 +70,8 @@ class AppLike(Protocol):
 class GuiDocumentLike(Protocol):
     """Minimal Protocol for FreeCAD GUI document operations."""
 
-    def isModified(self) -> bool: ...
+    @property
+    def Modified(self) -> bool: ...
     def getViewProvider(self, obj: object) -> object | None: ...
 
 

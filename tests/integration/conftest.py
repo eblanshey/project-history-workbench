@@ -102,7 +102,8 @@ def freecad_gui(freecad_app: Any) -> object:
         def __init__(self, doc: Any) -> None:
             self._doc = doc
 
-        def isModified(self) -> bool:
+        @property
+        def Modified(self) -> bool:
             return False
 
         def getViewProvider(self, obj: object) -> object | None:
