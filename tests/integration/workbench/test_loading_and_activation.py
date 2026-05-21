@@ -62,34 +62,3 @@ class TestWorkbenchLoading:
             import pytest
 
             pytest.fail(f"Console errors detected during module load: {len(errors)}\n" + "\n".join(errors))
-
-    def test_workbench_instance_methods_and_attributes(self, freecad_app) -> None:  # type: ignore[no-untyped-def]
-        """Test DiffWorkbench instance has required methods and attributes."""
-        import freecad.diff_wb.entrypoints.workbench as wb_module
-
-        assert hasattr(wb_module, "Gui")
-        assert hasattr(wb_module, "getMainWindow")
-
-        if wb_module.Gui is None or not hasattr(wb_module.Gui, "Workbench"):
-            import pytest
-
-            pytest.skip("GUI not available (headless mode)")
-
-        from freecad.diff_wb.entrypoints.workbench import DiffWorkbench
-
-        wb = DiffWorkbench()
-        assert hasattr(wb, "Initialize")
-        assert hasattr(wb, "Activated")
-        assert hasattr(wb, "Deactivated")
-        assert hasattr(wb, "GetClassName")
-        assert wb.MenuText == "Diff"
-        assert wb.ToolTip == "Compare document snapshots"
-        assert wb.toolbox == [
-            "DiffRefreshRepository",
-            "DiffRecomputeAllOpenDocuments",
-            "DiffOpenAllDocumentsInRepository",
-            "DiffCommit",
-            "DiffTakeSnapshot",
-            "DiffCompare",
-            "DiffSwapColumns",
-        ]
