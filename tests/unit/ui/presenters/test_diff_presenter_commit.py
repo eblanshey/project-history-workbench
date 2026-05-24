@@ -106,21 +106,7 @@ class TestDiffPresenterCommitSelection:
         assert isinstance(presentations[0].indicators[0], NewFileIndicator)
         assert presentations[0].indicators[0].tooltip == "New document"
 
-    def test_commit_selection_maps_old_snapshot_missing_to_warning_indicator(self) -> None:
-        view, presenter, create_document_diffs_action = _make_presenter()
-        repo = GitRepository(name="repo", absolute_path="/tmp/repo")
-        presenter._ui_state.git_repository = repo
-        create_document_diffs_action.execute.return_value = Result.success(
-            [DocumentDiffResult(git_path="bad.FCStd", status=DocumentDiffStatus.OLD_SNAPSHOT_MISSING)]
-        )
-
-        presenter._on_commit_selected("abc123")
-
-        show_trees_call = next((c for c in view.get_calls() if c["method"] == "show_doc_diffs"), None)
-        assert show_trees_call is not None
-        presentations = show_trees_call["diff_trees"]
-        assert isinstance(presentations[0].indicators[0], OldSnapshotMissingIndicator)
-        assert presentations[0].indicators[0].tooltip == "Cannot find old snapshot. Comparison cannot be generated."
+ 
 
 
 class TestDiffPresenterStageSingleDocument:

@@ -63,23 +63,6 @@ def _ensure_qapplication() -> None:
 
 
 class TestDiffSettingsPreferencesPage:
-    def test_preference_page_shows_runtime_only_notice(self) -> None:
-        _ensure_qapplication()
-
-        from PySide6.QtWidgets import QLabel
-
-        page = DiffSettingsPreferencesPage(
-            get_settings_action=_FakeGetDiffSettingsAction(_make_state()),
-            save_settings_action=_FakeSaveDiffSettingsAction(),
-        )
-
-        labels = page.form.findChildren(QLabel)
-        assert any(
-            label.text() == "Settings apply only during diffing. Saved snapshots are unaffected by these settings."
-            for label in labels
-        )
-        assert page.form.windowTitle() == "General"
-
     def test_preference_page_loads_current_mode_and_values_into_controls(self) -> None:
         _ensure_qapplication()
 

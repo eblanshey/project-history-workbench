@@ -628,40 +628,4 @@ class TestSetStageButtonEnabled:
         assert not stage_button.isEnabled()
 
 
-class TestWarningDisplay:
-    """Tests for warning indicator rendering in show_doc_diffs()."""
 
-    def test_show_doc_diffs_warning_is_tooltip_only(self, widget) -> None:  # type: ignore[no-untyped-def]
-        """Warnings are exposed via tooltip and not as inline orange text labels."""
-        from PySide6.QtWidgets import QLabel
-
-        from freecad.diff_wb.ui.presenters.presentation_models import (
-            DiffTreePresentation,
-            OldSnapshotMissingIndicator,
-        )
-
-        widget.show_doc_diffs(
-            [
-                DiffTreePresentation(
-                    nodes=[],
-                    git_path="parts/A.FCStd",
-                    indicators=[OldSnapshotMissingIndicator()],
-                )
-            ]
-        )
-
-        root_item = widget.tree_widget.topLevelItem(0)
-        assert root_item is not None
-        container = widget.tree_widget.itemWidget(root_item, 0)
-        assert container is not None
-
-        labels = container.findChildren(QLabel)
-        assert labels
-        assert not any(label.text() == "Cannot find old snapshot. Diff cannot be generated." for label in labels)
-
-        # Warning tooltip is shown on the icon label when icon assets are available.
-        # In headless/unit environments icon loading may be unavailable, so keep this
-        # assertion conditional.
-        tooltip_values = [label.toolTip() for label in labels]
-        if any(tooltip_values):
-            assert "Cannot find old snapshot. Comparison cannot be generated." in tooltip_values

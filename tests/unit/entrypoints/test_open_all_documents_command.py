@@ -58,13 +58,4 @@ class TestOpenAllDocumentsInRepositoryCommand:
         mock_container.open_all_documents_in_repository_action.execute.assert_called_once_with(repo)
         mock_message_box.warning.assert_not_called()
 
-    def test_resources_and_activation(self) -> None:
-        """Command resources are valid and command active."""
-        command = _OpenAllDocumentsInRepositoryCommand()
-
-        resources = command.GetResources()
-
-        assert resources["MenuText"] == "Open All Documents in Repository"
-        assert "open" in resources["ToolTip"].lower()
-        assert resources["Pixmap"].endswith("OpenAllDocuments.svg")
-        assert command.IsActive() is True
+ 

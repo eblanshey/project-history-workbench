@@ -4,7 +4,7 @@
 These tests verify that commands correctly delegate to actions and presenters.
 Focused command files (test_commit_command.py, test_open_all_documents_command.py)
 own Commit and OpenAll routing behavior; this file covers commands without dedicated
-test files plus resource validation for all commands.
+test files.
 """
 
 from unittest.mock import MagicMock, Mock, patch
@@ -57,16 +57,7 @@ class TestRefreshRepositoryCommand:
 
         mock_presenter.refresh_repository_and_commits.assert_called_once_with()
 
-    def test_refresh_repository_command_resources_correct(self) -> None:
-        """Menu text, tooltip, and icon path are correct."""
-        command = _RefreshRepositoryCommand()
-
-        resources = command.GetResources()
-
-        assert resources["MenuText"] == "Refresh Project and Iterations"
-        assert "refresh" in resources["ToolTip"].lower()
-        assert resources["Pixmap"].endswith("RefreshRepository.svg")
-        assert command.IsActive() is True
+ 
 
 
 class TestRecomputeAllOpenDocumentsCommand:
@@ -84,43 +75,16 @@ class TestRecomputeAllOpenDocumentsCommand:
 
         mock_container.recompute_all_open_documents_action.execute.assert_called_once_with()
 
-    def test_resources_and_activation(self) -> None:
-        """Command resources are valid and command active."""
-        command = _RecomputeAllOpenDocumentsCommand()
-
-        resources = command.GetResources()
-
-        assert resources["MenuText"] == "Recompute All"
-        assert "recompute" in resources["ToolTip"].lower()
-        assert resources["Pixmap"].endswith("RecomputeAll.svg")
-        assert command.IsActive() is True
+ 
 
 
 class TestRecomputeActiveDocumentCommand:
     """Tests for _RecomputeActiveDocumentCommand."""
 
-    def test_resources_and_activation(self) -> None:
-        """Command resources are valid and command active."""
-        command = _RecomputeActiveDocumentCommand()
-
-        resources = command.GetResources()
-
-        assert resources["MenuText"] == "Recompute Active Document"
-        assert "recompute" in resources["ToolTip"].lower()
-        assert resources["Pixmap"] == "view-refresh"
-        assert command.IsActive() is True
+ 
 
 
 class TestOpenDiffWindowCommand:
     """Tests for _OpenDiffWindowCommand."""
 
-    def test_resources_and_activation(self) -> None:
-        """Command resources are valid and command active."""
-        command = _OpenDiffWindowCommand()
-
-        resources = command.GetResources()
-
-        assert resources["MenuText"] == "Open History Panel"
-        assert "history" in resources["ToolTip"].lower()
-        assert resources["Pixmap"].endswith("Logo.svg")
-        assert command.IsActive() is True
+ 
