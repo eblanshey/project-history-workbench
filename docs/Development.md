@@ -18,7 +18,7 @@ The user-facing UI uses CAD-oriented terminology while internal code keeps Git/d
 | History Panel | Diff panel window |
 
 **Contributor guidance:**
-- User-facing text must use UI terms (see `translation_strings.py`).
+- User-facing text must use UI terms and translation-safe literals.
 - Internal code may keep Git/diff terms until additional refactoring phase.
 - Do not rename internal domain/application/infrastructure classes (`GitService`, `DiffEngine`, etc.).
 - Do not rename `freecad/diff_wb` package path.
@@ -46,7 +46,7 @@ freecad/diff_wb/
 ├── entrypoints/       # FreeCAD workbench and command integration
 ├── infrastructure/    # FreeCAD, git, and persistence adapters
 ├── resources/         # Icons, translations, UI resources
-└── ui/                # Qt views, presenters, UI state, protocols, translation strings
+└── ui/                # Qt views, presenters, UI state, and protocols
 
 tests/
 ├── unit/              # Fast tests using fakes and pure Python behavior
@@ -65,7 +65,7 @@ Keep tests close to the source structure they cover. For example, behavior in `f
 - Do not add comments that describe old bugs or temporary phases.
 - Add comments only when code would otherwise be hard to understand.
 - Use ASCII in new text unless the file already uses non-ASCII or the content needs it.
-- Keep user-facing English strings in `freecad/diff_wb/ui/translation_strings.py`.
+- Keep user-facing English strings extractable with `translate("ProjectHistory", "...")` or `QT_TRANSLATE_NOOP(...)` in-place.
 - Logs do not require translation.
 
 Every Python file must start with a responsibility comment:
@@ -182,15 +182,17 @@ Behavior:
 
 ## Translations
 
-All user-facing English UI text belongs in `freecad/diff_wb/ui/translation_strings.py`.
+All user-facing English UI text should be defined at the usage site so Qt extraction can detect literal strings.
 
 Pattern:
 
-- Define a named constant in `translation_strings.py`.
-- Export it through `__all__`.
-- Translate in views or entry point UI code with the appropriate Qt context.
+- Translate immediate UI strings with literal calls: `translate("ProjectHistory", "...")`.
+- Use `QT_TRANSLATE_NOOP` for deferred strings with explicit context:
+  - Command `GetResources()` strings use exact command-name contexts (for example, `DiffCommit`).
+  - Workbench menu/toolbar strings use `Workbench` context.
 - Use Qt-style placeholders such as `%1` and `%2` in templates.
 - Presenters should pass raw data rather than formatted translated messages.
+- Keep translation template at `freecad/diff_wb/resources/translations/ProjectHistory.ts` with locale files named `ProjectHistory_<locale>.ts`.
 
 Example:
 
@@ -198,7 +200,7 @@ Example:
 REPOSITORY_INFO_TEMPLATE = "Repository: %1"
 ```
 
-Avoid scattering literal button labels, dialog titles, tooltips, and status messages through views or commands.
+Use literals directly in views and entry points for extractor visibility; avoid unextracted variable indirection.
 
 ## Testing Strategy
 
@@ -271,9 +273,9 @@ task test
 
 ### Add UI Text
 
-1. Add constants to `ui/translation_strings.py`.
-2. Export constants through `__all__`.
-3. Translate in the view or command dialog code.
+1. Add translated UI text at the display site using `translate("ProjectHistory", "...")`.
+2. For deferred text, define literal with `QT_TRANSLATE_NOOP` in correct context.
+3. Keep placeholders (`%1`, `%2`) in the source literal and replace after translation.
 4. Avoid formatting translated strings in presenters.
 
 ### Add A FreeCAD Command

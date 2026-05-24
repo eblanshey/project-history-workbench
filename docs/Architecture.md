@@ -100,7 +100,7 @@ The UI layer owns presenter state, Qt views, and view protocols.
 - `presenters/` transforms application results into view updates.
 - `protocols/` defines presenter-facing view contracts.
 - `views/` contains Qt widgets and preferences UI.
-- `translation_strings.py` is the central source for user-facing UI text.
+- User-facing UI text is translated at display sites with literal `translate("ProjectHistory", "...")` calls, or defined with `QT_TRANSLATE_NOOP` when deferred.
 
 Presenters depend on view protocols and application actions. Views render Qt widgets and perform translation. Presenters should pass raw data, not translated UI strings.
 
@@ -182,7 +182,6 @@ freecad/diff_wb/
     ├── composer.py
     ├── registry.py
     ├── state.py
-    ├── translation_strings.py
     ├── presenters/
     ├── protocols/
     └── views/
