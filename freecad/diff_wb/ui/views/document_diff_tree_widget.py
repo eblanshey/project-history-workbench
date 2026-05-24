@@ -2,20 +2,8 @@
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QBrush, QIcon
-from PySide6.QtWidgets import (
-    QHBoxLayout,
-    QHeaderView,
-    QLabel,
-    QToolButton,
-    QTreeWidget,
-    QTreeWidgetItem,
-    QVBoxLayout,
-    QWidget,
-)
-
 from ...domain.diff.models import DiffState
+from ...qt import QtCore, QtGui, QtWidgets
 from ...resources import get_icon_path
 from ...utils import translate
 from ..presenters.presentation_models import DiffTreePresentation, DocumentStatusIndicator, NodePresentation
@@ -34,52 +22,52 @@ STAGE_BUTTON_WIDTH = 90
 STAGE_ALL_BUTTON_WIDTH = 140
 
 
-class DocumentDiffTreeWidget(QWidget):
+class DocumentDiffTreeWidget(QtWidgets.QWidget):
     """Middle-column widget that renders document/node diffs and staging actions."""
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self._on_add_button_callback: Callable[[str], None] | None = None
         self._on_stage_all_callback: Callable[[], None] | None = None
         self._on_node_selection_callback: Callable[[str, str], None] | None = None
         self._current_selection: HistorySelection | None = None
         self._on_visual_diff_callback: Callable[[str, str], None] | None = None
-        self._stage_buttons: dict[str, QToolButton] = {}
+        self._stage_buttons: dict[str, QtWidgets.QToolButton] = {}
         self._diff_item_delegate: DiffItemDelegate | None = None
         self._setup_ui()
 
     @property
-    def tree_widget(self) -> QTreeWidget:
+    def tree_widget(self) -> QtWidgets.QTreeWidget:
         """Expose underlying tree for facade compatibility and focused tests."""
         return self._tree_widget
 
     def _setup_ui(self) -> None:
-        summary_container = QWidget(self)
-        summary_layout = QHBoxLayout(summary_container)
+        summary_container = QtWidgets.QWidget(self)
+        summary_layout = QtWidgets.QHBoxLayout(summary_container)
         summary_layout.setContentsMargins(0, 0, 0, 0)
         summary_layout.setSpacing(16)
 
-        self._changed_label = QLabel("")
+        self._changed_label = QtWidgets.QLabel("")
         self._changed_label.setStyleSheet("font-weight: bold;")
         summary_layout.addWidget(self._changed_label)
 
-        self._stage_all_button = QToolButton()
+        self._stage_all_button = QtWidgets.QToolButton()
         self._stage_all_button.setText(translate("ProjectHistory", "+ Mark All Reviewed"))
-        self._stage_all_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self._stage_all_button.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonTextOnly)
         self._stage_all_button.setFixedSize(STAGE_ALL_BUTTON_WIDTH, TREE_ITEM_HEIGHT)
         self._stage_all_button.hide()
         self._stage_all_button.clicked.connect(self._on_stage_all_clicked)
         summary_layout.addWidget(self._stage_all_button)
 
-        self._tree_widget = QTreeWidget()
+        self._tree_widget = QtWidgets.QTreeWidget()
         self._tree_widget.setHeaderLabels([translate("ProjectHistory", "Tree")])
         self._tree_widget.setColumnCount(1)
-        self._tree_widget.header().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self._tree_widget.header().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Stretch)
         self._diff_item_delegate = DiffItemDelegate(self._tree_widget)
         self._tree_widget.setItemDelegate(self._diff_item_delegate)
         self._tree_widget.itemClicked.connect(self._on_tree_item_clicked)
 
-        layout = QVBoxLayout(self)
+        layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(summary_container)
         layout.addWidget(self._tree_widget)
@@ -146,9 +134,9 @@ class DocumentDiffTreeWidget(QWidget):
             return
 
         top_level_text = git_path or translate("ProjectHistory", "Unnamed Document")
-        root_item = QTreeWidgetItem([top_level_text])
-        root_item.setSizeHint(0, QSize(0, TREE_ITEM_HEIGHT))
-        root_item.setData(0, Qt.ItemDataRole.UserRole, git_path or top_level_text)
+        root_item = QtWidgets.QTreeWidgetItem([top_level_text])
+        root_item.setSizeHint(0, QtCore.QSize(0, TREE_ITEM_HEIGHT))
+        root_item.setData(0, QtCore.Qt.ItemDataRole.UserRole, git_path or top_level_text)
 
         for node in nodes:
             self._add_tree_item(root_item, node, git_path)
@@ -173,15 +161,15 @@ class DocumentDiffTreeWidget(QWidget):
         for diff in diffs:
             top_level_text = diff.git_path or translate("ProjectHistory", "Unnamed Document")
 
-            root_item = QTreeWidgetItem([top_level_text])
-            root_item.setSizeHint(0, QSize(0, TREE_ITEM_HEIGHT))
-            root_item.setData(0, Qt.ItemDataRole.UserRole, diff.git_path or top_level_text)
+            root_item = QtWidgets.QTreeWidgetItem([top_level_text])
+            root_item.setSizeHint(0, QtCore.QSize(0, TREE_ITEM_HEIGHT))
+            root_item.setData(0, QtCore.Qt.ItemDataRole.UserRole, diff.git_path or top_level_text)
 
-            container = QWidget()
-            layout = QHBoxLayout(container)
+            container = QtWidgets.QWidget()
+            layout = QtWidgets.QHBoxLayout(container)
             layout.setContentsMargins(4, 2, 4, 2)
 
-            layout.addWidget(QLabel(top_level_text))
+            layout.addWidget(QtWidgets.QLabel(top_level_text))
             layout.addStretch()
 
             self._add_status_indicators(layout, diff.indicators)
@@ -191,9 +179,9 @@ class DocumentDiffTreeWidget(QWidget):
             )
 
             if show_stage_button:
-                add_button = QToolButton()
+                add_button = QtWidgets.QToolButton()
                 add_button.setText(translate("ProjectHistory", "+ Reviewed"))
-                add_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+                add_button.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonTextOnly)
                 add_button.setEnabled(diff.stage_button_enabled)
                 add_button.setFixedSize(STAGE_BUTTON_WIDTH, TREE_ITEM_HEIGHT)
                 add_button.clicked.connect(lambda checked, gp=diff.git_path: self._on_add_button_clicked(gp))
@@ -219,7 +207,11 @@ class DocumentDiffTreeWidget(QWidget):
         self.set_stage_all_button_enabled(False)
         self._stage_buttons.clear()
 
-    def _add_status_indicators(self, layout: QHBoxLayout, indicators: list[DocumentStatusIndicator]) -> None:
+    def _add_status_indicators(
+        self,
+        layout: QtWidgets.QHBoxLayout,
+        indicators: list[DocumentStatusIndicator],
+    ) -> None:
         """Add status indicators with tooltip to the layout.
 
         Args:
@@ -230,7 +222,7 @@ class DocumentDiffTreeWidget(QWidget):
             return
 
         for indicator in indicators:
-            icon_label = QLabel()
+            icon_label = QtWidgets.QLabel()
             icon_label.setPixmap(indicator.icon.pixmap(16, 16))
             icon_label.setToolTip(translate("ProjectHistory", indicator.tooltip))
             layout.addWidget(icon_label)
@@ -244,7 +236,7 @@ class DocumentDiffTreeWidget(QWidget):
         if self._on_add_button_callback:
             self._on_add_button_callback(git_path)
 
-    def _expand_nodes_with_changes(self, item: QTreeWidgetItem) -> None:
+    def _expand_nodes_with_changes(self, item: QtWidgets.QTreeWidgetItem) -> None:
         """Recursively expand nodes that have descendants with changes.
 
         Args:
@@ -255,7 +247,7 @@ class DocumentDiffTreeWidget(QWidget):
 
         for i in range(child_count):
             child = item.child(i)
-            has_changes = child.data(0, Qt.ItemDataRole.UserRole + 1)
+            has_changes = child.data(0, QtCore.Qt.ItemDataRole.UserRole + 1)
             if has_changes:
                 has_changed_descendants = True
             self._expand_nodes_with_changes(child)
@@ -263,14 +255,18 @@ class DocumentDiffTreeWidget(QWidget):
         if has_changed_descendants:
             item.setExpanded(True)
 
-    def _add_tree_item(self, parent: QTreeWidgetItem, node: NodePresentation, git_path: str) -> None:
+    def _add_tree_item(self, parent: QtWidgets.QTreeWidgetItem, node: NodePresentation, git_path: str) -> None:
         """Create, attach, and install optional row widget for a node."""
         item, row_widget = self._create_tree_item(node, git_path)
         parent.addChild(item)
         if row_widget is not None:
             self._tree_widget.setItemWidget(item, 0, row_widget)
 
-    def _create_tree_item(self, node: NodePresentation, git_path: str) -> tuple[QTreeWidgetItem, QWidget | None]:
+    def _create_tree_item(
+        self,
+        node: NodePresentation,
+        git_path: str,
+    ) -> tuple[QtWidgets.QTreeWidgetItem, QtWidgets.QWidget | None]:
         """Recursively create a QTreeWidgetItem from NodePresentation.
 
         Args:
@@ -282,11 +278,11 @@ class DocumentDiffTreeWidget(QWidget):
         name = node.path.split("/")[-1] if node.path else ""
         text = node.label if node.label == name else f"{node.label} ({name})"
 
-        item = QTreeWidgetItem([text])
-        item.setSizeHint(0, QSize(0, TREE_ITEM_HEIGHT))
+        item = QtWidgets.QTreeWidgetItem([text])
+        item.setSizeHint(0, QtCore.QSize(0, TREE_ITEM_HEIGHT))
         item.setToolTip(0, node.type_id)
-        item.setData(0, Qt.ItemDataRole.UserRole, node.path)
-        item.setData(0, Qt.ItemDataRole.UserRole + 1, node.has_changes)
+        item.setData(0, QtCore.Qt.ItemDataRole.UserRole, node.path)
+        item.setData(0, QtCore.Qt.ItemDataRole.UserRole + 1, node.has_changes)
 
         self._apply_diff_state(item, node.state)
 
@@ -298,26 +294,26 @@ class DocumentDiffTreeWidget(QWidget):
         return item, row_widget
 
     def _create_node_row_widget(
-        self, item: QTreeWidgetItem, node: NodePresentation, text: str, git_path: str
-    ) -> QWidget | None:
+        self, item: QtWidgets.QTreeWidgetItem, node: NodePresentation, text: str, git_path: str
+    ) -> QtWidgets.QWidget | None:
         """Create optional custom row widget with right-floating visual diff icon."""
         if not node.visual_diff_enabled:
             return None
-        container = QWidget()
+        container = QtWidgets.QWidget()
         container.setFixedHeight(TREE_ITEM_HEIGHT)
-        layout = QHBoxLayout(container)
+        layout = QtWidgets.QHBoxLayout(container)
         layout.setContentsMargins(4, 0, 4, 0)
         layout.setSpacing(4)
-        label = QLabel(text)
+        label = QtWidgets.QLabel(text)
         label.setFixedHeight(TREE_ITEM_HEIGHT)
         label.setToolTip(node.type_id)
         layout.addWidget(label)
         layout.addStretch()
 
-        icon_size = QSize(TREE_ITEM_ICON_SIZE, TREE_ITEM_ICON_SIZE)
+        icon_size = QtCore.QSize(TREE_ITEM_ICON_SIZE, TREE_ITEM_ICON_SIZE)
 
-        button = QToolButton()
-        button.setIcon(QIcon(str(get_icon_path("VisualDiff.svg"))))
+        button = QtWidgets.QToolButton()
+        button.setIcon(QtGui.QIcon(str(get_icon_path("VisualDiff.svg"))))
         button.setIconSize(icon_size)
         button.setToolTip(translate("ProjectHistory", "Open 3D comparison"))
         button.setAutoRaise(True)
@@ -343,7 +339,7 @@ class DocumentDiffTreeWidget(QWidget):
         layout.addWidget(button)
         return container
 
-    def _apply_diff_state(self, item: QTreeWidgetItem, state: DiffState) -> None:
+    def _apply_diff_state(self, item: QtWidgets.QTreeWidgetItem, state: DiffState) -> None:
         """Apply semantic diff coloring data to a tree item."""
         if state == DiffState.UNCHANGED:
             return
@@ -351,8 +347,8 @@ class DocumentDiffTreeWidget(QWidget):
         background = background_for_state(state, self._tree_widget.palette())
         if background is None:
             return
-        item.setBackground(0, QBrush(background))
-        item.setForeground(0, QBrush(foreground_for_background(background, self._tree_widget.palette())))
+        item.setBackground(0, QtGui.QBrush(background))
+        item.setForeground(0, QtGui.QBrush(foreground_for_background(background, self._tree_widget.palette())))
 
     def show_summary(self, changed_docs: int) -> None:
         """Display count of documents that contain changes.
@@ -372,7 +368,7 @@ class DocumentDiffTreeWidget(QWidget):
         if self._on_stage_all_callback:
             self._on_stage_all_callback()
 
-    def _on_tree_item_clicked(self, item: QTreeWidgetItem, column: int) -> None:
+    def _on_tree_item_clicked(self, item: QtWidgets.QTreeWidgetItem, column: int) -> None:
         """Extract git_path from root and node_path from clicked item, then invoke callback.
 
         Args:
@@ -382,17 +378,17 @@ class DocumentDiffTreeWidget(QWidget):
         if self._on_node_selection_callback is None:
             return
 
-        node_path = item.data(0, Qt.ItemDataRole.UserRole)
+        node_path = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
 
         root = item
         while root.parent():
             root = root.parent()
-        git_path = root.data(0, Qt.ItemDataRole.UserRole)
+        git_path = root.data(0, QtCore.Qt.ItemDataRole.UserRole)
 
         if git_path and node_path:
             self._on_node_selection_callback(git_path, node_path)
 
-    def _on_visual_diff_clicked(self, item: QTreeWidgetItem, git_path: str, node_path: str) -> None:
+    def _on_visual_diff_clicked(self, item: QtWidgets.QTreeWidgetItem, git_path: str, node_path: str) -> None:
         self._tree_widget.setCurrentItem(item)
         self._on_tree_item_clicked(item, 0)
         if self._on_visual_diff_callback is not None:
@@ -406,7 +402,7 @@ class DocumentDiffTreeWidget(QWidget):
         """
         for i in range(self._tree_widget.topLevelItemCount()):
             item = self._tree_widget.topLevelItem(i)
-            item_git_path = item.data(0, Qt.ItemDataRole.UserRole)
+            item_git_path = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
             if item_git_path == git_path:
                 item.setExpanded(False)
                 break

@@ -3,22 +3,9 @@
 from collections.abc import Callable
 from datetime import datetime, timedelta
 
-from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import (
-    QAbstractItemView,
-    QFrame,
-    QHBoxLayout,
-    QLabel,
-    QListWidget,
-    QListWidgetItem,
-    QPushButton,
-    QVBoxLayout,
-    QWidget,
-)
-
 from ...application.actions.result_models import SnapshotSummary
 from ...domain.git.models import GitCommit, GitRepository
+from ...qt import QtCore, QtGui, QtWidgets
 from ...resources import get_icon_path
 from ...utils import translate
 from .models import HistorySelection
@@ -26,10 +13,10 @@ from .models import HistorySelection
 
 __all__ = ["HistoryPanelWidget"]
 
-_REFRESH_ICON: QIcon = QIcon(str(get_icon_path("RefreshRepository.svg")))
+_REFRESH_ICON: QtGui.QIcon = QtGui.QIcon(str(get_icon_path("RefreshRepository.svg")))
 
 
-class _HistoryListItemWidget(QWidget):
+class _HistoryListItemWidget(QtWidgets.QWidget):
     """Styled widget used for history list items."""
 
     def __init__(
@@ -42,54 +29,54 @@ class _HistoryListItemWidget(QWidget):
         is_bottom_bold: bool = False,
         centered_text: str | None = None,
     ) -> None:
-        QWidget.__init__(self)
+        QtWidgets.QWidget.__init__(self)
 
-        layout = QVBoxLayout(self)
+        layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 0)
         layout.setSpacing(6)
 
         if centered_text is not None:
-            centered_label = QLabel(centered_text)
-            centered_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            centered_label = QtWidgets.QLabel(centered_text)
+            centered_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(centered_label)
         else:
-            top_row = QHBoxLayout()
+            top_row = QtWidgets.QHBoxLayout()
             top_row.setContentsMargins(0, 0, 0, 0)
             top_row.setSpacing(8)
 
-            left_label = QLabel(left_text)
-            left_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            left_label = QtWidgets.QLabel(left_text)
+            left_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
             left_label.setStyleSheet("font-weight: 700;")
 
-            center_label = QLabel(center_text)
-            center_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            center_label = QtWidgets.QLabel(center_text)
+            center_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
-            right_label = QLabel(right_text)
-            right_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            right_label = QtWidgets.QLabel(right_text)
+            right_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
 
             top_row.addWidget(left_label, 1)
             top_row.addWidget(center_label, 1)
             top_row.addWidget(right_label, 1)
             layout.addLayout(top_row)
 
-            bottom_label = QLabel(bottom_text)
+            bottom_label = QtWidgets.QLabel(bottom_text)
             bottom_label.setWordWrap(True)
-            bottom_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            bottom_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
             if is_bottom_bold:
                 bottom_label.setStyleSheet("font-weight: 700;")
             layout.addWidget(bottom_label)
 
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.NoFrame)
+        separator = QtWidgets.QFrame()
+        separator.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
         separator.setFixedHeight(1)
         separator.setStyleSheet("background-color: black;")
         layout.addWidget(separator)
 
 
-class HistoryPanelWidget(QWidget):
+class HistoryPanelWidget(QtWidgets.QWidget):
     """Left-column widget for repository header and history list."""
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self._on_history_selection_callback: Callable[[HistorySelection], None] | None = None
         self._on_history_scroll_bottom_callback: Callable[[], None] | None = None
@@ -100,41 +87,41 @@ class HistoryPanelWidget(QWidget):
         self._setup_ui()
 
     @property
-    def history_list(self) -> QListWidget:
+    def history_list(self) -> QtWidgets.QListWidget:
         """Expose list widget for facade compatibility and tests."""
         return self._history_list
 
     def _setup_ui(self) -> None:
-        self._history_list = QListWidget()
+        self._history_list = QtWidgets.QListWidget()
         self._history_list.setMinimumWidth(150)
-        self._history_list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self._history_list.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
         self._history_list.setWordWrap(True)
         self._history_list.setSpacing(0)
 
-        history_placeholder = QLabel(translate("ProjectHistory", "Iterations"))
-        history_placeholder.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        history_placeholder = QtWidgets.QLabel(translate("ProjectHistory", "Iterations"))
+        history_placeholder.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
 
-        self._repository_label = QLabel("")
-        self._repository_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self._repository_label = QtWidgets.QLabel("")
+        self._repository_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
         self._repository_label.setStyleSheet("font-size: 11px; color: gray; font-style: italic;")
 
-        self._refresh_button = QPushButton()
+        self._refresh_button = QtWidgets.QPushButton()
         self._refresh_button.setIcon(_REFRESH_ICON)
-        self._refresh_button.setIconSize(QSize(24, 24))
+        self._refresh_button.setIconSize(QtCore.QSize(24, 24))
         refresh_tooltip = translate("ProjectHistory", "Refresh Project and Iterations")
         self._refresh_button.setToolTip(refresh_tooltip)
 
-        repository_header_layout = QHBoxLayout()
+        repository_header_layout = QtWidgets.QHBoxLayout()
         repository_header_layout.setContentsMargins(0, 0, 0, 0)
         repository_header_layout.setSpacing(6)
-        repository_header_layout.addWidget(self._repository_label, 0, Qt.AlignmentFlag.AlignVCenter)
+        repository_header_layout.addWidget(self._repository_label, 0, QtCore.Qt.AlignmentFlag.AlignVCenter)
         repository_header_layout.addStretch()
-        repository_header_layout.addWidget(self._refresh_button, 0, Qt.AlignmentFlag.AlignVCenter)
+        repository_header_layout.addWidget(self._refresh_button, 0, QtCore.Qt.AlignmentFlag.AlignVCenter)
 
-        repository_header_container = QWidget()
+        repository_header_container = QtWidgets.QWidget()
         repository_header_container.setLayout(repository_header_layout)
 
-        layout = QVBoxLayout(self)
+        layout = QtWidgets.QVBoxLayout(self)
         layout.addWidget(repository_header_container)
         layout.addWidget(history_placeholder)
         layout.addWidget(self._history_list)
@@ -184,10 +171,10 @@ class HistoryPanelWidget(QWidget):
             display_text = f"{snapshot.name} - {self._format_timestamp(snapshot.created_at)}"
 
             # Create list item
-            item = QListWidgetItem(display_text)
+            item = QtWidgets.QListWidgetItem(display_text)
 
             # Store snapshot ID in UserRole for later retrieval
-            item.setData(Qt.ItemDataRole.UserRole, snapshot.id)
+            item.setData(QtCore.Qt.ItemDataRole.UserRole, snapshot.id)
 
             # Add to list
             self._history_list.addItem(item)
@@ -218,10 +205,10 @@ class HistoryPanelWidget(QWidget):
         working_tree_text = translate("ProjectHistory", "In Progress")
         staging_text = translate("ProjectHistory", "Reviewed")
 
-        working_tree_item = QListWidgetItem(working_tree_text)
-        working_tree_item.setData(Qt.ItemDataRole.TextAlignmentRole, Qt.AlignmentFlag.AlignCenter)
+        working_tree_item = QtWidgets.QListWidgetItem(working_tree_text)
+        working_tree_item.setData(QtCore.Qt.ItemDataRole.TextAlignmentRole, QtCore.Qt.AlignmentFlag.AlignCenter)
         working_tree_item.setData(
-            Qt.ItemDataRole.UserRole,
+            QtCore.Qt.ItemDataRole.UserRole,
             HistorySelection(item_kind="WORKING_TREE", commit_hash=None),
         )
         self._history_list.addItem(working_tree_item)
@@ -233,10 +220,10 @@ class HistoryPanelWidget(QWidget):
         working_tree_item.setSizeHint(self._history_list.itemWidget(working_tree_item).sizeHint())
 
         # Add "Reviewed" item
-        staging_item = QListWidgetItem(staging_text)
-        staging_item.setData(Qt.ItemDataRole.TextAlignmentRole, Qt.AlignmentFlag.AlignCenter)
+        staging_item = QtWidgets.QListWidgetItem(staging_text)
+        staging_item.setData(QtCore.Qt.ItemDataRole.TextAlignmentRole, QtCore.Qt.AlignmentFlag.AlignCenter)
         staging_item.setData(
-            Qt.ItemDataRole.UserRole,
+            QtCore.Qt.ItemDataRole.UserRole,
             HistorySelection(item_kind="STAGING", commit_hash=None),
         )
         self._history_list.addItem(staging_item)
@@ -290,17 +277,17 @@ class HistoryPanelWidget(QWidget):
             display_text = f"{short_hash} {commit.author} {timestamp_str}\n{first_line}"
 
             # Create list item
-            item = QListWidgetItem(display_text)
+            item = QtWidgets.QListWidgetItem(display_text)
 
             # Set tooltip to full commit message
             item.setToolTip(commit.message)
 
             # Set left alignment for commits
-            item.setData(Qt.ItemDataRole.TextAlignmentRole, Qt.AlignmentFlag.AlignLeft)
+            item.setData(QtCore.Qt.ItemDataRole.TextAlignmentRole, QtCore.Qt.AlignmentFlag.AlignLeft)
 
             # Store HistorySelection with COMMIT kind
             item.setData(
-                Qt.ItemDataRole.UserRole,
+                QtCore.Qt.ItemDataRole.UserRole,
                 HistorySelection(item_kind="COMMIT", commit_hash=commit.id),
             )
 
@@ -322,9 +309,9 @@ class HistoryPanelWidget(QWidget):
         if self._on_selection_changed_callback is not None:
             self._on_selection_changed_callback(selection)
 
-    def _on_item_clicked(self, item: QListWidgetItem) -> None:
+    def _on_item_clicked(self, item: QtWidgets.QListWidgetItem) -> None:
         """Handle item click by tracking selection and triggering callback."""
-        item_data = item.data(Qt.ItemDataRole.UserRole)
+        item_data = item.data(QtCore.Qt.ItemDataRole.UserRole)
         if isinstance(item_data, HistorySelection):
             # Track selection state for button visibility
             self._set_current_selection(item_data)
@@ -363,7 +350,7 @@ class HistoryPanelWidget(QWidget):
             item = self._history_list.item(row)
             if item is None:
                 continue
-            item_data = item.data(Qt.ItemDataRole.UserRole)
+            item_data = item.data(QtCore.Qt.ItemDataRole.UserRole)
             if item_data == selection:
                 self._history_list.setCurrentItem(item)
                 self._set_current_selection(selection)

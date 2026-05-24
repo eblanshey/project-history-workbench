@@ -11,8 +11,7 @@ import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, TypedDict
 
-from PySide6.QtCore import QT_TRANSLATE_NOOP
-
+from ..qt import QtCore, QtWidgets
 from ..resources import ICONPATH
 from ..utils import translate
 
@@ -66,8 +65,8 @@ class _SwapColumnsCommand:
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QT_TRANSLATE_NOOP("DiffSwapColumns", "Swap Columns"),
-            "ToolTip": QT_TRANSLATE_NOOP("DiffSwapColumns", "Swap the left and right columns"),
+            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffSwapColumns", "Swap Columns"),
+            "ToolTip": QtCore.QT_TRANSLATE_NOOP("DiffSwapColumns", "Swap the left and right columns"),
             "Pixmap": os.path.join(ICONPATH, "SwapColumns.svg"),
         }
 
@@ -90,8 +89,8 @@ class _ConfigureGitCommand:
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QT_TRANSLATE_NOOP("DiffConfigureGitCommand", "Configure Git"),
-            "ToolTip": QT_TRANSLATE_NOOP("DiffConfigureGitCommand", "Configure git author name and email"),
+            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffConfigureGitCommand", "Configure Git"),
+            "ToolTip": QtCore.QT_TRANSLATE_NOOP("DiffConfigureGitCommand", "Configure git author name and email"),
             "Pixmap": os.path.join(ICONPATH, "ConfigureGit.svg"),
         }
 
@@ -101,8 +100,6 @@ class _ConfigureGitCommand:
 
     def Activated(self) -> None:
         """FreeCAD calls this when user clicks toolbar button."""
-        from PySide6.QtWidgets import QMessageBox
-
         from .._container import get_container
         from ..ui.registry import ui_registry
 
@@ -110,7 +107,7 @@ class _ConfigureGitCommand:
         parent = _main_window_parent(container)
         repo = ui_registry.ui_state.git_repository
         if repo is None:
-            QMessageBox.warning(
+            QtWidgets.QMessageBox.warning(
                 parent,  # type: ignore[arg-type]
                 translate("ProjectHistory", "No Project"),
                 translate("ProjectHistory", "No project detected. Please open a document from a project."),
@@ -121,8 +118,6 @@ class _ConfigureGitCommand:
 
     def configure_repository(self, container, repo, parent: QWidget | None) -> bool:
         """Show git config dialog and save identity for a repository."""
-        from PySide6.QtWidgets import QMessageBox
-
         from ..domain.git.models import GitIdentity
 
         retry_message: str | None = None
@@ -140,7 +135,7 @@ class _ConfigureGitCommand:
                 return False
 
             if not dialog_result.author_name or not dialog_result.author_email:
-                QMessageBox.warning(
+                QtWidgets.QMessageBox.warning(
                     parent,  # type: ignore[arg-type]
                     translate("ProjectHistory", "Save Iteration Failed"),
                     translate("ProjectHistory", "Name and email are required to save iteration"),
@@ -156,7 +151,7 @@ class _ConfigureGitCommand:
                 return True
 
             if not dialog_result.should_save_globally:
-                QMessageBox.critical(
+                QtWidgets.QMessageBox.critical(
                     parent,  # type: ignore[arg-type]
                     translate("ProjectHistory", "Save Iteration Failed"),
                     translate("ProjectHistory", "Git identity could not be saved"),
@@ -199,22 +194,11 @@ class _ConfigureGitCommand:
         global_config_writable: bool = True,
     ) -> GitConfigDialogResult | None:
         """Show git identity configuration dialog."""
-        from PySide6.QtWidgets import (
-            QCheckBox,
-            QDialog,
-            QFormLayout,
-            QHBoxLayout,
-            QLabel,
-            QLineEdit,
-            QPushButton,
-            QVBoxLayout,
-        )
-
-        dialog = QDialog(parent)  # type: ignore[arg-type]
+        dialog = QtWidgets.QDialog(parent)  # type: ignore[arg-type]
         dialog.setWindowTitle(translate("ProjectHistory", "Configure Git"))
-        layout = QVBoxLayout(dialog)
+        layout = QtWidgets.QVBoxLayout(dialog)
         layout.addWidget(
-            QLabel(
+            QtWidgets.QLabel(
                 translate(
                     "ProjectHistory",
                     "Enter the name and email you'd like to use for your git identity, "
@@ -224,13 +208,16 @@ class _ConfigureGitCommand:
             )
         )
         if message:
-            message_label = QLabel(message, dialog)
+            message_label = QtWidgets.QLabel(message, dialog)
             message_label.setStyleSheet("color: red;")
             layout.addWidget(message_label)
-        form_layout = QFormLayout()
-        name_edit = QLineEdit(dialog)
-        email_edit = QLineEdit(dialog)
-        remember_checkbox = QCheckBox(translate("ProjectHistory", "Configure globally for all projects"), dialog)
+        form_layout = QtWidgets.QFormLayout()
+        name_edit = QtWidgets.QLineEdit(dialog)
+        email_edit = QtWidgets.QLineEdit(dialog)
+        remember_checkbox = QtWidgets.QCheckBox(
+            translate("ProjectHistory", "Configure globally for all projects"),
+            dialog,
+        )
         if initial_values is not None:
             name_edit.setText(initial_values.author_name)
             email_edit.setText(initial_values.author_email)
@@ -244,7 +231,7 @@ class _ConfigureGitCommand:
         layout.addLayout(form_layout)
         layout.addWidget(remember_checkbox)
         if not global_config_writable:
-            global_config_label = QLabel(
+            global_config_label = QtWidgets.QLabel(
                 translate(
                     "ProjectHistory",
                     "Global configuration option disabled because global config file not writable.",
@@ -254,9 +241,9 @@ class _ConfigureGitCommand:
             global_config_label.setStyleSheet("color: red;")
             layout.addWidget(global_config_label)
 
-        button_layout = QHBoxLayout()
-        ok_button = QPushButton(translate("ProjectHistory", "OK"))
-        cancel_button = QPushButton(translate("ProjectHistory", "Cancel"))
+        button_layout = QtWidgets.QHBoxLayout()
+        ok_button = QtWidgets.QPushButton(translate("ProjectHistory", "OK"))
+        cancel_button = QtWidgets.QPushButton(translate("ProjectHistory", "Cancel"))
         ok_button.clicked.connect(dialog.accept)
         cancel_button.clicked.connect(dialog.reject)
         button_layout.addStretch()
@@ -280,8 +267,8 @@ class _CommitCommand:
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QT_TRANSLATE_NOOP("DiffCommit", "Save Iteration"),
-            "ToolTip": QT_TRANSLATE_NOOP("DiffCommit", "Save reviewed changes as an iteration"),
+            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffCommit", "Save Iteration"),
+            "ToolTip": QtCore.QT_TRANSLATE_NOOP("DiffCommit", "Save reviewed changes as an iteration"),
             "Pixmap": os.path.join(ICONPATH, "Commit.svg"),
         }
 
@@ -291,8 +278,6 @@ class _CommitCommand:
 
     def Activated(self) -> None:
         """FreeCAD calls this when user clicks toolbar button."""
-        from PySide6.QtWidgets import QMessageBox
-
         from .._container import get_container
         from ..ui.registry import ui_registry
 
@@ -303,7 +288,7 @@ class _CommitCommand:
         repo = ui_registry.ui_state.git_repository
 
         if repo is None:
-            QMessageBox.warning(
+            QtWidgets.QMessageBox.warning(
                 parent,  # type: ignore[arg-type]
                 translate("ProjectHistory", "No Project"),
                 translate("ProjectHistory", "No project detected. Please open a document from a project."),
@@ -313,7 +298,7 @@ class _CommitCommand:
         # Check for staged files
         staged_result = container.get_staged_file_paths_action.execute(repo)
         if not staged_result.is_success or not staged_result.data:
-            QMessageBox.information(
+            QtWidgets.QMessageBox.information(
                 parent,  # type: ignore[arg-type]
                 translate("ProjectHistory", "No Reviewed Files"),
                 translate("ProjectHistory", "There are no reviewed files to save."),
@@ -340,7 +325,7 @@ class _CommitCommand:
             # Reload commits by triggering refresh
             ui_registry.git_repository_presenter.refresh_repository_and_commits()
         else:
-            QMessageBox.critical(
+            QtWidgets.QMessageBox.critical(
                 parent,  # type: ignore[arg-type]
                 translate("ProjectHistory", "Save Iteration Failed"),
                 result.message or translate("ProjectHistory", "Git commit failed"),
@@ -348,10 +333,8 @@ class _CommitCommand:
 
     def _validate_commit_dialog_result(self, parent: QWidget | None, dialog_result: CommitDialogResult) -> bool:
         """Validate commit dialog values and show warnings for invalid input."""
-        from PySide6.QtWidgets import QMessageBox
-
         if not dialog_result.message.strip():
-            QMessageBox.warning(
+            QtWidgets.QMessageBox.warning(
                 parent,  # type: ignore[arg-type]
                 translate("ProjectHistory", "Empty Notes"),
                 translate("ProjectHistory", "Iteration notes cannot be empty"),
@@ -368,46 +351,34 @@ class _CommitCommand:
         Returns:
             Commit dialog result if user confirmed, None if cancelled.
         """
-        from PySide6.QtWidgets import (
-            QDialog,
-            QHBoxLayout,
-            QPlainTextEdit,
-            QPushButton,
-            QVBoxLayout,
-        )
-
-        dialog = QDialog(parent)  # type: ignore[arg-type]
+        dialog = QtWidgets.QDialog(parent)  # type: ignore[arg-type]
         dialog.setWindowTitle(translate("ProjectHistory", "Save Iteration"))
 
         # Enable resize grip in bottom-right corner
         dialog.setSizeGripEnabled(True)
 
         # Create layout with text area and buttons
-        layout = QVBoxLayout(dialog)
+        layout = QtWidgets.QVBoxLayout(dialog)
 
         # Add label
-        from PySide6.QtWidgets import QLabel
-
-        label = QLabel(translate("ProjectHistory", "Enter iteration notes:"))
+        label = QtWidgets.QLabel(translate("ProjectHistory", "Enter iteration notes:"))
         layout.addWidget(label)
 
         # Create a multi-line text editor that can resize vertically
-        from PySide6.QtWidgets import QSizePolicy
-
-        text_edit = QPlainTextEdit(dialog)
+        text_edit = QtWidgets.QPlainTextEdit(dialog)
         text_edit.setPlaceholderText(
             translate("ProjectHistory", "Enter iteration notes (subject and optional body)...")
         )
         text_edit.setTabStopDistance(40)  # Tab spacing in pixels
         text_edit.setMinimumHeight(100)  # Minimum height for initial usability
         # Allow the text edit to expand vertically when dialog is resized
-        text_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        text_edit.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
         layout.addWidget(text_edit)
 
         # Add OK and Cancel buttons
-        button_layout = QHBoxLayout()
-        ok_button = QPushButton(translate("ProjectHistory", "OK"))
-        cancel_button = QPushButton(translate("ProjectHistory", "Cancel"))
+        button_layout = QtWidgets.QHBoxLayout()
+        ok_button = QtWidgets.QPushButton(translate("ProjectHistory", "OK"))
+        cancel_button = QtWidgets.QPushButton(translate("ProjectHistory", "Cancel"))
 
         ok_button.clicked.connect(dialog.accept)
         cancel_button.clicked.connect(dialog.reject)
@@ -432,8 +403,8 @@ class _RefreshRepositoryCommand:
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QT_TRANSLATE_NOOP("DiffRefreshRepository", "Refresh Project"),
-            "ToolTip": QT_TRANSLATE_NOOP(
+            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffRefreshRepository", "Refresh Project"),
+            "ToolTip": QtCore.QT_TRANSLATE_NOOP(
                 "DiffRefreshRepository",
                 "Refresh the detected project and reload iterations.\n"
                 "Open at least one FreeCAD document "
@@ -461,8 +432,8 @@ class _InitializeGitRepositoryCommand:
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QT_TRANSLATE_NOOP("DiffInitializeGitRepository", "Initialize Git Repository"),
-            "ToolTip": QT_TRANSLATE_NOOP(
+            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffInitializeGitRepository", "Initialize Git Repository"),
+            "ToolTip": QtCore.QT_TRANSLATE_NOOP(
                 "DiffInitializeGitRepository",
                 "Initialize a git repository in the selected directory",
             ),
@@ -475,8 +446,6 @@ class _InitializeGitRepositoryCommand:
 
     def Activated(self) -> None:
         """FreeCAD calls this when user clicks toolbar button."""
-        from PySide6.QtWidgets import QMessageBox
-
         from .._container import get_container
         from ..ui.registry import ui_registry
 
@@ -484,7 +453,7 @@ class _InitializeGitRepositoryCommand:
         parent = _main_window_parent(container)
         candidates_result = container.get_git_repository_init_candidates_action.execute()
         if not candidates_result.is_success:
-            QMessageBox.information(
+            QtWidgets.QMessageBox.information(
                 parent,  # type: ignore[arg-type]
                 translate("ProjectHistory", "No Directories Available"),
                 translate(
@@ -502,7 +471,7 @@ class _InitializeGitRepositoryCommand:
 
         init_result = container.initialize_git_repository_action.execute(selected_directory)
         if not init_result.is_success:
-            QMessageBox.critical(
+            QtWidgets.QMessageBox.critical(
                 parent,  # type: ignore[arg-type]
                 translate("ProjectHistory", "Initialization Failed"),
                 init_result.message or translate("ProjectHistory", "Unknown error occurred"),
@@ -514,7 +483,7 @@ class _InitializeGitRepositoryCommand:
 
         success_template = translate("ProjectHistory", "Initialized project: %1")
         success_message = success_template.replace("%1", repository.absolute_path)
-        QMessageBox.information(
+        QtWidgets.QMessageBox.information(
             parent,  # type: ignore[arg-type]
             translate("ProjectHistory", "Project Initialized"),
             success_message,
@@ -523,22 +492,12 @@ class _InitializeGitRepositoryCommand:
 
     def _show_init_dialog(self, parent: QWidget | None, candidates: list[GitRepositoryInitCandidate]) -> str | None:
         """Show initialization selection dialog and return selected directory."""
-        from PySide6.QtWidgets import (
-            QButtonGroup,
-            QDialog,
-            QHBoxLayout,
-            QLabel,
-            QPushButton,
-            QRadioButton,
-            QVBoxLayout,
-        )
-
-        dialog = QDialog(parent)  # type: ignore[arg-type]
+        dialog = QtWidgets.QDialog(parent)  # type: ignore[arg-type]
         dialog.setWindowTitle(translate("ProjectHistory", "Initialize Project"))
         dialog.setSizeGripEnabled(True)
-        layout = QVBoxLayout(dialog)
+        layout = QtWidgets.QVBoxLayout(dialog)
         layout.addWidget(
-            QLabel(
+            QtWidgets.QLabel(
                 translate(
                     "ProjectHistory",
                     "Choose a directory to initialize based on currently open documents. "
@@ -547,12 +506,12 @@ class _InitializeGitRepositoryCommand:
             )
         )
 
-        button_group = QButtonGroup(dialog)
+        button_group = QtWidgets.QButtonGroup(dialog)
         first_available_button = None
 
         for index, candidate in enumerate(candidates):
-            row_layout = QHBoxLayout()
-            radio = QRadioButton(candidate.path, dialog)
+            row_layout = QtWidgets.QHBoxLayout()
+            radio = QtWidgets.QRadioButton(candidate.path, dialog)
             radio.setEnabled(candidate.is_available)
             button_group.addButton(radio, index)
             row_layout.addWidget(radio)
@@ -560,7 +519,7 @@ class _InitializeGitRepositoryCommand:
                 first_available_button = radio
 
             if not candidate.is_available:
-                reason_label = QLabel(
+                reason_label = QtWidgets.QLabel(
                     translate("ProjectHistory", "Already inside project"),
                     dialog,
                 )
@@ -574,12 +533,12 @@ class _InitializeGitRepositoryCommand:
             first_available_button.setChecked(True)
         else:
             no_available_text = translate("ProjectHistory", "All listed directories are already inside projects.")
-            layout.addWidget(QLabel(no_available_text))
+            layout.addWidget(QtWidgets.QLabel(no_available_text))
 
-        button_layout = QHBoxLayout()
-        initialize_button = QPushButton(translate("ProjectHistory", "Initialize"))
+        button_layout = QtWidgets.QHBoxLayout()
+        initialize_button = QtWidgets.QPushButton(translate("ProjectHistory", "Initialize"))
         initialize_button.setEnabled(first_available_button is not None)
-        cancel_button = QPushButton(translate("ProjectHistory", "Cancel"))
+        cancel_button = QtWidgets.QPushButton(translate("ProjectHistory", "Cancel"))
         initialize_button.clicked.connect(dialog.accept)
         cancel_button.clicked.connect(dialog.reject)
 
@@ -613,8 +572,8 @@ class _OpenAllDocumentsInRepositoryCommand:
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QT_TRANSLATE_NOOP("DiffOpenAllDocumentsInRepository", "Open All Documents in Project"),
-            "ToolTip": QT_TRANSLATE_NOOP(
+            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffOpenAllDocumentsInRepository", "Open All Documents in Project"),
+            "ToolTip": QtCore.QT_TRANSLATE_NOOP(
                 "DiffOpenAllDocumentsInRepository",
                 "Open every .FCStd file found in the project. Useful for generating en masse.",
             ),
@@ -627,8 +586,6 @@ class _OpenAllDocumentsInRepositoryCommand:
 
     def Activated(self) -> None:
         """FreeCAD calls this when user clicks toolbar button."""
-        from PySide6.QtWidgets import QMessageBox
-
         from .._container import get_container
         from ..ui.registry import ui_registry
 
@@ -637,7 +594,7 @@ class _OpenAllDocumentsInRepositoryCommand:
         repo = ui_registry.ui_state.git_repository
 
         if repo is None:
-            QMessageBox.warning(
+            QtWidgets.QMessageBox.warning(
                 parent,  # type: ignore[arg-type]
                 translate("ProjectHistory", "No Project"),
                 translate("ProjectHistory", "No project detected. Open a FreeCAD document in a project first."),
@@ -653,8 +610,8 @@ class _RecomputeAllOpenDocumentsCommand:
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QT_TRANSLATE_NOOP("DiffRecomputeAllOpenDocuments", "Recompute All"),
-            "ToolTip": QT_TRANSLATE_NOOP("DiffRecomputeAllOpenDocuments", "Recompute every open document"),
+            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffRecomputeAllOpenDocuments", "Recompute All"),
+            "ToolTip": QtCore.QT_TRANSLATE_NOOP("DiffRecomputeAllOpenDocuments", "Recompute every open document"),
             "Pixmap": os.path.join(ICONPATH, "RecomputeAll.svg"),
         }
 
@@ -676,8 +633,8 @@ class _RecomputeActiveDocumentCommand:
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QT_TRANSLATE_NOOP("DiffRecomputeActiveDocument", "Recompute Active Document"),
-            "ToolTip": QT_TRANSLATE_NOOP("DiffRecomputeActiveDocument", "Recompute the active document"),
+            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffRecomputeActiveDocument", "Recompute Active Document"),
+            "ToolTip": QtCore.QT_TRANSLATE_NOOP("DiffRecomputeActiveDocument", "Recompute the active document"),
             "Pixmap": "view-refresh",  # FreeCAD's standard recompute icon (from Std_Recompute)
         }
 
@@ -701,8 +658,8 @@ class _OpenDiffWindowCommand:
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QT_TRANSLATE_NOOP("DiffOpenDiffWindow", "Open History Panel"),
-            "ToolTip": QT_TRANSLATE_NOOP("DiffOpenDiffWindow", "Open project history view"),
+            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffOpenDiffWindow", "Open History Panel"),
+            "ToolTip": QtCore.QT_TRANSLATE_NOOP("DiffOpenDiffWindow", "Open project history view"),
             "Pixmap": os.path.join(ICONPATH, "Logo.svg"),
         }
 
@@ -726,8 +683,8 @@ class _CloseDiffWindowsCommand:
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QT_TRANSLATE_NOOP("DiffCloseDiffWindows", "Close Comparison Windows"),
-            "ToolTip": QT_TRANSLATE_NOOP(
+            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffCloseDiffWindows", "Close Comparison Windows"),
+            "ToolTip": QtCore.QT_TRANSLATE_NOOP(
                 "DiffCloseDiffWindows",
                 "Close every document starting with 'Compare_' without saving",
             ),

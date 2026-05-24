@@ -209,12 +209,12 @@ class TestPropertyViewerIntegration:
         project_root: object,
     ) -> None:
         """Integration test: Verify tree widget renders properties grouped correctly."""
-        from PySide6.QtWidgets import QApplication
+        from freecad.diff_wb.qt import QtWidgets
 
         # Ensure QApplication exists
-        app = QApplication.instance()
+        app = QtWidgets.QApplication.instance()
         if app is None:
-            app = QApplication([])
+            app = QtWidgets.QApplication([])
 
         from freecad.diff_wb.domain.snapshots.gui_extractor import SnapshotExtractor
         from freecad.diff_wb.ui import DiffPanelView

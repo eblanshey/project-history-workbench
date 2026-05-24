@@ -6,11 +6,8 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, cast
 
-from PySide6.QtCore import QModelIndex, Qt
-from PySide6.QtGui import QBrush, QColor, QPainter, QPalette
-from PySide6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem
-
 from ...domain.diff.models import DiffState
+from ...qt import QtCore, QtGui, QtWidgets
 
 
 __all__ = [
@@ -24,7 +21,7 @@ __all__ = [
 # Custom model role used by DiffItemDelegate. Qt's built-in BackgroundRole can be
 # ignored by aggressive application stylesheets, so we store semantic state and
 # let the delegate paint it directly.
-DIFF_STATE_ROLE = Qt.ItemDataRole.UserRole + 20
+DIFF_STATE_ROLE = QtCore.Qt.ItemDataRole.UserRole + 20
 
 # Minimum contrast target for normal-sized UI text. This follows the WCAG AA
 # 4.5:1 guidance and keeps diff labels readable across light and dark themes.
@@ -50,12 +47,12 @@ _LAST_FALLBACK_BLEND = 0.52
 # variants preserve the original bright pastel highlights. Dark variants are
 # brighter saturated targets so they remain visible when blended into dark
 # palettes.
-_ADDED_LIGHT_ACCENT = QColor(200, 255, 200)
-_ADDED_DARK_ACCENT = QColor(48, 219, 91)
-_DELETED_LIGHT_ACCENT = QColor(255, 200, 200)
-_DELETED_DARK_ACCENT = QColor(255, 105, 97)
-_MODIFIED_LIGHT_ACCENT = QColor(200, 200, 255)
-_MODIFIED_DARK_ACCENT = QColor(116, 192, 252)
+_ADDED_LIGHT_ACCENT = QtGui.QColor(200, 255, 200)
+_ADDED_DARK_ACCENT = QtGui.QColor(48, 219, 91)
+_DELETED_LIGHT_ACCENT = QtGui.QColor(255, 200, 200)
+_DELETED_DARK_ACCENT = QtGui.QColor(255, 105, 97)
+_MODIFIED_LIGHT_ACCENT = QtGui.QColor(200, 200, 255)
+_MODIFIED_DARK_ACCENT = QtGui.QColor(116, 192, 252)
 
 _ColorKey = tuple[int, int, int]
 _PaletteKey = tuple[_ColorKey, _ColorKey, _ColorKey]
@@ -65,22 +62,27 @@ _PaletteKey = tuple[_ColorKey, _ColorKey, _ColorKey]
 class _ThemeColors:
     """Palette colors used as stable inputs for diff color generation."""
 
-    base: QColor
-    text: QColor
-    window: QColor
+    base: QtGui.QColor
+    text: QtGui.QColor
+    window: QtGui.QColor
 
 
-class DiffItemDelegate(QStyledItemDelegate):
+class DiffItemDelegate(QtWidgets.QStyledItemDelegate):
     """Paint diff item backgrounds with contrast-safe foreground colors."""
 
-    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex) -> None:  # type: ignore[override]
+    def paint(
+        self,
+        painter: QtGui.QPainter,
+        option: QtWidgets.QStyleOptionViewItem,
+        index: QtCore.QModelIndex | QtCore.QPersistentModelIndex,
+    ) -> None:  # type: ignore[override]
         """Paint one tree cell using semantic diff colors when present."""
         state = index.data(DIFF_STATE_ROLE)
         if not isinstance(state, DiffState):
             super().paint(painter, option, index)
             return
 
-        themed_option = QStyleOptionViewItem(option)
+        themed_option = QtWidgets.QStyleOptionViewItem(option)
         self.initStyleOption(themed_option, index)
 
         # PySide exposes these attributes at runtime, but current stubs omit
@@ -96,15 +98,15 @@ class DiffItemDelegate(QStyledItemDelegate):
         # Set both background and text roles on the style option. This lets the
         # current Qt style keep selection, padding, icons, and branch painting
         # while overriding only diff-specific colors.
-        themed_option_data.backgroundBrush = QBrush(background)
-        themed_option_data.palette.setColor(QPalette.ColorRole.Text, foreground)
-        themed_option_data.palette.setColor(QPalette.ColorRole.WindowText, foreground)
-        themed_option_data.palette.setColor(QPalette.ColorRole.Highlight, background)
-        themed_option_data.palette.setColor(QPalette.ColorRole.HighlightedText, foreground)
+        themed_option_data.backgroundBrush = QtGui.QBrush(background)
+        themed_option_data.palette.setColor(QtGui.QPalette.ColorRole.Text, foreground)
+        themed_option_data.palette.setColor(QtGui.QPalette.ColorRole.WindowText, foreground)
+        themed_option_data.palette.setColor(QtGui.QPalette.ColorRole.Highlight, background)
+        themed_option_data.palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, foreground)
         super().paint(painter, themed_option, index)
 
 
-def background_for_state(state: DiffState, palette: QPalette) -> QColor | None:
+def background_for_state(state: DiffState, palette: QtGui.QPalette) -> QtGui.QColor | None:
     """Return theme-aware background color for diff state.
 
     Unchanged rows return None so they inherit the normal theme background.
@@ -114,7 +116,7 @@ def background_for_state(state: DiffState, palette: QPalette) -> QColor | None:
 
 
 @lru_cache(maxsize=96)
-def _cached_background_for_state(state: DiffState, palette_key: _PaletteKey) -> QColor | None:
+def _cached_background_for_state(state: DiffState, palette_key: _PaletteKey) -> QtGui.QColor | None:
     """Return cached background for state and palette colors.
 
     Painting can call this once per visible cell, while many cells share the
@@ -130,7 +132,7 @@ def _cached_background_for_state(state: DiffState, palette_key: _PaletteKey) -> 
     return None
 
 
-def foreground_for_background(background: QColor, palette: QPalette) -> QColor:
+def foreground_for_background(background: QtGui.QColor, palette: QtGui.QPalette) -> QtGui.QColor:
     """Return readable text color for a background and current palette.
 
     Prefer the theme text color when possible, then fall back to black or white.
@@ -139,7 +141,7 @@ def foreground_for_background(background: QColor, palette: QPalette) -> QColor:
 
 
 @lru_cache(maxsize=256)
-def _cached_foreground_for_background(background_key: _ColorKey, palette_key: _PaletteKey) -> QColor:
+def _cached_foreground_for_background(background_key: _ColorKey, palette_key: _PaletteKey) -> QtGui.QColor:
     """Return cached foreground for background and palette colors."""
     background = _color_from_key(background_key)
     colors = _ThemeColors(
@@ -148,11 +150,11 @@ def _cached_foreground_for_background(background_key: _ColorKey, palette_key: _P
         window=_color_from_key(palette_key[2]),
     )
     if not _theme_is_dark(colors):
-        return QColor(0, 0, 0)
+        return QtGui.QColor(0, 0, 0)
 
     palette_text = _color_from_key(palette_key[1])
-    black = QColor(0, 0, 0)
-    white = QColor(255, 255, 255)
+    black = QtGui.QColor(0, 0, 0)
+    white = QtGui.QColor(255, 255, 255)
     candidates = [palette_text, black, white]
     best = max(candidates, key=lambda color: _contrast_ratio(color, background))
     if _contrast_ratio(best, background) >= _MIN_CONTRAST:
@@ -160,7 +162,9 @@ def _cached_foreground_for_background(background_key: _ColorKey, palette_key: _P
     return black if _contrast_ratio(black, background) > _contrast_ratio(white, background) else white
 
 
-def _state_background(palette: QPalette, light_accent: QColor, dark_accent: QColor) -> QColor:
+def _state_background(
+    palette: QtGui.QPalette, light_accent: QtGui.QColor, dark_accent: QtGui.QColor
+) -> QtGui.QColor:
     """Blend state accent with theme base and adjust until text is readable."""
     colors = _theme_colors(palette)
     if _theme_is_dark(colors):
@@ -175,15 +179,15 @@ def _state_background(palette: QPalette, light_accent: QColor, dark_accent: QCol
     return _find_contrast_background(colors.base, accent, foreground)
 
 
-def _theme_colors(palette: QPalette) -> _ThemeColors:
+def _theme_colors(palette: QtGui.QPalette) -> _ThemeColors:
     """Extract reliable palette colors for item-view backgrounds and text."""
-    base = palette.color(QPalette.ColorRole.Base)
+    base = palette.color(QtGui.QPalette.ColorRole.Base)
     if not base.isValid():
-        base = palette.color(QPalette.ColorRole.Window)
+        base = palette.color(QtGui.QPalette.ColorRole.Window)
     return _ThemeColors(
         base=base,
-        text=palette.color(QPalette.ColorRole.Text),
-        window=palette.color(QPalette.ColorRole.Window),
+        text=palette.color(QtGui.QPalette.ColorRole.Text),
+        window=palette.color(QtGui.QPalette.ColorRole.Window),
     )
 
 
@@ -201,38 +205,40 @@ def _theme_is_dark(colors: _ThemeColors) -> bool:
     return base_is_dark and window_is_dark and text_is_light
 
 
-def _palette_key(palette: QPalette) -> _PaletteKey:
+def _palette_key(palette: QtGui.QPalette) -> _PaletteKey:
     """Create hashable cache key from palette colors that affect output."""
     colors = _theme_colors(palette)
     return _color_key(colors.base), _color_key(colors.text), _color_key(colors.window)
 
 
-def _palette_from_key(palette_key: _PaletteKey) -> QPalette:
+def _palette_from_key(palette_key: _PaletteKey) -> QtGui.QPalette:
     """Build minimal palette from cache key for existing color helpers."""
-    palette = QPalette()
-    palette.setColor(QPalette.ColorRole.Base, _color_from_key(palette_key[0]))
-    palette.setColor(QPalette.ColorRole.Text, _color_from_key(palette_key[1]))
-    palette.setColor(QPalette.ColorRole.Window, _color_from_key(palette_key[2]))
+    palette = QtGui.QPalette()
+    palette.setColor(QtGui.QPalette.ColorRole.Base, _color_from_key(palette_key[0]))
+    palette.setColor(QtGui.QPalette.ColorRole.Text, _color_from_key(palette_key[1]))
+    palette.setColor(QtGui.QPalette.ColorRole.Window, _color_from_key(palette_key[2]))
     return palette
 
 
-def _color_key(color: QColor) -> _ColorKey:
+def _color_key(color: QtGui.QColor) -> _ColorKey:
     """Create hashable cache key for opaque RGB color values."""
     return color.red(), color.green(), color.blue()
 
 
-def _color_from_key(color_key: _ColorKey) -> QColor:
+def _color_from_key(color_key: _ColorKey) -> QtGui.QColor:
     """Recreate QColor from an RGB cache key."""
     red, green, blue = color_key
-    return QColor(red, green, blue)
+    return QtGui.QColor(red, green, blue)
 
 
-def _is_dark(color: QColor) -> bool:
+def _is_dark(color: QtGui.QColor) -> bool:
     """Return true when color behaves like dark theme background."""
     return _relative_luminance(color) < _DARK_LUMINANCE_THRESHOLD
 
 
-def _find_contrast_background(base: QColor, accent: QColor, foreground: QColor) -> QColor:
+def _find_contrast_background(
+    base: QtGui.QColor, accent: QtGui.QColor, foreground: QtGui.QColor
+) -> QtGui.QColor:
     """Try stronger accent blends until foreground contrast is sufficient."""
     for ratio in _CONTRAST_FALLBACK_BLEND_RATIOS:
         candidate = _blend(base, accent, ratio)
@@ -241,17 +247,17 @@ def _find_contrast_background(base: QColor, accent: QColor, foreground: QColor) 
     return _blend(base, accent, _LAST_FALLBACK_BLEND)
 
 
-def _blend(base: QColor, accent: QColor, accent_ratio: float) -> QColor:
+def _blend(base: QtGui.QColor, accent: QtGui.QColor, accent_ratio: float) -> QtGui.QColor:
     """Blend two RGB colors using accent_ratio as the accent weight."""
     base_ratio = 1.0 - accent_ratio
-    return QColor(
+    return QtGui.QColor(
         round(base.red() * base_ratio + accent.red() * accent_ratio),
         round(base.green() * base_ratio + accent.green() * accent_ratio),
         round(base.blue() * base_ratio + accent.blue() * accent_ratio),
     )
 
 
-def _contrast_ratio(foreground: QColor, background: QColor) -> float:
+def _contrast_ratio(foreground: QtGui.QColor, background: QtGui.QColor) -> float:
     """Calculate WCAG contrast ratio between two colors."""
     first = _relative_luminance(foreground)
     second = _relative_luminance(background)
@@ -260,7 +266,7 @@ def _contrast_ratio(foreground: QColor, background: QColor) -> float:
     return (lighter + 0.05) / (darker + 0.05)
 
 
-def _relative_luminance(color: QColor) -> float:
+def _relative_luminance(color: QtGui.QColor) -> float:
     """Calculate WCAG relative luminance for an sRGB color."""
     red = _linear_channel(color.redF())
     green = _linear_channel(color.greenF())

@@ -1,7 +1,7 @@
 """File responsibility: Unit tests for PropertyDiffTreeWidget component."""
 
 import pytest
-from PySide6.QtCore import Qt
+from freecad.diff_wb.qt import QtCore, QtWidgets
 
 from freecad.diff_wb.domain.diff.models import DiffState
 from freecad.diff_wb.ui.views.diff_theme import DIFF_STATE_ROLE
@@ -14,12 +14,10 @@ def widget() -> object:
     Note: This uses module scope to ensure QApplication is created once
     and reused across all tests in this module.
     """
-    from PySide6.QtWidgets import QApplication
-
     # Ensure QApplication exists before creating widgets
-    app = QApplication.instance()
+    app = QtWidgets.QApplication.instance()
     if app is None:
-        app = QApplication([])
+        app = QtWidgets.QApplication([])
 
     from freecad.diff_wb.ui.views.property_diff_tree_widget import PropertyDiffTreeWidget
 
@@ -90,8 +88,8 @@ class TestPropertyDiffTreeWidgetShowPropertyDiff:
         assert prop_item.text(2) == col2
         for column in range(3):
             assert prop_item.data(column, DIFF_STATE_ROLE) == state
-            assert prop_item.background(column).style() != Qt.BrushStyle.NoBrush
-            assert prop_item.foreground(column).style() != Qt.BrushStyle.NoBrush
+            assert prop_item.background(column).style() != QtCore.Qt.BrushStyle.NoBrush
+            assert prop_item.foreground(column).style() != QtCore.Qt.BrushStyle.NoBrush
 
     def test_property_with_unchanged_state_uses_normal_background(self, widget) -> None:  # type: ignore[no-untyped-def]
         """show_property_diff() includes UNCHANGED properties with normal theme background."""
@@ -141,7 +139,7 @@ class TestPropertyDiffTreeWidgetShowPropertyDiff:
         assert unchanged_item.text(2) == "50.0"  # Same value in right column
         for column in range(3):
             assert unchanged_item.data(column, DIFF_STATE_ROLE) is None
-            assert unchanged_item.background(column).style() == Qt.BrushStyle.NoBrush
+            assert unchanged_item.background(column).style() == QtCore.Qt.BrushStyle.NoBrush
 
 
 class TestPropertyDiffTreeWidgetGroupHeaders:
@@ -149,8 +147,6 @@ class TestPropertyDiffTreeWidgetGroupHeaders:
 
     def test_group_header_is_non_selectable(self, widget) -> None:  # type: ignore[no-untyped-def]
         """show_property_diff() creates group headers that are not selectable."""
-        from PySide6.QtCore import Qt
-
         from freecad.diff_wb.ui.presenters.presentation_models import PropertyPresentation
 
         # Given: Properties to display
@@ -168,7 +164,7 @@ class TestPropertyDiffTreeWidgetGroupHeaders:
         group_item = widget.topLevelItem(0)
         assert group_item is not None
         flags = group_item.flags()
-        assert not (flags & Qt.ItemFlag.ItemIsSelectable)
+        assert not (flags & QtCore.Qt.ItemFlag.ItemIsSelectable)
 
     def test_groups_are_expanded_by_default(self, widget) -> None:  # type: ignore[no-untyped-def]
         """show_property_diff() expands groups by default so properties are visible."""

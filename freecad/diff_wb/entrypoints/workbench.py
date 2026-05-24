@@ -11,8 +11,7 @@ import os
 import traceback
 from typing import TYPE_CHECKING, cast
 
-from PySide6.QtCore import QT_TRANSLATE_NOOP
-
+from ..qt import QtCore, QtGui, QtWidgets
 from ..resources import ICONPATH
 from ..utils import Log, set_logger, translate
 
@@ -62,8 +61,8 @@ if Gui is not None:
 
         def __init__(self):
             super().__init__()
-            self.MenuText = cast(str, QT_TRANSLATE_NOOP("Workbench", "History"))
-            self.ToolTip = cast(str, QT_TRANSLATE_NOOP("Workbench", "Track project iterations and history"))
+            self.MenuText = cast(str, QtCore.QT_TRANSLATE_NOOP("Workbench", "History"))
+            self.ToolTip = cast(str, QtCore.QT_TRANSLATE_NOOP("Workbench", "Track project iterations and history"))
             self._subwindow = None  # Store reference to MDI subwindow
 
         def GetClassName(self) -> str:
@@ -108,11 +107,11 @@ if Gui is not None:
             # Setup toolbar and menu
             Log.info("Switching to diff_wb")
             self.appendToolbar(
-                cast(str, QT_TRANSLATE_NOOP("Workbench", "Project History Workbench")),
+                cast(str, QtCore.QT_TRANSLATE_NOOP("Workbench", "Project History Workbench")),
                 self.toolbar_commands,
             )
             self.appendMenu(
-                cast(str, QT_TRANSLATE_NOOP("Workbench", "Project History Workbench")),
+                cast(str, QtCore.QT_TRANSLATE_NOOP("Workbench", "Project History Workbench")),
                 self.menu_commands,
             )
 
@@ -168,16 +167,12 @@ if Gui is not None:
                 return
 
             try:
-                from PySide6.QtCore import Qt
-                from PySide6.QtGui import QIcon
-                from PySide6.QtWidgets import QMdiArea
-
                 from .._container import _container
                 from ..ui.composer import compose_and_register_ui
 
                 # Get MDI area
                 main_window = getMainWindow()
-                mdi_area = main_window.findChild(QMdiArea)
+                mdi_area = main_window.findChild(QtWidgets.QMdiArea)
 
                 if mdi_area is None:
                     Log.warning("Could not get MDI area")
@@ -189,8 +184,8 @@ if Gui is not None:
                 # Add as MDI subwindow
                 self._subwindow = mdi_area.addSubWindow(view)
                 self._subwindow.setWindowTitle(translate("ProjectHistory", "History Panel"))
-                self._subwindow.setWindowIcon(QIcon(os.path.join(ICONPATH, "Logo.svg")))
-                self._subwindow.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+                self._subwindow.setWindowIcon(QtGui.QIcon(os.path.join(ICONPATH, "Logo.svg")))
+                self._subwindow.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
                 self._subwindow.resize(900, 600)
                 self._subwindow.show()
 

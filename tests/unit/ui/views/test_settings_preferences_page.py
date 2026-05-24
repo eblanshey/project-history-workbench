@@ -13,6 +13,7 @@ from freecad.diff_wb.domain.settings.persistence_state import (
     ListSettingState,
     SettingsPersistenceState,
 )
+from freecad.diff_wb.qt import QtWidgets
 from freecad.diff_wb.ui.views.settings_preferences_page import DiffSettingsPreferencesPage
 
 
@@ -55,11 +56,9 @@ def _make_state() -> SettingsPersistenceState:
 
 
 def _ensure_qapplication() -> None:
-    from PySide6.QtWidgets import QApplication
-
-    app = QApplication.instance()
+    app = QtWidgets.QApplication.instance()
     if app is None:
-        QApplication([])
+        QtWidgets.QApplication([])
 
 
 class TestDiffSettingsPreferencesPage:

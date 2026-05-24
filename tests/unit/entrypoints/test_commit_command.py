@@ -20,7 +20,7 @@ from freecad.diff_wb.entrypoints.commands import (
 class TestCommitCommand:
     """Tests for _CommitCommand."""
 
-    @patch("PySide6.QtWidgets.QMessageBox")
+    @patch("freecad.diff_wb.qt.QtWidgets.QMessageBox")
     @patch("freecad.diff_wb.ui.registry.ui_registry")
     @patch("freecad.diff_wb._container.get_container")
     def test_commit_command_successful_commit(
@@ -58,7 +58,7 @@ class TestCommitCommand:
         mock_presenter.refresh_repository_and_commits.assert_called_once()
         mock_message_box.critical.assert_not_called()
 
-    @patch("PySide6.QtWidgets.QMessageBox")
+    @patch("freecad.diff_wb.qt.QtWidgets.QMessageBox")
     @patch("freecad.diff_wb.ui.registry.ui_registry")
     @patch("freecad.diff_wb._container.get_container")
     def test_commit_command_no_repository(
@@ -87,7 +87,7 @@ class TestCommitCommand:
         assert "project" in call_args[0][2].lower()
         mock_message_box.critical.assert_not_called()
 
-    @patch("PySide6.QtWidgets.QMessageBox")
+    @patch("freecad.diff_wb.qt.QtWidgets.QMessageBox")
     @patch("freecad.diff_wb.ui.registry.ui_registry")
     @patch("freecad.diff_wb._container.get_container")
     def test_commit_command_user_cancelled(
@@ -115,7 +115,7 @@ class TestCommitCommand:
         mock_message_box.warning.assert_not_called()
         mock_message_box.critical.assert_not_called()
 
-    @patch("PySide6.QtWidgets.QMessageBox")
+    @patch("freecad.diff_wb.qt.QtWidgets.QMessageBox")
     @patch("freecad.diff_wb.ui.registry.ui_registry")
     @patch("freecad.diff_wb._container.get_container")
     def test_commit_command_empty_message(
@@ -145,7 +145,7 @@ class TestCommitCommand:
         assert call_args[0][1] == "Empty Notes"
         mock_message_box.critical.assert_not_called()
 
-    @patch("PySide6.QtWidgets.QMessageBox")
+    @patch("freecad.diff_wb.qt.QtWidgets.QMessageBox")
     @patch("freecad.diff_wb.ui.registry.ui_registry")
     @patch("freecad.diff_wb._container.get_container")
     def test_commit_command_whitespace_only_message(
@@ -175,7 +175,7 @@ class TestCommitCommand:
         assert call_args[0][1] == "Empty Notes"
         mock_message_box.critical.assert_not_called()
 
-    @patch("PySide6.QtWidgets.QMessageBox")
+    @patch("freecad.diff_wb.qt.QtWidgets.QMessageBox")
     @patch("freecad.diff_wb.ui.registry.ui_registry")
     @patch("freecad.diff_wb._container.get_container")
     def test_commit_command_failed_commit(
@@ -211,7 +211,7 @@ class TestCommitCommand:
         assert "git commit failed" in call_args[0][2].lower()
         mock_message_box.warning.assert_not_called()
 
-    @patch("PySide6.QtWidgets.QMessageBox")
+    @patch("freecad.diff_wb.qt.QtWidgets.QMessageBox")
     @patch("freecad.diff_wb.ui.registry.ui_registry")
     @patch("freecad.diff_wb._container.get_container")
     def test_commit_command_failed_commit_with_custom_message(
@@ -245,7 +245,7 @@ class TestCommitCommand:
         call_args = mock_message_box.critical.call_args
         assert call_args[0][2] == "No staged files"
 
-    @patch("PySide6.QtWidgets.QMessageBox")
+    @patch("freecad.diff_wb.qt.QtWidgets.QMessageBox")
     @patch("freecad.diff_wb.ui.registry.ui_registry")
     @patch("freecad.diff_wb._container.get_container")
     def test_commit_command_no_staged_files(
@@ -277,7 +277,7 @@ class TestCommitCommand:
         mock_message_box.warning.assert_not_called()
         mock_message_box.critical.assert_not_called()
 
-    @patch("PySide6.QtWidgets.QMessageBox")
+    @patch("freecad.diff_wb.qt.QtWidgets.QMessageBox")
     @patch("freecad.diff_wb.ui.registry.ui_registry")
     @patch("freecad.diff_wb._container.get_container")
     def test_commit_command_configures_missing_identity_before_commit(
@@ -314,7 +314,7 @@ class TestCommitCommand:
         mock_message_box.warning.assert_not_called()
         mock_message_box.critical.assert_not_called()
 
-    @patch("PySide6.QtWidgets.QMessageBox")
+    @patch("freecad.diff_wb.qt.QtWidgets.QMessageBox")
     @patch("freecad.diff_wb.ui.registry.ui_registry")
     @patch("freecad.diff_wb._container.get_container")
     def test_commit_command_stops_when_configure_identity_cancelled(
@@ -371,7 +371,7 @@ class TestCommitCommand:
         # Verify
         assert result is True
 
-    @patch("PySide6.QtWidgets.QMessageBox")
+    @patch("freecad.diff_wb.qt.QtWidgets.QMessageBox")
     @patch("freecad.diff_wb.ui.registry.ui_registry")
     @patch("freecad.diff_wb._container.get_container")
     def test_commit_command_trims_message_before_sending(
@@ -411,7 +411,7 @@ class TestCommitCommand:
 class TestConfigureGitCommand:
     """Tests for _ConfigureGitCommand."""
 
-    @patch("PySide6.QtWidgets.QMessageBox")
+    @patch("freecad.diff_wb.qt.QtWidgets.QMessageBox")
     def test_configure_repository_saves_identity(
         self,
         mock_message_box: Mock,
@@ -442,7 +442,7 @@ class TestConfigureGitCommand:
         mock_message_box.warning.assert_not_called()
         mock_message_box.critical.assert_not_called()
 
-    @patch("PySide6.QtWidgets.QMessageBox")
+    @patch("freecad.diff_wb.qt.QtWidgets.QMessageBox")
     def test_configure_repository_requires_name_and_email(self, mock_message_box: Mock) -> None:
         """Configure dialog requires both name and email."""
         mock_container = MagicMock()
@@ -464,7 +464,7 @@ class TestConfigureGitCommand:
         mock_message_box.warning.assert_called_once()
         mock_container.save_git_identity_action.execute.assert_not_called()
 
-    @patch("PySide6.QtWidgets.QMessageBox")
+    @patch("freecad.diff_wb.qt.QtWidgets.QMessageBox")
     def test_configure_repository_cancel_returns_false(self, mock_message_box: Mock) -> None:
         """Canceling configure dialog does not save identity."""
         mock_container = MagicMock()
@@ -481,7 +481,7 @@ class TestConfigureGitCommand:
         mock_message_box.critical.assert_not_called()
         mock_container.save_git_identity_action.execute.assert_not_called()
 
-    @patch("PySide6.QtWidgets.QMessageBox")
+    @patch("freecad.diff_wb.qt.QtWidgets.QMessageBox")
     def test_configure_repository_reopens_after_global_save_failure(self, mock_message_box: Mock) -> None:
         """Global save failure reopens dialog and allows local save retry."""
         mock_container = MagicMock()
@@ -526,7 +526,7 @@ class TestConfigureGitCommand:
         assert mock_container.save_git_identity_action.execute.call_args_list[1].args[2] is False
         mock_message_box.critical.assert_not_called()
 
-    @patch("PySide6.QtWidgets.QMessageBox")
+    @patch("freecad.diff_wb.qt.QtWidgets.QMessageBox")
     def test_configure_repository_prefills_existing_identity(self, mock_message_box: Mock) -> None:
         """Existing git identity is passed to config dialog as initial values."""
         mock_container = MagicMock()
@@ -555,7 +555,7 @@ class TestConfigureGitCommand:
         )
         mock_message_box.warning.assert_not_called()
 
-    @patch("PySide6.QtWidgets.QMessageBox")
+    @patch("freecad.diff_wb.qt.QtWidgets.QMessageBox")
     def test_configure_repository_disables_global_option_when_global_config_not_writable(
         self,
         mock_message_box: Mock,

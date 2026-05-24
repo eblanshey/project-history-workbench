@@ -2,11 +2,9 @@
 
 from collections.abc import Callable
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QSplitter, QVBoxLayout, QWidget
-
 from ...domain.git.models import GitCommit, GitRepository
 from ...domain.settings import SettingsRepository
+from ...qt import QtCore, QtWidgets
 from ..presenters.presentation_models import (
     DiffTreePresentation,
     NodePresentation,
@@ -21,7 +19,7 @@ from .property_diff_tree_widget import PropertyDiffTreeWidget
 __all__ = ["DiffPanelView", "HistorySelection"]
 
 
-class DiffPanelView(QWidget):
+class DiffPanelView(QtWidgets.QWidget):
     """3-column diff panel view implementing DiffView protocol.
 
     Provides a horizontal QSplitter with:
@@ -40,18 +38,22 @@ class DiffPanelView(QWidget):
 
     """
 
-    def __init__(self, parent: QWidget | None = None, settings_repo: SettingsRepository | None = None) -> None:
-        QWidget.__init__(self, parent)
+    def __init__(
+        self,
+        parent: QtWidgets.QWidget | None = None,
+        settings_repo: SettingsRepository | None = None,
+    ) -> None:
+        QtWidgets.QWidget.__init__(self, parent)
         self._settings_repo = settings_repo
         self._current_selection: HistorySelection | None = None
         self._setup_ui()
 
     def _setup_ui(self) -> None:
         """Initialize the 3-column layout with child widgets."""
-        layout = QVBoxLayout(self)
+        layout = QtWidgets.QVBoxLayout(self)
 
         # Create horizontal splitter
-        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
 
         # Column 1: History panel widget
         self._history_panel = HistoryPanelWidget(self)

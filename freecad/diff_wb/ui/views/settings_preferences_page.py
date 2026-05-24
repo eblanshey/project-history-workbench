@@ -6,18 +6,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtWidgets import (
-    QFormLayout,
-    QGroupBox,
-    QHBoxLayout,
-    QLabel,
-    QRadioButton,
-    QSpinBox,
-    QTextEdit,
-    QVBoxLayout,
-    QWidget,
-)
-
 from ...application.actions.get_diff_settings import GetDiffSettingsAction
 from ...application.actions.save_diff_settings import SaveDiffSettingsAction
 from ...domain.config import EXCLUDED_PROPERTIES, EXCLUDED_PROPERTIES_BY_TYPE, EXCLUDED_TYPES, FLOAT_PRECISION
@@ -32,14 +20,15 @@ from ...domain.settings.text_codec import (
     serialize_by_type_lines,
     serialize_list_lines,
 )
+from ...qt import QtWidgets
 from ...utils import Log, translate
 
 
 @dataclass(frozen=True)
 class _ListControls:
-    default_radio: QRadioButton
-    custom_radio: QRadioButton
-    text_edit: QTextEdit
+    default_radio: QtWidgets.QRadioButton
+    custom_radio: QtWidgets.QRadioButton
+    text_edit: QtWidgets.QTextEdit
 
 
 class DiffSettingsPreferencesPage:
@@ -73,11 +62,11 @@ class DiffSettingsPreferencesPage:
         self._loaded_state: SettingsPersistenceState | None = None
         self._is_loading = False
 
-        self.form = QWidget()
+        self.form = QtWidgets.QWidget()
         self.form.setWindowTitle(translate("ProjectHistory", "General"))
-        root_layout = QVBoxLayout(self.form)
+        root_layout = QtWidgets.QVBoxLayout(self.form)
 
-        info_text = QLabel(
+        info_text = QtWidgets.QLabel(
             translate(
                 "ProjectHistory",
                 "Settings apply only during tree comparisons. Saved tree snapshots are unaffected by these settings.",
@@ -120,12 +109,12 @@ class DiffSettingsPreferencesPage:
             )
         )
 
-        self._float_precision_spin = QSpinBox(self.form)
+        self._float_precision_spin = QtWidgets.QSpinBox(self.form)
         self._float_precision_spin.setRange(0, 12)
         self._float_precision_spin.setSingleStep(1)
-        precision_layout = QFormLayout()
+        precision_layout = QtWidgets.QFormLayout()
         precision_layout.addRow(translate("ProjectHistory", "Float precision"), self._float_precision_spin)
-        precision_group = QGroupBox(translate("ProjectHistory", "Numeric comparison"), self.form)
+        precision_group = QtWidgets.QGroupBox(translate("ProjectHistory", "Numeric comparison"), self.form)
         precision_group.setLayout(precision_layout)
         root_layout.addWidget(precision_group)
         root_layout.addStretch(1)
@@ -266,19 +255,19 @@ class DiffSettingsPreferencesPage:
         controls.text_edit.setPlainText(serialize_by_type_lines(defaults))
 
     def _build_list_group(self, textarea_name: str, helper_text: str) -> _ListControls:
-        default_radio = QRadioButton(translate("ProjectHistory", "Use default exclusion list"), self.form)
-        custom_radio = QRadioButton(translate("ProjectHistory", "Use custom exclusion list"), self.form)
+        default_radio = QtWidgets.QRadioButton(translate("ProjectHistory", "Use default exclusion list"), self.form)
+        custom_radio = QtWidgets.QRadioButton(translate("ProjectHistory", "Use custom exclusion list"), self.form)
 
-        text_edit = QTextEdit(self.form)
+        text_edit = QtWidgets.QTextEdit(self.form)
         text_edit.setObjectName(textarea_name)
         text_edit.setPlaceholderText(helper_text)
         return _ListControls(default_radio=default_radio, custom_radio=custom_radio, text_edit=text_edit)
 
-    def _wrap_group(self, title: str, controls: _ListControls) -> QGroupBox:
-        group = QGroupBox(title, self.form)
-        group_layout = QVBoxLayout(group)
+    def _wrap_group(self, title: str, controls: _ListControls) -> QtWidgets.QGroupBox:
+        group = QtWidgets.QGroupBox(title, self.form)
+        group_layout = QtWidgets.QVBoxLayout(group)
 
-        radios_layout = QHBoxLayout()
+        radios_layout = QtWidgets.QHBoxLayout()
         radios_layout.addWidget(controls.default_radio)
         radios_layout.addWidget(controls.custom_radio)
 

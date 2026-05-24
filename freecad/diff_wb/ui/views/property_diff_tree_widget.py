@@ -2,21 +2,10 @@
 
 from typing import Any
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QBrush, QColor, QPalette
-from PySide6.QtWidgets import (
-    QAbstractItemView,
-    QHeaderView,
-    QLineEdit,
-    QStyleOptionViewItem,
-    QTreeWidget,
-    QTreeWidgetItem,
-    QWidget,
-)
-
 from ...domain.config import FLOAT_PRECISION as DEFAULT_FLOAT_PRECISION
 from ...domain.diff.models import DiffState
 from ...domain.settings import SettingsRepository
+from ...qt import QtCore, QtGui, QtWidgets
 from ...utils import format_float, translate
 from ..presenters.presentation_models import PropertyPresentation
 from .diff_theme import DIFF_STATE_ROLE, DiffItemDelegate, background_for_state, foreground_for_background
@@ -80,7 +69,9 @@ def _update_upper_sequence_start(char: str, upper_sequence_start: int, index: in
 class _PropertyValueDelegate(DiffItemDelegate):
     """Delegate allowing double-click text selection without persisting edits."""
 
-    def createEditor(self, parent: QWidget, option: QStyleOptionViewItem, index) -> QWidget:  # type: ignore[override]
+    def createEditor(
+        self, parent: QtWidgets.QWidget, option: QtWidgets.QStyleOptionViewItem, index
+    ) -> QtWidgets.QWidget:  # type: ignore[override]
         """Create editor widget for inline editing.
 
         Creates a QLineEdit configured for text selection without frame styling.
@@ -93,12 +84,12 @@ class _PropertyValueDelegate(DiffItemDelegate):
         Returns:
             QLineEdit configured for value display and selection.
         """
-        editor = QLineEdit(parent)
+        editor = QtWidgets.QLineEdit(parent)
         editor.setFrame(False)
-        editor.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+        editor.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignLeft)
         return editor
 
-    def setEditorData(self, editor: QLineEdit, index) -> None:  # type: ignore[override]
+    def setEditorData(self, editor: QtWidgets.QLineEdit, index) -> None:  # type: ignore[override]
         """Populate editor with current model data.
 
         Extracts the display text from the model and sets it in the editor,
@@ -108,12 +99,12 @@ class _PropertyValueDelegate(DiffItemDelegate):
             editor: The QLineEdit editor widget.
             index: Model index containing the data to display.
         """
-        text = index.model().data(index, Qt.ItemDataRole.DisplayRole)
+        text = index.model().data(index, QtCore.Qt.ItemDataRole.DisplayRole)
         if text is not None:
             editor.setText(str(text))
             editor.selectAll()
 
-    def setModelData(self, editor: QLineEdit, model, index) -> None:  # type: ignore[override]
+    def setModelData(self, editor: QtWidgets.QLineEdit, model, index) -> None:  # type: ignore[override]
         """Ignore editor data changes (read-only mode).
 
         This delegate is used for read-only display with text selection.
@@ -126,7 +117,12 @@ class _PropertyValueDelegate(DiffItemDelegate):
         """
         pass
 
-    def updateEditorGeometry(self, editor: QLineEdit, option: QStyleOptionViewItem, index) -> None:  # type: ignore[override]
+    def updateEditorGeometry(
+        self,
+        editor: QtWidgets.QWidget,
+        option: QtWidgets.QStyleOptionViewItem,
+        index,
+    ) -> None:  # type: ignore[override]
         """Position editor widget over the cell being edited.
 
         Args:
@@ -137,10 +133,14 @@ class _PropertyValueDelegate(DiffItemDelegate):
         editor.setGeometry(option.rect)  # type: ignore[attr-defined]
 
 
-class PropertyDiffTreeWidget(QTreeWidget):
+class PropertyDiffTreeWidget(QtWidgets.QTreeWidget):
     """Widget that renders grouped property diffs in three columns."""
 
-    def __init__(self, parent: QWidget | None = None, settings_repo: SettingsRepository | None = None) -> None:
+    def __init__(
+        self,
+        parent: QtWidgets.QWidget | None = None,
+        settings_repo: SettingsRepository | None = None,
+    ) -> None:
         super().__init__(parent)
         self._settings_repo = settings_repo
         self._default_precision = DEFAULT_FLOAT_PRECISION
@@ -156,10 +156,10 @@ class PropertyDiffTreeWidget(QTreeWidget):
                 translate("ProjectHistory", "New Value"),
             ]
         )
-        self.header().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.header().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Stretch)
         self.header().setStretchLastSection(True)
         self.setItemDelegate(self._property_value_delegate)
-        self.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked)
+        self.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.DoubleClicked)
 
     def clear_property_diff(self) -> None:
         """Clear all property diff entries from the tree widget."""
@@ -201,7 +201,7 @@ class PropertyDiffTreeWidget(QTreeWidget):
                 pass
         return self._default_precision
 
-    def _create_group_header_item(self, group_name: str) -> QTreeWidgetItem:
+    def _create_group_header_item(self, group_name: str) -> QtWidgets.QTreeWidgetItem:
         """Create a non-selectable group header item with gray background.
 
         Args:
@@ -210,9 +210,9 @@ class PropertyDiffTreeWidget(QTreeWidget):
         Returns:
             QTreeWidgetItem configured as a group header.
         """
-        item = QTreeWidgetItem([group_name, "", ""])
+        item = QtWidgets.QTreeWidgetItem([group_name, "", ""])
         # Make header non-selectable
-        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsSelectable)
+        item.setFlags(item.flags() & ~QtCore.Qt.ItemFlag.ItemIsSelectable)
         self._apply_group_header_colors(item)
         # Make the group header bold
         font = item.font(0)
@@ -239,7 +239,7 @@ class PropertyDiffTreeWidget(QTreeWidget):
             return True
         return any(self._presentation_has_changes(c) for c in prop.children)
 
-    def _create_property_tree_item(self, prop: PropertyPresentation) -> QTreeWidgetItem:
+    def _create_property_tree_item(self, prop: PropertyPresentation) -> QtWidgets.QTreeWidgetItem:
         """Create a property tree item with diff coloring and conditional expansion.
 
         Children are pre-computed by the presenter. Expansion intent is stored
@@ -258,9 +258,9 @@ class PropertyDiffTreeWidget(QTreeWidget):
         # Convert CamelCase to spaced name for display
         display_name = _camelcase_to_spaces(prop.name)
 
-        item = QTreeWidgetItem([display_name, left_value, right_value])
+        item = QtWidgets.QTreeWidgetItem([display_name, left_value, right_value])
         # Enable editing on double-click to allow text selection for copying
-        item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
+        item.setFlags(item.flags() | QtCore.Qt.ItemFlag.ItemIsEditable)
 
         # Set tooltip for the whole row using already-calculated values
         tooltip = self._create_property_tooltip(left_value, right_value)
@@ -269,7 +269,7 @@ class PropertyDiffTreeWidget(QTreeWidget):
         item.setToolTip(2, tooltip)
 
         # Store expansion intent (will be applied after tree is built)
-        item.setData(0, Qt.ItemDataRole.UserRole + 1, self._presentation_has_changes(prop))
+        item.setData(0, QtCore.Qt.ItemDataRole.UserRole + 1, self._presentation_has_changes(prop))
 
         # Use pre-computed children from domain instead of computing diffs
         self._add_child_items(item, prop.children)
@@ -296,7 +296,7 @@ class PropertyDiffTreeWidget(QTreeWidget):
         self,
         state: DiffState,
         prop: PropertyPresentation,
-    ) -> tuple[QColor | None, str, str]:
+    ) -> tuple[QtGui.QColor | None, str, str]:
         """Get background color and display values based on property state.
 
         For UNCHANGED state, the same value is shown in both columns for
@@ -326,7 +326,7 @@ class PropertyDiffTreeWidget(QTreeWidget):
 
     def _add_child_items(
         self,
-        parent_item: QTreeWidgetItem,
+        parent_item: QtWidgets.QTreeWidgetItem,
         children: list[PropertyPresentation],
     ) -> None:
         """Add pre-computed child items to the tree.
@@ -344,9 +344,9 @@ class PropertyDiffTreeWidget(QTreeWidget):
 
             # Create child item with CamelCase conversion for display
             display_name = _camelcase_to_spaces(child.name)
-            child_item = QTreeWidgetItem([display_name, left_value, right_value])
+            child_item = QtWidgets.QTreeWidgetItem([display_name, left_value, right_value])
             # Enable editing on double-click to allow text selection for copying
-            child_item.setFlags(child_item.flags() | Qt.ItemFlag.ItemIsEditable)
+            child_item.setFlags(child_item.flags() | QtCore.Qt.ItemFlag.ItemIsEditable)
 
             # Set tooltip for the whole row using already-calculated values
             tooltip = self._create_property_tooltip(left_value, right_value)
@@ -355,7 +355,7 @@ class PropertyDiffTreeWidget(QTreeWidget):
             child_item.setToolTip(2, tooltip)
 
             # Store expansion intent (will be applied after tree is built)
-            child_item.setData(0, Qt.ItemDataRole.UserRole + 1, self._presentation_has_changes(child))
+            child_item.setData(0, QtCore.Qt.ItemDataRole.UserRole + 1, self._presentation_has_changes(child))
 
             self._apply_child_diff_state(child_item, child.state)
 
@@ -387,7 +387,7 @@ class PropertyDiffTreeWidget(QTreeWidget):
             return old_val, new_val
         return new_val, new_val
 
-    def _apply_child_diff_state(self, child_item: QTreeWidgetItem, state: DiffState) -> None:
+    def _apply_child_diff_state(self, child_item: QtWidgets.QTreeWidgetItem, state: DiffState) -> None:
         """Apply semantic diff color to a child item based on its state.
 
         Args:
@@ -396,7 +396,9 @@ class PropertyDiffTreeWidget(QTreeWidget):
         """
         self._apply_diff_state_to_all_columns(child_item, state, background_for_state(state, self.palette()))
 
-    def _apply_diff_state_to_all_columns(self, item: QTreeWidgetItem, state: DiffState, color: QColor | None) -> None:
+    def _apply_diff_state_to_all_columns(
+        self, item: QtWidgets.QTreeWidgetItem, state: DiffState, color: QtGui.QColor | None
+    ) -> None:
         """Apply diff state data and optional background to all 3 columns.
 
         Args:
@@ -408,18 +410,18 @@ class PropertyDiffTreeWidget(QTreeWidget):
         foreground = foreground_for_background(color, self.palette())
         for column in range(3):
             item.setData(column, DIFF_STATE_ROLE, state)
-            item.setBackground(column, QBrush(color))
-            item.setForeground(column, QBrush(foreground))
+            item.setBackground(column, QtGui.QBrush(color))
+            item.setForeground(column, QtGui.QBrush(foreground))
 
-    def _apply_group_header_colors(self, item: QTreeWidgetItem) -> None:
+    def _apply_group_header_colors(self, item: QtWidgets.QTreeWidgetItem) -> None:
         """Apply theme palette colors to group header row."""
-        background = self.palette().color(QPalette.ColorRole.AlternateBase)
-        if not background.isValid() or background == self.palette().color(QPalette.ColorRole.Base):
-            background = self.palette().color(QPalette.ColorRole.Button)
+        background = self.palette().color(QtGui.QPalette.ColorRole.AlternateBase)
+        if not background.isValid() or background == self.palette().color(QtGui.QPalette.ColorRole.Base):
+            background = self.palette().color(QtGui.QPalette.ColorRole.Button)
         foreground = foreground_for_background(background, self.palette())
         for column in range(3):
-            item.setBackground(column, QBrush(background))
-            item.setForeground(column, QBrush(foreground))
+            item.setBackground(column, QtGui.QBrush(background))
+            item.setForeground(column, QtGui.QBrush(foreground))
 
     def _create_property_tooltip(self, old_value_str: str, new_value_str: str) -> str:
         """Create tooltip text for a property row.
@@ -447,13 +449,13 @@ class PropertyDiffTreeWidget(QTreeWidget):
         for i in range(self.topLevelItemCount()):
             self._apply_expansion_recursive(self.topLevelItem(i))
 
-    def _apply_expansion_recursive(self, item: QTreeWidgetItem) -> None:
+    def _apply_expansion_recursive(self, item: QtWidgets.QTreeWidgetItem) -> None:
         """Recursively apply expansion state to an item and its children.
 
         Args:
             item: The QTreeWidgetItem to apply expansion to.
         """
-        expand = item.data(0, Qt.ItemDataRole.UserRole + 1)
+        expand = item.data(0, QtCore.Qt.ItemDataRole.UserRole + 1)
         if expand:
             item.setExpanded(True)
         for i in range(item.childCount()):

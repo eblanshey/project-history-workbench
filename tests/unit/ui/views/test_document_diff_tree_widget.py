@@ -7,7 +7,7 @@ including tree rendering, staging controls, and callback wiring.
 from __future__ import annotations
 
 import pytest
-from PySide6.QtCore import Qt
+from freecad.diff_wb.qt import QtCore, QtWidgets
 
 from freecad.diff_wb.domain.diff.models import DiffState
 from freecad.diff_wb.ui.views.diff_theme import DIFF_STATE_ROLE
@@ -21,12 +21,10 @@ def widget() -> DocumentDiffTreeWidget:
     Note: This uses module scope to ensure QApplication is created once
     and reused across all tests in this module.
     """
-    from PySide6.QtWidgets import QApplication
-
     # Ensure QApplication exists before creating widgets
-    app = QApplication.instance()
+    app = QtWidgets.QApplication.instance()
     if app is None:
-        app = QApplication([])
+        app = QtWidgets.QApplication([])
 
     return DocumentDiffTreeWidget()
 
@@ -89,8 +87,8 @@ class TestShowDocDiffNodeColorsAndUserRole:
         child_item = root_item.child(0)
         assert child_item is not None
         assert child_item.data(0, DIFF_STATE_ROLE) == state
-        assert child_item.background(0).style() != Qt.BrushStyle.NoBrush
-        assert child_item.foreground(0).style() != Qt.BrushStyle.NoBrush
+        assert child_item.background(0).style() != QtCore.Qt.BrushStyle.NoBrush
+        assert child_item.foreground(0).style() != QtCore.Qt.BrushStyle.NoBrush
 
     def test_unchanged_nodes_shown_without_color(self, widget) -> None:  # type: ignore[no-untyped-def]
         """UNCHANGED nodes display without custom color (default background)."""
@@ -112,12 +110,10 @@ class TestShowDocDiffNodeColorsAndUserRole:
         child_item = root_item.child(0)
         assert child_item is not None
         assert child_item.data(0, DIFF_STATE_ROLE) is None
-        assert child_item.background(0).style() == Qt.BrushStyle.NoBrush
+        assert child_item.background(0).style() == QtCore.Qt.BrushStyle.NoBrush
 
     def test_path_stored_in_user_role_for_retrieval(self, widget) -> None:  # type: ignore[no-untyped-def]
         """Node paths are stored in Qt.UserRole for later property lookup."""
-        from PySide6.QtCore import Qt
-
         from freecad.diff_wb.ui.presenters.presentation_models import NodePresentation
 
         # Given: Node with a specific path
@@ -138,7 +134,7 @@ class TestShowDocDiffNodeColorsAndUserRole:
         assert root_item is not None
         child_item = root_item.child(0)
         assert child_item is not None
-        stored_path = child_item.data(0, Qt.ItemDataRole.UserRole)
+        stored_path = child_item.data(0, QtCore.Qt.ItemDataRole.UserRole)
         assert stored_path == "Body/Pad/Length"
 
 
@@ -383,8 +379,6 @@ class TestCallbackWiring:
 
     def test_visual_diff_button_only_for_enabled_nodes(self, widget) -> None:  # type: ignore[no-untyped-def]
         """Visual diff button appears only when presentation enables it."""
-        from PySide6.QtWidgets import QToolButton
-
         from freecad.diff_wb.ui.presenters.presentation_models import DiffTreePresentation, NodePresentation
         from freecad.diff_wb.ui.views.models import HistorySelection
 
@@ -427,12 +421,10 @@ class TestCallbackWiring:
         second_container = widget.tree_widget.itemWidget(second, 0)
         assert first_container is not None
         assert second_container is None
-        assert len(first_container.findChildren(QToolButton)) == 1
+        assert len(first_container.findChildren(QtWidgets.QToolButton)) == 1
 
     def test_visual_diff_button_emits_git_path_and_node_path(self, widget) -> None:  # type: ignore[no-untyped-def]
         """Visual diff button callback emits (git_path, node_path)."""
-        from PySide6.QtWidgets import QToolButton
-
         from freecad.diff_wb.ui.presenters.presentation_models import DiffTreePresentation, NodePresentation
         from freecad.diff_wb.ui.views.models import HistorySelection
 
@@ -465,7 +457,7 @@ class TestCallbackWiring:
         assert child is not None
         container = widget.tree_widget.itemWidget(child, 0)
         assert container is not None
-        buttons = container.findChildren(QToolButton)
+        buttons = container.findChildren(QtWidgets.QToolButton)
         assert len(buttons) == 1
         buttons[0].click()
         assert captured == [("parts/A.FCStd", "Body/Pad")]

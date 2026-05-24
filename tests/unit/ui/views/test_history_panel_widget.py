@@ -11,19 +11,18 @@ from datetime import datetime
 
 import pytest
 
+from freecad.diff_wb.qt import QtCore, QtWidgets
 from freecad.diff_wb.ui.views.history_panel_widget import HistoryPanelWidget
 
 
 def _history_row_text(panel, row: int) -> str:  # type: ignore[no-untyped-def]
     """Return visible text for a history row, including custom item widgets."""
-    from PySide6.QtWidgets import QLabel
-
     item = panel.history_list.item(row)
     widget = panel.history_list.itemWidget(item)
     if widget is None:
         return item.text()
 
-    labels = widget.findChildren(QLabel)
+    labels = widget.findChildren(QtWidgets.QLabel)
     if len(labels) == 1:
         return labels[0].text()
     if len(labels) >= 4:
@@ -39,12 +38,10 @@ def widget() -> object:
     Note: This uses module scope to ensure QApplication is created once
     and reused across all tests in this module.
     """
-    from PySide6.QtWidgets import QApplication
-
     # Ensure QApplication exists before creating widgets
-    app = QApplication.instance()
+    app = QtWidgets.QApplication.instance()
     if app is None:
-        app = QApplication([])
+        app = QtWidgets.QApplication([])
 
     return HistoryPanelWidget()
 
@@ -205,8 +202,6 @@ class TestShowCommitsSpecialItems:
 
     def test_show_commits_working_tree_has_correct_user_role(self, widget) -> None:  # type: ignore[no-untyped-def]
         """Test that Working Tree item has UserRole set to HistorySelection with WORKING_TREE kind."""
-        from PySide6.QtCore import Qt
-
         from freecad.diff_wb.ui.views.models import HistorySelection
 
         widget.show_commits([])
@@ -214,15 +209,13 @@ class TestShowCommitsSpecialItems:
         working_tree_item = widget.history_list.item(0)
         assert working_tree_item is not None
 
-        user_role = working_tree_item.data(Qt.ItemDataRole.UserRole)
+        user_role = working_tree_item.data(QtCore.Qt.ItemDataRole.UserRole)
         assert isinstance(user_role, HistorySelection)
         assert user_role.item_kind == "WORKING_TREE"
         assert user_role.commit_hash is None
 
     def test_show_commits_staging_has_correct_user_role(self, widget) -> None:  # type: ignore[no-untyped-def]
         """Test that Staging item has UserRole set to HistorySelection with STAGING kind."""
-        from PySide6.QtCore import Qt
-
         from freecad.diff_wb.ui.views.models import HistorySelection
 
         widget.show_commits([])
@@ -230,15 +223,13 @@ class TestShowCommitsSpecialItems:
         staging_item = widget.history_list.item(1)
         assert staging_item is not None
 
-        user_role = staging_item.data(Qt.ItemDataRole.UserRole)
+        user_role = staging_item.data(QtCore.Qt.ItemDataRole.UserRole)
         assert isinstance(user_role, HistorySelection)
         assert user_role.item_kind == "STAGING"
         assert user_role.commit_hash is None
 
     def test_show_commits_commits_have_commit_history_selection(self, widget) -> None:  # type: ignore[no-untyped-def]
         """Test that actual commits have HistorySelection with COMMIT kind and commit hash."""
-        from PySide6.QtCore import Qt
-
         from freecad.diff_wb.domain.git.models import GitCommit
         from freecad.diff_wb.ui.views.models import HistorySelection
 
@@ -258,7 +249,7 @@ class TestShowCommitsSpecialItems:
         commit_item = widget.history_list.item(2)
         assert commit_item is not None
 
-        user_role = commit_item.data(Qt.ItemDataRole.UserRole)
+        user_role = commit_item.data(QtCore.Qt.ItemDataRole.UserRole)
         assert isinstance(user_role, HistorySelection)
         assert user_role.item_kind == "COMMIT"
         assert user_role.commit_hash == commit_hash
@@ -502,8 +493,6 @@ class TestShowCommits:
 
     def test_show_commits_refresh_restores_previous_selection_if_it_still_exists(self, widget) -> None:  # type: ignore[no-untyped-def]
         """Refreshing commits re-selects the same commit when still present."""
-        from PySide6.QtCore import Qt
-
         from freecad.diff_wb.domain.git.models import GitCommit
 
         selected_commit_hash = "a1b2c3d4e5f67890"
@@ -541,7 +530,7 @@ class TestShowCommits:
 
         selected_items = widget.history_list.selectedItems()
         assert len(selected_items) == 1
-        selected_selection = selected_items[0].data(Qt.ItemDataRole.UserRole)
+        selected_selection = selected_items[0].data(QtCore.Qt.ItemDataRole.UserRole)
         from freecad.diff_wb.ui.views.models import HistorySelection
 
         assert selected_selection == HistorySelection(item_kind="COMMIT", commit_hash=selected_commit_hash)
