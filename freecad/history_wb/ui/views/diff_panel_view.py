@@ -83,7 +83,7 @@ class DiffPanelView(QtWidgets.QWidget):
         self._current_selection = selection
         self._document_diff_tree.set_current_history_selection(selection)
 
-    def show_commits(self, commits: list[GitCommit]) -> None:
+    def show_commits(self, commits: list[GitCommit], show_special_items: bool = True) -> None:
         """Display git commits in the history list.
 
         Delegates to HistoryPanelWidget.
@@ -93,8 +93,10 @@ class DiffPanelView(QtWidgets.QWidget):
                 in DESC order (newest first) with 7-char hash, author, timestamp
                 on line 1, and first line of message on line 2. Full commit
                 message is shown in tooltip.
+            show_special_items: Whether to include top "In Progress" and
+                "Reviewed" rows before commit rows.
         """
-        self._history_panel.show_commits(commits)
+        self._history_panel.show_commits(commits, show_special_items=show_special_items)
 
     def append_commits(self, commits: list[GitCommit]) -> None:
         """Append commit entries after existing history rows.

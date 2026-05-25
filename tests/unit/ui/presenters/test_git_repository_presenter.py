@@ -100,6 +100,7 @@ class TestGitRepositoryPresenter:
         mock_find_action.execute.assert_called_once()
         mock_ui_state.git_repository = None
         mock_view.show_repository.assert_called_once_with(None)
+        mock_view.show_commits.assert_called_once_with([], show_special_items=False)
 
     def test_on_workbench_activated_with_none_repository(
         self,
@@ -190,6 +191,7 @@ class TestGitRepositoryPresenter:
         mock_find_action.execute.assert_called_once()
         mock_ui_state.git_repository = None
         mock_view.show_repository.assert_called_once_with(None)
+        mock_view.show_commits.assert_called_once_with([], show_special_items=False)
 
     def test_on_refresh_clicked_with_none_repository(
         self,

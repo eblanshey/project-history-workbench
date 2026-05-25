@@ -28,6 +28,7 @@ class _HistoryListItemWidget(QtWidgets.QWidget):
         bottom_text: str = "",
         is_bottom_bold: bool = False,
         centered_text: str | None = None,
+        centered_italic: bool = False,
     ) -> None:
         QtWidgets.QWidget.__init__(self)
 
@@ -38,6 +39,8 @@ class _HistoryListItemWidget(QtWidgets.QWidget):
         if centered_text is not None:
             centered_label = QtWidgets.QLabel(centered_text)
             centered_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            if centered_italic:
+                centered_label.setStyleSheet("font-style: italic;")
             layout.addWidget(centered_label)
         else:
             top_row = QtWidgets.QHBoxLayout()
@@ -179,10 +182,10 @@ class HistoryPanelWidget(QtWidgets.QWidget):
             # Add to list
             self._history_list.addItem(item)
 
-    def show_commits(self, commits: list[GitCommit]) -> None:
+    def show_commits(self, commits: list[GitCommit], show_special_items: bool = True) -> None:
         """Display git commits in the history list.
 
-        The list always starts with two special items: "In Progress" and "Reviewed"
+        The list can start with two special items: "In Progress" and "Reviewed"
         when displaying git commits. These items use HistorySelection dataclass
         to distinguish them from actual GitCommits.
 
@@ -191,6 +194,8 @@ class HistoryPanelWidget(QtWidgets.QWidget):
                 in DESC order (newest first) with 7-char hash, author, timestamp
                 on line 1, and first line of message on line 2. Full commit
                 message is shown in tooltip.
+            show_special_items: Whether to include top "In Progress" and
+                "Reviewed" rows before commit rows.
         """
         # Preserve previous selection so refresh can restore it if still present.
         previous_selection = self._current_selection
@@ -198,38 +203,53 @@ class HistoryPanelWidget(QtWidgets.QWidget):
         # Clear existing items
         self._history_list.clear()
 
-        # Add special items first: "In Progress" and "Reviewed"
-        # These are always present, even if no commits are provided
+        if show_special_items:
+            # Add special items first: "In Progress" and "Reviewed"
+            # These are always present when special items are enabled.
 
-        # Add "In Progress" item
-        working_tree_text = translate("History", "In Progress")
-        staging_text = translate("History", "Reviewed")
+            # Add "In Progress" item
+            working_tree_text = translate("History", "In Progress")
+            staging_text = translate("History", "Reviewed")
 
-        working_tree_item = QtWidgets.QListWidgetItem(working_tree_text)
-        working_tree_item.setData(QtCore.Qt.ItemDataRole.TextAlignmentRole, QtCore.Qt.AlignmentFlag.AlignCenter)
-        working_tree_item.setData(
-            QtCore.Qt.ItemDataRole.UserRole,
-            HistorySelection(item_kind="WORKING_TREE", commit_hash=None),
-        )
-        self._history_list.addItem(working_tree_item)
-        self._history_list.setItemWidget(
-            working_tree_item,
-            _HistoryListItemWidget(centered_text=working_tree_text),
-        )
-        working_tree_item.setText("")
-        working_tree_item.setSizeHint(self._history_list.itemWidget(working_tree_item).sizeHint())
+            working_tree_item = QtWidgets.QListWidgetItem(working_tree_text)
+            working_tree_item.setData(QtCore.Qt.ItemDataRole.TextAlignmentRole, QtCore.Qt.AlignmentFlag.AlignCenter)
+            working_tree_item.setData(
+                QtCore.Qt.ItemDataRole.UserRole,
+                HistorySelection(item_kind="WORKING_TREE", commit_hash=None),
+            )
+            self._history_list.addItem(working_tree_item)
+            self._history_list.setItemWidget(
+                working_tree_item,
+                _HistoryListItemWidget(centered_text=working_tree_text),
+            )
+            working_tree_item.setText("")
+            working_tree_item.setSizeHint(self._history_list.itemWidget(working_tree_item).sizeHint())
 
-        # Add "Reviewed" item
-        staging_item = QtWidgets.QListWidgetItem(staging_text)
-        staging_item.setData(QtCore.Qt.ItemDataRole.TextAlignmentRole, QtCore.Qt.AlignmentFlag.AlignCenter)
-        staging_item.setData(
-            QtCore.Qt.ItemDataRole.UserRole,
-            HistorySelection(item_kind="STAGING", commit_hash=None),
-        )
-        self._history_list.addItem(staging_item)
-        self._history_list.setItemWidget(staging_item, _HistoryListItemWidget(centered_text=staging_text))
-        staging_item.setText("")
-        staging_item.setSizeHint(self._history_list.itemWidget(staging_item).sizeHint())
+            # Add "Reviewed" item
+            staging_item = QtWidgets.QListWidgetItem(staging_text)
+            staging_item.setData(QtCore.Qt.ItemDataRole.TextAlignmentRole, QtCore.Qt.AlignmentFlag.AlignCenter)
+            staging_item.setData(
+                QtCore.Qt.ItemDataRole.UserRole,
+                HistorySelection(item_kind="STAGING", commit_hash=None),
+            )
+            self._history_list.addItem(staging_item)
+            self._history_list.setItemWidget(staging_item, _HistoryListItemWidget(centered_text=staging_text))
+            staging_item.setText("")
+            staging_item.setSizeHint(self._history_list.itemWidget(staging_item).sizeHint())
+
+        if not show_special_items and not commits:
+            no_iterations_text = translate("History", "No iterations to display.")
+            no_iterations_item = QtWidgets.QListWidgetItem(no_iterations_text)
+            no_iterations_item.setData(QtCore.Qt.ItemDataRole.TextAlignmentRole, QtCore.Qt.AlignmentFlag.AlignCenter)
+            self._history_list.addItem(no_iterations_item)
+            self._history_list.setItemWidget(
+                no_iterations_item,
+                _HistoryListItemWidget(centered_text=no_iterations_text, centered_italic=True),
+            )
+            no_iterations_item.setText("")
+            no_iterations_item.setSizeHint(self._history_list.itemWidget(no_iterations_item).sizeHint())
+            self._restore_history_selection(previous_selection)
+            return
 
         # Guard: no commits to display after adding special items
         if not commits:

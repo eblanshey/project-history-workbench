@@ -83,6 +83,15 @@ class DiffView(Protocol):
                   or a "no repository" message when None.
         """
 
+    def show_commits(self, commits: list[GitCommit], show_special_items: bool = True) -> None:
+        """Display git commits in the history list.
+
+        Args:
+            commits: List of GitCommit objects to display.
+            show_special_items: Whether to include top "In Progress" and
+                "Reviewed" rows before commit rows.
+        """
+
     def set_refresh_callback(self, callback: Callable[[], None]) -> None:
         """Set the callback to invoke when refresh button is clicked.
 

@@ -199,6 +199,18 @@ class TestShowCommitsSpecialItems:
         assert staging_item is not None
         assert _history_row_text(widget, 1) == "Reviewed"
 
+    def test_show_commits_without_special_items_shows_no_iterations_message(self, widget) -> None:  # type: ignore[no-untyped-def]
+        """When special items disabled and commits empty, show a no-iterations placeholder."""
+        widget.show_commits([], show_special_items=False)
+
+        assert widget.history_list.count() == 1
+        assert _history_row_text(widget, 0) == "No iterations to display."
+        item = widget.history_list.item(0)
+        item_widget = widget.history_list.itemWidget(item)
+        labels = item_widget.findChildren(QtWidgets.QLabel)
+        assert len(labels) == 1
+        assert "italic" in labels[0].styleSheet()
+
     def test_show_commits_working_tree_has_correct_user_role(self, widget) -> None:  # type: ignore[no-untyped-def]
         """Test that Working Tree item has UserRole set to HistorySelection with WORKING_TREE kind."""
         from freecad.history_wb.ui.views.models import HistorySelection

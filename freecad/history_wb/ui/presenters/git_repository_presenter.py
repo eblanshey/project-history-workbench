@@ -104,7 +104,7 @@ class GitRepositoryPresenter:
             self._ui_state.git_repository = None
             self._reset_commit_pagination(None)
             self._view.show_repository(None)
-            self._view.show_commits([])
+            self._view.show_commits([], show_special_items=False)
             self._clear_doc_diffs()
             Log.info(f"Git detection failed: {result.message}")
 

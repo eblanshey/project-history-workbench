@@ -249,37 +249,42 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="101"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="104"/>
         <source>Iterations</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="111"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="114"/>
         <source>Refresh Project and Iterations</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="205"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="211"/>
         <source>In Progress</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="206"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="212"/>
         <source>Reviewed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="419"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="241"/>
+        <source>No iterations to display.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../ui/views/history_panel_widget.py" line="439"/>
         <source>Yesterday</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="435"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="455"/>
         <source>No project detected</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="442"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="462"/>
         <source>Project: %1</source>
         <translation type="unfinished"></translation>
     </message>
