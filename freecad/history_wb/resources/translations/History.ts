@@ -373,7 +373,7 @@
     </message>
     <message>
         <location filename="../../entrypoints/commands.py" line="664"/>
-        <source>Close every document starting with &apos;Compare_&apos; without saving</source>
+        <source>Close every document starting with &apos;Diff_&apos; without saving</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

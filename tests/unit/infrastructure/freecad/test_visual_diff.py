@@ -140,19 +140,19 @@ def test_visual_diff_creates_reference_and_colored_boolean_difference_features(
     document = FreeCADVisualDiffCreator(ctx).open_brep_visual_diff("old.brep", "new.brep", "Diff_Test_working")
 
     feature_by_name = {feature.name: feature for feature in document.features}
-    expected_names = ["Old_Visual", "New_Visual", "Diff", "Unchanged_Visual", "Added_Visual", "Removed_Visual"]
+    expected_names = ["Old", "New", "Diff", "Unchanged", "Added", "Removed"]
     expected_labels = {name: name for name in expected_names}
     expected_shapes = {
-        "Unchanged_Visual": "old.brep at Placement(Vector(0, 0, 0), Rotation(Vector(0, 0, 1), 0)) & new.brep at Placement(Vector(0, 0, 0), Rotation(Vector(0, 0, 1), 0))",
-        "Added_Visual": "new.brep at Placement(Vector(0, 0, 0), Rotation(Vector(0, 0, 1), 0)) - old.brep at Placement(Vector(0, 0, 0), Rotation(Vector(0, 0, 1), 0))",
-        "Removed_Visual": "old.brep at Placement(Vector(0, 0, 0), Rotation(Vector(0, 0, 1), 0)) - new.brep at Placement(Vector(0, 0, 0), Rotation(Vector(0, 0, 1), 0))",
+        "Unchanged": "old.brep at Placement(Vector(0, 0, 0), Rotation(Vector(0, 0, 1), 0)) & new.brep at Placement(Vector(0, 0, 0), Rotation(Vector(0, 0, 1), 0))",
+        "Added": "new.brep at Placement(Vector(0, 0, 0), Rotation(Vector(0, 0, 1), 0)) - old.brep at Placement(Vector(0, 0, 0), Rotation(Vector(0, 0, 1), 0))",
+        "Removed": "old.brep at Placement(Vector(0, 0, 0), Rotation(Vector(0, 0, 1), 0)) - new.brep at Placement(Vector(0, 0, 0), Rotation(Vector(0, 0, 1), 0))",
     }
     expected_colors = {
-        "Unchanged_Visual": (0.6, 0.6, 0.6, 1.0),
-        "Added_Visual": (0.0, 0.8, 0.0, 1.0),
-        "Removed_Visual": (0.9, 0.0, 0.0, 1.0),
+        "Unchanged": (0.6, 0.6, 0.6, 1.0),
+        "Added": (0.0, 0.8, 0.0, 1.0),
+        "Removed": (0.9, 0.0, 0.0, 1.0),
     }
-    expected_diff_children = ["Unchanged_Visual", "Added_Visual", "Removed_Visual"]
+    expected_diff_children = ["Unchanged", "Added", "Removed"]
 
     assert list(feature_by_name) == expected_names
     assert {name: feature.Label for name, feature in feature_by_name.items()} == expected_labels
@@ -161,11 +161,11 @@ def test_visual_diff_creates_reference_and_colored_boolean_difference_features(
     assert _line_colors_by_name(feature_by_name, expected_colors) == expected_colors
     assert _point_colors_by_name(feature_by_name, expected_colors) == expected_colors
     assert _feature_transparency_by_name(feature_by_name) == {
-        "Unchanged_Visual": 50,
-        "Added_Visual": 50,
-        "Removed_Visual": 50,
+        "Unchanged": 50,
+        "Added": 50,
+        "Removed": 50,
     }
-    assert _feature_visibility_by_name(feature_by_name) == {"Old_Visual": False, "New_Visual": False}
+    assert _feature_visibility_by_name(feature_by_name) == {"Old": False, "New": False}
     assert _feature_child_names(feature_by_name["Diff"]) == expected_diff_children
     assert document.recomputed is True
     assert fake_freecad_gui.commands == [("Std_ViewIsometric", 0), ("Std_ViewFitAll", 0)]
@@ -174,8 +174,8 @@ def test_visual_diff_creates_reference_and_colored_boolean_difference_features(
 @pytest.mark.parametrize(
     ("old_brep_path", "new_brep_path", "expected_name", "expected_shape"),
     [
-        ("old.brep", None, "Old_Visual", "old.brep"),
-        (None, "new.brep", "New_Visual", "new.brep"),
+        ("old.brep", None, "Old", "old.brep"),
+        (None, "new.brep", "New", "new.brep"),
     ],
 )
 def test_visual_diff_creates_single_visual_when_one_side_missing(

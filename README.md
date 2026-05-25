@@ -25,6 +25,7 @@ It helps answer questions like:
 
 - How does my change look in 3D compared to the last iteration?
 - Can I trust that my changes didn't create any unforeseen side-effects?
+  - FreeCAD core and workbench dev: what else did my new feature or bugfix affect?
 - Which objects, dimensions, placements, expressions, or dependencies changed?
 - What did my model look like 3 iterations ago?
 - Why did I change this model 2 months ago?
@@ -118,7 +119,7 @@ To preserve project history, previous iterations cannot be altered once they are
 | Recompute All | <img src="freecad/history_wb/resources/icons/RecomputeAll.svg" width="32" alt="" /> | Recompute every open document. Use it to ensure all document state is current before doing reviews. Useful for projects with many document inter-dependencies. |
 | Open All Documents in Project | <img src="freecad/history_wb/resources/icons/OpenAllDocuments.svg" width="32" alt="" /> | Open every `.FCStd` file found in the project. Useful for initializing a project. |
 | Initialize Project | <img src="freecad/history_wb/resources/icons/CreateGitRepository.svg" width="32" alt="" /> | Initialize a new project for the selected directory. Use it when setting up a new folder of CAD files for the first time. |
-| Close Comparison Windows | <img src="freecad/history_wb/resources/icons/DiffCloseDiffWindows.svg" width="32" alt="" /> | Close every document starting with `Compare_` without saving. Use it when you want to quickly clean up comparison windows after reviewing 3D diffs. |
+| Close Comparison Windows | <img src="freecad/history_wb/resources/icons/DiffCloseDiffWindows.svg" width="32" alt="" /> | Close every document starting with `Diff_` without saving. Use it when you want to quickly clean up comparison windows after reviewing 3D diffs. |
 | Save Iteration | <img src="freecad/history_wb/resources/icons/Commit.svg" width="32" alt="" /> | Save reviewed changes as an iteration. Use it after reviewing and marking documents as reviewed to save the result. |
 | Configure Author | <img src="freecad/history_wb/resources/icons/ConfigureGit.svg" width="32" alt="" /> | Configure iteration author name and email. Visible in the menu only. |
 

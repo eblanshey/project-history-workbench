@@ -655,7 +655,7 @@ class _OpenDiffWindowCommand:
 
 
 class _CloseDiffWindowsCommand:
-    """Command to close all Compare_* windows without saving."""
+    """Command to close all Diff_* windows without saving."""
 
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
@@ -663,7 +663,7 @@ class _CloseDiffWindowsCommand:
             "MenuText": QtCore.QT_TRANSLATE_NOOP("HistoryCloseDiffWindows", "Close Comparison Windows"),
             "ToolTip": QtCore.QT_TRANSLATE_NOOP(
                 "HistoryCloseDiffWindows",
-                "Close every document starting with 'Compare_' without saving",
+                "Close every document starting with 'Diff_' without saving",
             ),
             "Pixmap": os.path.join(ICONPATH, "DiffCloseDiffWindows.svg"),
         }
@@ -677,7 +677,7 @@ class _CloseDiffWindowsCommand:
         import FreeCAD as App  # pylint: disable=import-error
 
         # Get list of document names to close (iterate over copy to avoid modification during iteration)
-        docs_to_close = [doc_name for doc_name in App.listDocuments() if doc_name.startswith("Compare_")]
+        docs_to_close = [doc_name for doc_name in App.listDocuments() if doc_name.startswith("Diff_")]
 
         # Close each document without saving
         for doc_name in docs_to_close:

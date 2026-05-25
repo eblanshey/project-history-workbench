@@ -14,7 +14,7 @@ from ...domain.git.models import GitRepository
 from ...utils import Log
 
 
-_VISUAL_DIFF_CACHE_ROOT = Path(tempfile.gettempdir()) / "diffcad" / "visual_diff"
+_VISUAL_DIFF_CACHE_ROOT = Path(tempfile.gettempdir()) / "history_wb" / "visual_diff"
 
 
 class FreeCadFileManagerAdapter(FreeCadFileManagerPort):
