@@ -12,29 +12,7 @@ from unittest.mock import MagicMock, Mock, patch
 from freecad.history_wb.entrypoints.commands import (
     _RecomputeAllOpenDocumentsCommand,
     _RefreshRepositoryCommand,
-    _SwapColumnsCommand,
 )
-
-
-class TestSwapColumnsCommand:
-    """Tests for _SwapColumnsCommand."""
-
-    def test_swap_columns_command_resources_correct(self) -> None:
-        """Menu text, tooltips, icons are correct."""
-        command = _SwapColumnsCommand()
-        resources = command.GetResources()
-
-        assert "MenuText" in resources
-        assert "ToolTip" in resources
-        assert "Pixmap" in resources
-        assert resources["MenuText"] == "Swap Columns"
-        assert "column" in resources["ToolTip"].lower()
-        assert "SwapColumns.svg" in resources["Pixmap"]
-
-    def test_is_active_returns_true(self) -> None:
-        """Command is always active."""
-        command = _SwapColumnsCommand()
-        assert command.IsActive() is True
 
 
 class TestRefreshRepositoryCommand:

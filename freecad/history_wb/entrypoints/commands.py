@@ -59,38 +59,14 @@ class GitConfigDialogResult:
     should_save_globally: bool
 
 
-class _SwapColumnsCommand:
-    """Command to swap left/right columns in the diff view."""
-
-    def GetResources(self) -> CommandResources:
-        """Return FreeCAD command metadata for UI integration."""
-        return {
-            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffSwapColumns", "Swap Columns"),
-            "ToolTip": QtCore.QT_TRANSLATE_NOOP("DiffSwapColumns", "Swap the left and right columns"),
-            "Pixmap": os.path.join(ICONPATH, "SwapColumns.svg"),
-        }
-
-    def IsActive(self) -> bool:
-        """Return whether the command should be enabled."""
-        return True
-
-    def Activated(self) -> None:
-        """Execute the swap columns action.
-
-        TODO: Phase 8 - Implement when UI view exists.
-        """
-        # Phase 8: Will call view method to swap columns when UI is implemented
-        pass
-
-
 class _ConfigureAuthorCommand:
     """Command to configure author identity."""
 
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffConfigureAuthorCommand", "Configure Author"),
-            "ToolTip": QtCore.QT_TRANSLATE_NOOP("DiffConfigureAuthorCommand", "Configure author name and email"),
+            "MenuText": QtCore.QT_TRANSLATE_NOOP("HistoryConfigureAuthorCommand", "Configure Author"),
+            "ToolTip": QtCore.QT_TRANSLATE_NOOP("HistoryConfigureAuthorCommand", "Configure author name and email"),
             "Pixmap": os.path.join(ICONPATH, "ConfigureGit.svg"),
         }
 
@@ -267,8 +243,8 @@ class _CommitCommand:
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffCommit", "Save Iteration"),
-            "ToolTip": QtCore.QT_TRANSLATE_NOOP("DiffCommit", "Save reviewed changes as an iteration"),
+            "MenuText": QtCore.QT_TRANSLATE_NOOP("HistoryCommit", "Save Iteration"),
+            "ToolTip": QtCore.QT_TRANSLATE_NOOP("HistoryCommit", "Save reviewed changes as an iteration"),
             "Pixmap": os.path.join(ICONPATH, "Commit.svg"),
         }
 
@@ -401,9 +377,9 @@ class _RefreshRepositoryCommand:
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffRefreshRepository", "Refresh Project"),
+            "MenuText": QtCore.QT_TRANSLATE_NOOP("HistoryRefreshRepository", "Refresh Project"),
             "ToolTip": QtCore.QT_TRANSLATE_NOOP(
-                "DiffRefreshRepository",
+                "HistoryRefreshRepository",
                 "Refresh the detected project and reload iterations.\n"
                 "Open at least one FreeCAD document "
                 "located within a project before running this command.\n"
@@ -430,9 +406,9 @@ class _InitializeGitRepositoryCommand:
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffInitializeGitRepository", "Initialize Git Repository"),
+            "MenuText": QtCore.QT_TRANSLATE_NOOP("HistoryInitializeGitRepository", "Initialize Git Repository"),
             "ToolTip": QtCore.QT_TRANSLATE_NOOP(
-                "DiffInitializeGitRepository",
+                "HistoryInitializeGitRepository",
                 "Initialize a git repository in the selected directory",
             ),
             "Pixmap": os.path.join(ICONPATH, "CreateGitRepository.svg"),
@@ -570,9 +546,12 @@ class _OpenAllDocumentsInRepositoryCommand:
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffOpenAllDocumentsInRepository", "Open All Documents in Project"),
+            "MenuText": QtCore.QT_TRANSLATE_NOOP(
+                "HistoryOpenAllDocumentsInRepository",
+                "Open All Documents in Project",
+            ),
             "ToolTip": QtCore.QT_TRANSLATE_NOOP(
-                "DiffOpenAllDocumentsInRepository",
+                "HistoryOpenAllDocumentsInRepository",
                 "Open every .FCStd file found in the project. Useful for generating en masse.",
             ),
             "Pixmap": os.path.join(ICONPATH, "OpenAllDocuments.svg"),
@@ -608,8 +587,8 @@ class _RecomputeAllOpenDocumentsCommand:
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffRecomputeAllOpenDocuments", "Recompute All"),
-            "ToolTip": QtCore.QT_TRANSLATE_NOOP("DiffRecomputeAllOpenDocuments", "Recompute every open document"),
+            "MenuText": QtCore.QT_TRANSLATE_NOOP("HistoryRecomputeAllOpenDocuments", "Recompute All"),
+            "ToolTip": QtCore.QT_TRANSLATE_NOOP("HistoryRecomputeAllOpenDocuments", "Recompute every open document"),
             "Pixmap": os.path.join(ICONPATH, "RecomputeAll.svg"),
         }
 
@@ -631,8 +610,8 @@ class _RecomputeActiveDocumentCommand:
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffRecomputeActiveDocument", "Recompute Active Document"),
-            "ToolTip": QtCore.QT_TRANSLATE_NOOP("DiffRecomputeActiveDocument", "Recompute the active document"),
+            "MenuText": QtCore.QT_TRANSLATE_NOOP("HistoryRecomputeActiveDocument", "Recompute Active Document"),
+            "ToolTip": QtCore.QT_TRANSLATE_NOOP("HistoryRecomputeActiveDocument", "Recompute the active document"),
             "Pixmap": os.path.join(ICONPATH, "RecomputeActiveDocument.svg"),
         }
 
@@ -656,8 +635,8 @@ class _OpenDiffWindowCommand:
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffOpenDiffWindow", "Open History Panel"),
-            "ToolTip": QtCore.QT_TRANSLATE_NOOP("DiffOpenDiffWindow", "Open history panel view"),
+            "MenuText": QtCore.QT_TRANSLATE_NOOP("HistoryOpenDiffWindow", "Open History Panel"),
+            "ToolTip": QtCore.QT_TRANSLATE_NOOP("HistoryOpenDiffWindow", "Open history panel view"),
             "Pixmap": os.path.join(ICONPATH, "Logo.svg"),
         }
 
@@ -681,9 +660,9 @@ class _CloseDiffWindowsCommand:
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffCloseDiffWindows", "Close Comparison Windows"),
+            "MenuText": QtCore.QT_TRANSLATE_NOOP("HistoryCloseDiffWindows", "Close Comparison Windows"),
             "ToolTip": QtCore.QT_TRANSLATE_NOOP(
-                "DiffCloseDiffWindows",
+                "HistoryCloseDiffWindows",
                 "Close every document starting with 'Compare_' without saving",
             ),
             "Pixmap": os.path.join(ICONPATH, "DiffCloseDiffWindows.svg"),
@@ -709,12 +688,12 @@ def register_commands() -> None:
     """Register the Diff Workbench commands with FreeCAD."""
     import FreeCADGui as Gui  # pylint: disable=import-error
 
-    Gui.addCommand("DiffConfigureAuthorCommand", _ConfigureAuthorCommand())
-    Gui.addCommand("DiffCommit", _CommitCommand())
-    Gui.addCommand("DiffRefreshRepository", _RefreshRepositoryCommand())
-    Gui.addCommand("DiffInitializeGitRepository", _InitializeGitRepositoryCommand())
-    Gui.addCommand("DiffOpenAllDocumentsInRepository", _OpenAllDocumentsInRepositoryCommand())
-    Gui.addCommand("DiffRecomputeAllOpenDocuments", _RecomputeAllOpenDocumentsCommand())
-    Gui.addCommand("DiffRecomputeActiveDocument", _RecomputeActiveDocumentCommand())
-    Gui.addCommand("DiffOpenDiffWindow", _OpenDiffWindowCommand())
-    Gui.addCommand("DiffCloseDiffWindows", _CloseDiffWindowsCommand())
+    Gui.addCommand("HistoryConfigureAuthorCommand", _ConfigureAuthorCommand())
+    Gui.addCommand("HistoryCommit", _CommitCommand())
+    Gui.addCommand("HistoryRefreshRepository", _RefreshRepositoryCommand())
+    Gui.addCommand("HistoryInitializeGitRepository", _InitializeGitRepositoryCommand())
+    Gui.addCommand("HistoryOpenAllDocumentsInRepository", _OpenAllDocumentsInRepositoryCommand())
+    Gui.addCommand("HistoryRecomputeAllOpenDocuments", _RecomputeAllOpenDocumentsCommand())
+    Gui.addCommand("HistoryRecomputeActiveDocument", _RecomputeActiveDocumentCommand())
+    Gui.addCommand("HistoryOpenDiffWindow", _OpenDiffWindowCommand())
+    Gui.addCommand("HistoryCloseDiffWindows", _CloseDiffWindowsCommand())

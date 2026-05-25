@@ -47,14 +47,14 @@ class TestWorkbenchLoading:
                 assert HistoryWorkbench.MenuText == "History"
                 assert HistoryWorkbench.ToolTip == "Track project iterations and history"
                 assert HistoryWorkbench.toolbar_commands == [
-                    "DiffOpenDiffWindow",
-                    "DiffRefreshRepository",
-                    "DiffRecomputeActiveDocument",
-                    "DiffRecomputeAllOpenDocuments",
-                    "DiffOpenAllDocumentsInRepository",
-                    "DiffInitializeGitRepository",
-                    "DiffCloseDiffWindows",
-                    "DiffCommit",
+                    "HistoryOpenDiffWindow",
+                    "HistoryRefreshRepository",
+                    "HistoryRecomputeActiveDocument",
+                    "HistoryRecomputeAllOpenDocuments",
+                    "HistoryOpenAllDocumentsInRepository",
+                    "HistoryInitializeGitRepository",
+                    "HistoryCloseDiffWindows",
+                    "HistoryCommit",
                 ]
         finally:
             freecad_app.Console.PrintError = original_print_error

@@ -44,21 +44,18 @@ if Gui is not None:
 
         Icon = os.path.join(ICONPATH, "Logo.svg")
         toolbar_commands = [
-            "DiffOpenDiffWindow",
-            "DiffRefreshRepository",
-            "DiffRecomputeActiveDocument",
-            "DiffRecomputeAllOpenDocuments",
-            "DiffOpenAllDocumentsInRepository",
-            "DiffInitializeGitRepository",
-            "DiffCloseDiffWindows",
-            "DiffCommit",
-            # "DiffTakeSnapshot",
-            # "DiffCompare",
-            # "DiffSwapColumns",
+            "HistoryOpenDiffWindow",
+            "HistoryRefreshRepository",
+            "HistoryRecomputeActiveDocument",
+            "HistoryRecomputeAllOpenDocuments",
+            "HistoryOpenAllDocumentsInRepository",
+            "HistoryInitializeGitRepository",
+            "HistoryCloseDiffWindows",
+            "HistoryCommit",
         ]
         menu_commands = [
             *toolbar_commands,
-            "DiffConfigureAuthorCommand",
+            "HistoryConfigureAuthorCommand",
         ]
 
         def __init__(self):
