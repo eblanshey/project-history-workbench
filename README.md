@@ -12,10 +12,9 @@
   <a href="https://www.freecad.org/"><img alt="FreeCAD 1.1+" src="https://img.shields.io/badge/FreeCAD-1.1%2B-blue"></a>
 </p>
 
----
+![3d comparison image](https://raw.githubusercontent.com/eblanshey/HistoryWorkbench/master/freecad/history_wb/resources/media/3d-comparison.png)
 
-<a href="https://raw.githubusercontent.com/eblanshey/HistoryWorkbench/master/docs/LightScreenshot.png"><img src="https://raw.githubusercontent.com/eblanshey/HistoryWorkbench/master/docs/LightScreenshot.png" alt="History Workbench light theme screenshot" /></a>
-<a href="https://raw.githubusercontent.com/eblanshey/HistoryWorkbench/master/docs/DarkScreenshot.png"><img src="https://raw.githubusercontent.com/eblanshey/HistoryWorkbench/master/docs/DarkScreenshot.png" alt="History Workbench dark theme screenshot" /></a>
+![tree comparison image](https://raw.githubusercontent.com/eblanshey/HistoryWorkbench/master/freecad/history_wb/resources/media/tree-comparison.png)
 
 ## Intro
 
@@ -25,7 +24,7 @@ It helps answer questions like:
 
 - How does my change look in 3D compared to the last iteration?
 - Can I trust that my changes didn't create any unforeseen side-effects?
-  - FreeCAD core and workbench dev: what else did my new feature or bugfix affect?
+  - FreeCAD core and workbench development: what else did my new feature or bugfix affect?
 - Which objects, dimensions, placements, expressions, or dependencies changed?
 - What did my model look like 3 iterations ago?
 - Why did I change this model 2 months ago?
