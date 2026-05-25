@@ -649,7 +649,7 @@ class _OpenDiffWindowCommand:
         import FreeCADGui as Gui  # pylint: disable=import-error
 
         # Get the History workbench instance and show/create the diff panel
-        workbench = Gui.getWorkbench("History")
+        workbench = Gui.getWorkbench("HistoryWorkbench")
         if workbench is not None:
             workbench.create_or_show_diff_panel()
 

@@ -8,7 +8,7 @@ from enum import Enum
 from pathlib import Path
 
 from ...domain.diff.visual_diff import FreeCADVisualDiffPort
-from ...domain.freecad_ports import FreeCadFileManagerPort
+from ...domain.freecad_ports import FreeCadFileManagerPort, FreeCadPort
 from ...domain.git.git_service import GitService
 from ...domain.git.models import GitRepository
 from ...utils import Log
@@ -53,11 +53,13 @@ class OpenVisualDiffAction:
         git_service: GitService,
         visual_diff: FreeCADVisualDiffPort,
         file_manager: FreeCadFileManagerPort,
+        freecad_port: FreeCadPort,
     ) -> None:
         """Initialize action with dependencies."""
         self._git_service = git_service
         self._visual_diff = visual_diff
         self._file_manager = file_manager
+        self._freecad_port = freecad_port
 
     def execute(self, request: OpenVisualDiffRequest) -> Result:
         """Open a visual diff for one feature shape from requested repository state."""
@@ -67,6 +69,9 @@ class OpenVisualDiffAction:
         except RuntimeError as err:
             Log.warning(f"Invalid visual diff request: {err}")
             return Result.failure(VisualDiffFailureReason.INVALID_REQUEST.value)
+
+        # If there are unsaved changes, they won't be visible in the diff. Save first.
+        self._save_working_tree_document(request, revisions)
 
         extract_root_old, extract_root_new = self._prepare_revisions(request, revisions)
         if extract_root_old is None and extract_root_new is None:
@@ -113,6 +118,21 @@ class OpenVisualDiffAction:
         old_brep = self._file_manager.find_extracted_file(extract_root_old, brep_name) if extract_root_old else None
         new_brep = self._file_manager.find_extracted_file(extract_root_new, brep_name) if extract_root_new else None
         return old_brep, new_brep
+
+    def _save_working_tree_document(
+        self,
+        request: OpenVisualDiffRequest,
+        revisions: tuple[str, str],
+    ) -> None:
+        """Save the open working tree document if it has unsaved modifications."""
+        _, new_revision = revisions
+        if new_revision != "working":
+            return
+        target_path = str(Path(request.repo.absolute_path) / request.git_path)
+        for doc in self._freecad_port.get_all_open_documents():
+            if doc.FileName == target_path:
+                self._freecad_port.save_document_if_modified(doc)
+                break
 
     def _request_revisions(self, request: OpenVisualDiffRequest) -> tuple[str, str]:
         """Map request type to old and new FCStd revision tokens."""

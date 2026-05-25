@@ -5,6 +5,34 @@ from typing import cast
 from freecad.history_wb.domain.freecad_ports import DocumentLike, DocumentObjectLike, FreeCadPort
 
 
+class MockDocument:
+    """Minimal mock FreeCAD document for unit tests.
+
+    Implements the DocumentLike protocol with configurable FileName, Name,
+    and Objects. Tracks whether save() was called via the `saved` flag.
+    """
+
+    FileName: str
+    Name: str
+    Objects: list[DocumentObjectLike]
+    saved: bool
+
+    def __init__(self, file_name: str, name: str = "MockDoc") -> None:
+        self.FileName = file_name
+        self.Name = name
+        self.Objects = []
+        self.saved = False
+
+    def getObject(self, name: str) -> DocumentObjectLike | None:
+        return None
+
+    def save(self) -> None:
+        self.saved = True
+
+    def recompute(self) -> None:
+        pass
+
+
 class FakeFreeCadPort(FreeCadPort):
     """Fake implementation of FreeCADPort for unit testing."""
 

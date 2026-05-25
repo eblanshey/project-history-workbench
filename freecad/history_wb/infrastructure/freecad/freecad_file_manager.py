@@ -76,7 +76,9 @@ class FreeCadFileManagerAdapter(FreeCadFileManagerPort):
                 return True
             return self._git_service.write_file_from_ref(repo, revision, git_path, str(archive_path))
         if revision_type == "working":
+            archive_path.unlink(missing_ok=True)
             return self._copy_working_tree_file(repo, git_path, archive_path)
+        archive_path.unlink(missing_ok=True)
         return self._git_service.write_file_from_ref(repo, None, git_path, str(archive_path))
 
     def _copy_working_tree_file(self, repo: GitRepository, git_path: str, archive_path: Path) -> bool:

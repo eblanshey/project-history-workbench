@@ -15,7 +15,7 @@ from freecad.history_wb.domain.freecad_ports import FreeCadFileManagerPort
 from freecad.history_wb.domain.git.git_service import GitService
 from freecad.history_wb.domain.git.models import GitRepository
 
-from tests.fakes.fake_git_port import FakeGitPort
+from tests.fakes import FakeFreeCadPort, FakeGitPort, MockDocument
 
 
 @dataclass
@@ -67,11 +67,13 @@ def _action(
     fake_port: FakeGitPort,
     visual_diff: FakeVisualDiff,
     file_manager: FakeFileManager,
+    freecad_port: FakeFreeCadPort | None = None,
 ) -> OpenVisualDiffAction:
     return OpenVisualDiffAction(
         git_service=GitService(git_port=fake_port),
         visual_diff=visual_diff,
         file_manager=file_manager,
+        freecad_port=freecad_port or FakeFreeCadPort(),
     )
 
 
@@ -254,3 +256,46 @@ def test_execute_fails_when_commit_request_missing_commits() -> None:
     assert result.is_success is False
     assert result.message == VisualDiffFailureReason.INVALID_REQUEST.value
     assert file_manager.prepared_revisions == []
+
+
+def test_working_request_saves_modified_document_before_diff(tmp_path: Path) -> None:
+    doc = MockDocument(str(tmp_path / "doc.FCStd"))
+    freecad_port = FakeFreeCadPort(open_documents=[doc])
+    freecad_port._modified_doc_names = {doc.Name}
+    repo = GitRepository(name="repo", absolute_path=str(tmp_path))
+    fake_port = FakeGitPort()
+    visual_diff = FakeVisualDiff()
+    file_manager = FakeFileManager()
+    old_extract = tmp_path / "old_extract"
+    new_extract = tmp_path / "new_extract"
+    old_brep = _brep(old_extract)
+    new_brep = _brep(new_extract)
+    file_manager.set_prepared_root("staging", old_extract)
+    file_manager.set_prepared_root("working", new_extract)
+    file_manager.set_brep_found(old_extract, "Pad.Shape.brp", old_brep)
+    file_manager.set_brep_found(new_extract, "Pad.Shape.brp", new_brep)
+
+    action = _action(fake_port, visual_diff, file_manager, freecad_port)
+    action.execute(OpenVisualDiffRequest(repo, "doc.FCStd", "Body/Pad", VisualDiffRequestType.WORKING))
+
+    assert doc.saved is True
+
+
+def test_staging_request_does_not_save_working_document(tmp_path: Path) -> None:
+    doc = MockDocument(str(tmp_path / "doc.FCStd"))
+    freecad_port = FakeFreeCadPort(open_documents=[doc])
+    repo = GitRepository(name="repo", absolute_path=str(tmp_path))
+    fake_port = FakeGitPort()
+    visual_diff = FakeVisualDiff()
+    file_manager = FakeFileManager()
+    old_extract = tmp_path / "old_extract"
+    new_extract = tmp_path / "new_extract"
+    old_brep = _brep(old_extract)
+    file_manager.set_prepared_root("HEAD", old_extract)
+    file_manager.set_prepared_root("staging", new_extract)
+    file_manager.set_brep_found(old_extract, "Pad.Shape.brp", old_brep)
+
+    action = _action(fake_port, visual_diff, file_manager, freecad_port)
+    action.execute(OpenVisualDiffRequest(repo, "doc.FCStd", "Body/Pad", VisualDiffRequestType.STAGING))
+
+    assert doc.saved is False

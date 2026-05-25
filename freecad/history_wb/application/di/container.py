@@ -208,6 +208,7 @@ def create_application_container(ctx: FreeCadContext) -> ApplicationContainer:
         git_service=git_service,
         visual_diff=FreeCADVisualDiffCreator(ctx),
         file_manager=file_manager,
+        freecad_port=freecad_port,
     )
 
     return ApplicationContainer(

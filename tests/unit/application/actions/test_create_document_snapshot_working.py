@@ -9,32 +9,12 @@ from unittest.mock import MagicMock, patch
 from freecad.history_wb.application.actions.create_document_snapshot_working import (
     CreateDocumentSnapshotForWorkingTreeAction,
 )
-from freecad.history_wb.domain.freecad_ports import DocumentObjectLike
 from freecad.history_wb.domain.git.git_service import GitService
 from freecad.history_wb.domain.git.models import GitRepository
 from freecad.history_wb.domain.snapshots.gui_extractor import SnapshotExtractor
 from freecad.history_wb.domain.snapshots.models import Snapshot
 
-from tests.fakes.fake_git_port import FakeGitPort
-
-
-class MockDocument:
-    """Mock document object for testing."""
-
-    FileName: str
-    Name: str
-    Objects: list[DocumentObjectLike]
-
-    def __init__(self, file_name: str, name: str = "TestDoc") -> None:
-        self.FileName = file_name
-        self.Name = name
-        self.Objects = []
-
-    def getObject(self, name: str) -> DocumentObjectLike | None:
-        return None
-
-    def recompute(self) -> None:
-        pass
+from tests.fakes import FakeGitPort, MockDocument
 
 
 class TestCreateDocumentSnapshotForWorkingTreeActionSuccess:

@@ -7,29 +7,10 @@
 from freecad.history_wb.application.actions.get_open_eligible_documents import (
     GetOpenEligibleDocumentsAction,
 )
-from freecad.history_wb.domain.freecad_ports import DocumentObjectLike
 from freecad.history_wb.domain.git.git_service import GitService
 from freecad.history_wb.domain.git.models import GitRepository
 
-from tests.fakes.fake_freecad_port import FakeFreeCadPort
-from tests.fakes.fake_git_port import FakeGitPort
-
-
-class MockDocument:
-    """Mock document object for testing."""
-
-    FileName: str
-    Objects: list[DocumentObjectLike]
-
-    def __init__(self, file_name: str) -> None:
-        self.FileName = file_name
-        self.Objects = []
-
-    def getObject(self, name: str) -> DocumentObjectLike | None:
-        return None
-
-    def recompute(self) -> None:
-        pass
+from tests.fakes import FakeFreeCadPort, FakeGitPort, MockDocument
 
 
 class TestGetOpenEligibleDocumentsActionSuccess:

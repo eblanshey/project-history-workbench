@@ -5,14 +5,7 @@
 import pytest
 from freecad.history_wb.domain.git import GitRepository, GitService
 
-from tests.fakes.fake_git_port import FakeGitPort
-
-
-class MockDocument:
-    """Mock document with FileName attribute for testing."""
-
-    def __init__(self, file_name: str) -> None:
-        self.FileName = file_name
+from tests.fakes import FakeGitPort, MockDocument
 
 
 class TestGetRepository:

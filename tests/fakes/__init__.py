@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 # Module responsibility: Provide fake implementations for testing including FakeLogger,
 # FakeSnapshotRepository, FakeSettingsRepository, FakeDiffEngine, FakeDiffView,
-# FakeGitPort, and InMemorySnapshotRepository.
+# FakeGitPort, MockDocument, and InMemorySnapshotRepository.
 """Fake implementations for testing."""
 
 from .fake_diff_view import FakeDiffView
-from .fake_freecad_port import FakeFreeCadPort
+from .fake_freecad_port import FakeFreeCadPort, MockDocument
 from .fake_git_port import FakeGitPort
 from .fake_logger import FakeLogger
 from .fake_repositories import (
@@ -25,4 +25,5 @@ __all__ = [
     "FakeFreeCadPort",
     "FakeGitPort",
     "InMemorySnapshotRepository",
+    "MockDocument",
 ]
