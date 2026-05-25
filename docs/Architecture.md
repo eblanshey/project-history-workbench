@@ -1,6 +1,6 @@
 # Architecture
 
-DiffCAD uses a layered architecture with domain-driven and ports-and-adapters patterns. The goal is to keep FreeCAD, Qt, git, and filesystem details at the edges while core comparison behavior remains understandable and testable.
+History Workbench uses a layered architecture with domain-driven and ports-and-adapters patterns. The goal is to keep FreeCAD, Qt, git, and filesystem details at the edges while core comparison behavior remains understandable and testable.
 
 ## Design Principles
 
@@ -13,13 +13,13 @@ DiffCAD uses a layered architecture with domain-driven and ports-and-adapters pa
 
 ## Frontend And Backend Analogy
 
-DiffCAD is a desktop FreeCAD workbench, but its internal shape is close to a frontend/backend application.
+History Workbench is a desktop FreeCAD workbench, but its internal shape is close to a frontend/backend application.
 
 ### Backend
 
 The application and domain layers act like the backend.
 
-| Backend concept | DiffCAD implementation |
+| Backend concept | History Workbench implementation |
 | --- | --- |
 | API endpoint | Application action with an `execute()` method. |
 | Business logic | Domain services, models, and algorithms. |
@@ -35,7 +35,7 @@ The domain layer contains backend business concepts: snapshots, diffs, settings,
 
 The UI layer acts like the frontend.
 
-| Frontend concept | DiffCAD implementation |
+| Frontend concept | History Workbench implementation |
 | --- | --- |
 | State store | `UIState`, currently holding session state such as the detected repository. |
 | Component/controller | Presenters that react to user events and action results. |
@@ -214,7 +214,7 @@ Infrastructure Layer
 
 ## Composition Roots
 
-DiffCAD has two composition roots.
+History Workbench has two composition roots.
 
 ### Application Composition
 
@@ -256,7 +256,7 @@ Example: `DiffPanelView` composes `HistoryPanelWidget`, `DocumentDiffTreeWidget`
 
 ## Snapshot And Diff Pipeline
 
-DiffCAD stores textual snapshots next to `.FCStd` files so git can compare CAD model state.
+History Workbench stores textual snapshots next to `.FCStd` files so git can compare CAD model state.
 
 ```text
 FreeCAD document
@@ -294,7 +294,7 @@ Git support is implemented as domain service plus infrastructure adapter.
 - Application actions use `GitService` to find repositories, list commits, stage files, detect staged/committed paths, and commit staged changes.
 - The UI stores the active `GitRepository` in `UIState` because repository selection is UI session state.
 
-DiffCAD supplements normal git clients. It focuses on CAD-specific staging, snapshot generation, and review.
+History Workbench supplements normal git clients. It focuses on CAD-specific staging, snapshot generation, and review.
 
 ## Settings And Preferences
 
@@ -318,7 +318,7 @@ Direct file imports are acceptable when a symbol is not part of a package API or
 
 - `SnapshotExtractor` uses injected `GuiLike` to access GUI documents and `claimChildren()` behavior. This keeps extraction aligned with FreeCAD's visual tree without domain-level `FreeCADGui` imports.
 - `ApplicationContainer` exposes small `log()` and `translate()` helpers for entry points. Core code should prefer `Log` and view-level translation patterns.
-- Some FreeCAD APIs are difficult to type precisely. Protocols in `domain/freecad_ports.py` intentionally model only the behavior DiffCAD uses.
+- Some FreeCAD APIs are difficult to type precisely. Protocols in `domain/freecad_ports.py` intentionally model only the behavior History Workbench uses.
 
 ## Glossary
 

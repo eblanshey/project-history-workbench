@@ -3,13 +3,13 @@ requires = ["hatchling >= 1.26"]
 build-backend = "hatchling.build"
 
 [project]
-name = "freecad.diff_workbench"
+name = "freecad.history_wb"
 version = "0.1.0"
-description = "A FreeCAD workbench for comparing document snapshots"
+description = "Track CAD model history and review changes using 3D and tree comparisons"
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [
-    { name = "FreeCAD Community", email = "community@freecad.org" }
+    { name = "Ephi Blanshey", email = "hello@blanshey.com" }
 ]
 requires-python = ">=3.11"
 dependencies = []
@@ -33,9 +33,9 @@ packages = ["freecad"]
 "freecad/history_wb/resources" = "freecad/history_wb/resources"
 
 [project.urls]
-Homepage = "https://github.com/eblanshey/DiffCAD"
-Repository = "https://github.com/eblanshey/DiffCAD"
-Issues = "https://github.com/eblanshey/DiffCAD/issues"
+Homepage = "https://github.com/eblanshey/history-workbench"
+Repository = "https://github.com/eblanshey/history-workbench"
+Issues = "https://github.com/eblanshey/history-workbench/issues"
 
 [tool.mypy]
 python_version = "3.12"

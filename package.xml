@@ -4,6 +4,7 @@
     <!--[ Versions ]―――――――――――――――――――――――――――――――――――――――――――――――――――――――――-->
 
     <freecadmin>1.1.0</freecadmin>
+    <pythonmin>3.11</pythonmin>
     <version>0.1.0</version>
     <date>2026-03-11</date>
 
@@ -12,17 +13,18 @@
 
     <!--[ Info ]―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――-->
 
-    <name>History Workbench</name>
-    <description>A FreeCAD workbench to track model history and review changes using 3D and tree comparisons.</description>
+    <name>History</name>
+    <description>Track CAD model history and review changes using 3D and tree comparisons.</description>
 
     <!--[ Tags ]―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――-->
 
-    <tag>Diff</tag>
-    <tag>Comparison</tag>
-    <tag>Snapshots</tag>
-    <tag>Versioning</tag>
-    <tag>Git</tag>
-    <tag>Revisions</tag>
+    <tag>diff</tag>
+    <tag>comparison</tag>
+    <tag>parametric</tag>
+    <tag>versioning</tag>
+    <tag>git</tag>
+    <tag>plm</tag>
+    <tag>history</tag>
 
     <!--[ Maintainers ]――――――――――――――――――――――――――――――――――――――――――――――――――――――-->
 
@@ -34,7 +36,7 @@
 
     <!--[ Licenses ]―――――――――――――――――――――――――――――――――――――――――――――――――――――――――-->
 
-    <license file="LICENSE-CODE">LGPL-3.0-or-later</license>
+    <license file="LICENSE">LGPL-2.1-or-later</license>
 
     <!--[ Icon ]―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――-->
 
@@ -42,10 +44,10 @@
 
     <!--[ Urls ]―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――-->
 
-    <url type="documentation">https://github.com/eblanshey/project-history-workbench</url>
-    <url branch="master" type="repository">https://github.com/eblanshey/project-history-workbench</url>
-    <url type="bugtracker">https://github.com/eblanshey/project-history-workbench/issues</url>
-    <url type="readme">https://github.com/eblanshey/project-history-workbench/blob/master/README.md</url>
+    <url type="documentation">https://github.com/eblanshey/history-workbench#readme</url>
+    <url branch="master" type="repository">https://github.com/eblanshey/history-workbench</url>
+    <url type="bugtracker">https://github.com/eblanshey/history-workbench/issues</url>
+    <url type="readme">https://github.com/eblanshey/history-workbench/raw/master/README.md</url>
 
     <!--[ Content ]――――――――――――――――――――――――――――――――――――――――――――――――――――――――――-->
 

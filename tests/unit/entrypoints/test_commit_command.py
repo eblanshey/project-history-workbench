@@ -13,7 +13,7 @@ from freecad.history_wb.entrypoints.commands import (
     CommitDialogResult,
     GitConfigDialogResult,
     _CommitCommand,
-    _ConfigureGitCommand,
+    _ConfigureAuthorCommand,
 )
 
 
@@ -303,7 +303,7 @@ class TestCommitCommand:
         dialog_result = CommitDialogResult(message="Add feature")
 
         with (
-            patch.object(_ConfigureGitCommand, "configure_repository", return_value=True) as mock_configure,
+            patch.object(_ConfigureAuthorCommand, "configure_repository", return_value=True) as mock_configure,
             patch.object(command, "_show_commit_dialog", return_value=dialog_result) as mock_dialog,
         ):
             command.Activated()
@@ -337,7 +337,7 @@ class TestCommitCommand:
 
         command = _CommitCommand()
         with (
-            patch.object(_ConfigureGitCommand, "configure_repository", return_value=False) as mock_configure,
+            patch.object(_ConfigureAuthorCommand, "configure_repository", return_value=False) as mock_configure,
             patch.object(command, "_show_commit_dialog") as mock_dialog,
         ):
             command.Activated()
@@ -412,8 +412,8 @@ class TestCommitCommand:
         assert call_args[0][1] == "Add feature with spaces"
 
 
-class TestConfigureGitCommand:
-    """Tests for _ConfigureGitCommand."""
+class TestConfigureAuthorCommand:
+    """Tests for _ConfigureAuthorCommand."""
 
     @patch("freecad.history_wb.qt.QtWidgets.QMessageBox")
     def test_configure_repository_saves_identity(
@@ -427,7 +427,7 @@ class TestConfigureGitCommand:
         mock_container.save_git_identity_action.execute.return_value = Result.success(True)
         mock_container.can_write_global_git_identity_action.execute.return_value = Result.success(True)
         mock_repo = MagicMock(spec=GitRepository)
-        command = _ConfigureGitCommand()
+        command = _ConfigureAuthorCommand()
         dialog_result = GitConfigDialogResult(
             author_name="Test User",
             author_email="test@example.com",
@@ -454,7 +454,7 @@ class TestConfigureGitCommand:
         mock_container.get_git_identity_action.execute.return_value = Result.success(None)
         mock_container.can_write_global_git_identity_action.execute.return_value = Result.success(True)
         mock_repo = MagicMock(spec=GitRepository)
-        command = _ConfigureGitCommand()
+        command = _ConfigureAuthorCommand()
         dialog_result = GitConfigDialogResult(
             author_name="",
             author_email="test@example.com",
@@ -475,7 +475,7 @@ class TestConfigureGitCommand:
         mock_container.get_git_identity_action.execute.return_value = Result.success(None)
         mock_container.can_write_global_git_identity_action.execute.return_value = Result.success(True)
         mock_repo = MagicMock(spec=GitRepository)
-        command = _ConfigureGitCommand()
+        command = _ConfigureAuthorCommand()
 
         with patch.object(command, "_show_git_config_dialog", return_value=None):
             result = command.configure_repository(mock_container, mock_repo, None)
@@ -497,7 +497,7 @@ class TestConfigureGitCommand:
             Result.success(True),
         ]
         mock_repo = MagicMock(spec=GitRepository)
-        command = _ConfigureGitCommand()
+        command = _ConfigureAuthorCommand()
         global_dialog_result = GitConfigDialogResult(
             author_name="Test User",
             author_email="test@example.com",
@@ -541,7 +541,7 @@ class TestConfigureGitCommand:
         mock_container.save_git_identity_action.execute.return_value = Result.success(True)
         mock_container.can_write_global_git_identity_action.execute.return_value = Result.success(True)
         mock_repo = MagicMock(spec=GitRepository)
-        command = _ConfigureGitCommand()
+        command = _ConfigureAuthorCommand()
         dialog_result = GitConfigDialogResult(
             author_name="Updated User",
             author_email="updated@example.com",
@@ -571,7 +571,7 @@ class TestConfigureGitCommand:
         mock_container.can_write_global_git_identity_action.execute.return_value = Result.success(False)
         mock_container.save_git_identity_action.execute.return_value = Result.success(True)
         mock_repo = MagicMock(spec=GitRepository)
-        command = _ConfigureGitCommand()
+        command = _ConfigureAuthorCommand()
         dialog_result = GitConfigDialogResult(
             author_name="Test User",
             author_email="test@example.com",

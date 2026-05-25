@@ -116,7 +116,7 @@ toml = [
 ]
 
 [[package]]
-name = "freecad-diff-workbench"
+name = "freecad-history-wb"
 version = "0.1.0"
 source = { editable = "." }
 

@@ -28,15 +28,15 @@
     </message>
 </context>
 <context>
-    <name>DiffConfigureGitCommand</name>
+    <name>DiffConfigureAuthorCommand</name>
     <message>
         <location filename="../../entrypoints/commands.py" line="92"/>
-        <source>Configure Git</source>
+        <source>Configure Author</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../../entrypoints/commands.py" line="93"/>
-        <source>Configure git author name and email</source>
+        <source>Configure author name and email</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -172,7 +172,7 @@ How it works: open FreeCAD documents are checked one by one until one is found t
     </message>
     <message>
         <location filename="../../entrypoints/commands.py" line="198"/>
-        <source>Configure Git</source>
+        <source>Configure Author</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

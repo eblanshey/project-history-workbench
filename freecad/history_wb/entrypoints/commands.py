@@ -83,14 +83,14 @@ class _SwapColumnsCommand:
         pass
 
 
-class _ConfigureGitCommand:
-    """Command to configure git author identity."""
+class _ConfigureAuthorCommand:
+    """Command to configure author identity."""
 
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffConfigureGitCommand", "Configure Git"),
-            "ToolTip": QtCore.QT_TRANSLATE_NOOP("DiffConfigureGitCommand", "Configure git author name and email"),
+            "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffConfigureAuthorCommand", "Configure Author"),
+            "ToolTip": QtCore.QT_TRANSLATE_NOOP("DiffConfigureAuthorCommand", "Configure author name and email"),
             "Pixmap": os.path.join(ICONPATH, "ConfigureGit.svg"),
         }
 
@@ -195,7 +195,7 @@ class _ConfigureGitCommand:
     ) -> GitConfigDialogResult | None:
         """Show git identity configuration dialog."""
         dialog = QtWidgets.QDialog(parent)  # type: ignore[arg-type]
-        dialog.setWindowTitle(translate("History", "Configure Git"))
+        dialog.setWindowTitle(translate("History", "Configure Author"))
         layout = QtWidgets.QVBoxLayout(dialog)
         layout.addWidget(
             QtWidgets.QLabel(
@@ -306,7 +306,7 @@ class _CommitCommand:
             return
 
         identity_result = container.get_git_identity_action.execute(repo)
-        if identity_result.data is None and not _ConfigureGitCommand().configure_repository(container, repo, parent):
+        if identity_result.data is None and not _ConfigureAuthorCommand().configure_repository(container, repo, parent):
             return
 
         dialog_result = self._show_commit_dialog(parent)
@@ -633,7 +633,7 @@ class _RecomputeActiveDocumentCommand:
         return {
             "MenuText": QtCore.QT_TRANSLATE_NOOP("DiffRecomputeActiveDocument", "Recompute Active Document"),
             "ToolTip": QtCore.QT_TRANSLATE_NOOP("DiffRecomputeActiveDocument", "Recompute the active document"),
-            "Pixmap": "view-refresh",  # FreeCAD's standard recompute icon (from Std_Recompute)
+            "Pixmap": os.path.join(ICONPATH, "RecomputeActiveDocument.svg"),
         }
 
     def IsActive(self) -> bool:
@@ -709,7 +709,7 @@ def register_commands() -> None:
     """Register the Diff Workbench commands with FreeCAD."""
     import FreeCADGui as Gui  # pylint: disable=import-error
 
-    Gui.addCommand("DiffConfigureGitCommand", _ConfigureGitCommand())
+    Gui.addCommand("DiffConfigureAuthorCommand", _ConfigureAuthorCommand())
     Gui.addCommand("DiffCommit", _CommitCommand())
     Gui.addCommand("DiffRefreshRepository", _RefreshRepositoryCommand())
     Gui.addCommand("DiffInitializeGitRepository", _InitializeGitRepositoryCommand())

@@ -1,6 +1,6 @@
 # Development Guidelines
 
-This guide describes how to make maintainable changes to DiffCAD. For environment setup, see [Development Setup](DevSetup.md). For system structure, see [Architecture](Architecture.md).
+This guide describes how to make maintainable changes to History Workbench. For environment setup, see [Development Setup](DevSetup.md). For system structure, see [Architecture](Architecture.md).
 
 ## UI Terminology Mapping
 

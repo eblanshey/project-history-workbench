@@ -1,6 +1,6 @@
 # Development Setup
 
-This guide sets up DiffCAD for local development. It installs Python dependencies, connects the checkout to FreeCAD, and configures the FreeCAD runtime scripts used by tests and API exploration.
+This guide sets up History Workbench for local development. It installs Python dependencies, connects the checkout to FreeCAD, and configures the FreeCAD runtime scripts used by tests and API exploration.
 
 ## Prerequisites
 
@@ -10,13 +10,13 @@ This guide sets up DiffCAD for local development. It installs Python dependencie
 - `task`
 - Python 3.12 for the local development environment
 
-DiffCAD integration tests use FreeCAD's bundled Python 3.11 on Linux. That is separate from the local `uv` environment.
+History Workbench integration tests use FreeCAD's bundled Python 3.11 on Linux. That is separate from the local `uv` environment.
 
 ## Clone The Repository
 
 ```bash
-git clone https://github.com/eblanshey/DiffCAD.git
-cd DiffCAD
+git clone https://github.com/eblanshey/history-workbench.git
+cd history-workbench
 ```
 
 If you already have a checkout, run the setup commands from the repository root.
@@ -67,19 +67,19 @@ To find the correct `Mod` directory from FreeCAD:
 1. Open **Tools > Addon Manager**.
 2. Click the preferences icon at the bottom of the Addon Manager.
 3. Click **Open Addons Folder**.
-4. Use the opened folder as the target directory for the `DiffCAD` symlink.
+4. Use the opened folder as the target directory for the `HistoryWorkbench` symlink.
 
 Linux example:
 
 ```bash
-ln -s /path/to/DiffCAD ~/.local/share/FreeCAD/v1-1/Mod/DiffCAD
+ln -s /path/to/history-workbench ~/.local/share/FreeCAD/v1-1/Mod/HistoryWorkbench
 ```
 
-Use the absolute path to your local checkout in place of `/path/to/DiffCAD`.
+Use the absolute path to your local checkout in place of `/path/to/history-workbench`.
 
 ## Start FreeCAD
 
-Restart FreeCAD after creating the symlink. The workbench should appear as `Diff` in the workbench selector.
+Restart FreeCAD after creating the symlink. The workbench should appear as `History` in the workbench selector.
 
 During development, restart FreeCAD after changing Python files. Resource files, command registration, and workbench initialization are loaded by FreeCAD process startup and activation.
 

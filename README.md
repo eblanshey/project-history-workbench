@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="freecad/history_wb/resources/icons/Logo.svg" width="96" alt="DiffCAD logo" />
+  <img src="freecad/history_wb/resources/icons/Logo.svg" width="96" alt="History Workbench logo" />
 </p>
 
 <h1 align="center">History Workbench for FreeCAD</h1>
 
 <p align="center">
-  <strong>A FreeCAD workbench to track model history and review changes using 3D and tree comparisons.</strong>
+  <strong>Track CAD model history and review changes using 3D and tree comparisons.</strong>
 </p>
 
 <p align="center">
@@ -14,12 +14,12 @@
 
 ---
 
-<a href="https://raw.githubusercontent.com/eblanshey/DiffCAD/master/docs/LightScreenshot.png"><img src="docs/LightScreenshot.png" alt="DiffCAD light theme screenshot" /></a>
-<a href="https://raw.githubusercontent.com/eblanshey/DiffCAD/master/docs/DarkScreenshot.png"><img src="docs/DarkScreenshot.png" alt="DiffCAD dark theme screenshot" /></a>
+<a href="https://raw.githubusercontent.com/eblanshey/history-workbench/master/docs/LightScreenshot.png"><img src="https://raw.githubusercontent.com/eblanshey/history-workbench/master/docs/LightScreenshot.png" alt="History Workbench light theme screenshot" /></a>
+<a href="https://raw.githubusercontent.com/eblanshey/history-workbench/master/docs/DarkScreenshot.png"><img src="https://raw.githubusercontent.com/eblanshey/history-workbench/master/docs/DarkScreenshot.png" alt="History Workbench dark theme screenshot" /></a>
 
 ## Intro
 
-History Workbench is a FreeCAD addon that helps you create projects with confidence by tracking iterations over time, reviewing in-progress work, and showing model changes as detailed 3D and parametric tree comparisons.
+History Workbench helps you create projects with confidence by tracking iterations over time, reviewing in-progress work, and showing model changes as detailed 3D and parametric tree comparisons.
 
 It helps answer questions like:
 
@@ -30,13 +30,13 @@ It helps answer questions like:
 - Why did I change this model 2 months ago?
 
 > [!NOTE]
-> This workbench is relatively new. Opening issues, sharing feedback, and submitting pull requests are encouraged!
+> This workbench is relatively new. We try to avoid backwards-incompatible changes but they are still possible. Sharing feedback, opening issues, and submitting pull requests are encouraged!
 
 ## Features
 
+- **3D feature comparison:** Open visual comparisons for Part, PartDesign, and Sketcher objects, with added, removed, and shared geometry shown in separate colors.
 - **Model tree comparison:** See added, removed, and modified objects in FreeCAD's model tree hierarchy with color-coded highlighting
 - **Detailed property review:** Inspect exact changes to dimensions, placements, expressions, constraints, quantities, links, and other editable properties.
-- **3D feature comparison:** Open visual comparisons for Part, PartDesign, and Sketcher objects, with added, removed, and shared geometry shown in separate colors.
 - **Review workflow:** Review model changes incrementally and save the result as a new iteration when ready.
 - **Project history timeline:** Move between in-progress work, reviewed changes, and saved iterations from one history panel.
 - **Multi-document support:** Review and iterate on multiple related documents at once, such as assemblies spread across several `.FCStd` files.
@@ -49,14 +49,14 @@ It helps answer questions like:
 History Workbench requires:
 
 - FreeCAD 1.1 or newer (earlier versions may work, but are untested)
-- Git installed and available on your computer for iteration tracking. **Knowledge of is Git not required to use this workbench.**
+- Git installed and available on your computer for iteration tracking. **Knowledge of Git is not required to use this workbench.**
   - Install it from <https://git-scm.com/install>. Run the installer with default options.
 
 History Workbench is not yet available in the official FreeCAD Addon Manager repository. Until then, install it as a custom repository:
 
 1. Open FreeCAD.
 2. Go to **Edit > Preferences > Addon Manager > Custom repositories**.
-3. Add this repository URL: `https://github.com/eblanshey/DiffCAD`
+3. Add this repository URL: `https://github.com/eblanshey/history-workbench`
 4. Set the branch to `master`.
 5. Open **Tools > Addon Manager**.
 6. Search for **History Workbench** and install it.
@@ -89,25 +89,38 @@ History Workbench works with a Project: a folder on your computer that contains 
 
 After that baseline iteration, continue modeling normally and use the Daily Workflow instructions below to review your work.
 
-## Daily Workflow
+## Daily Usage
 
 Use History Workbench as a review loop after normal CAD work.
 
-1. **Work in FreeCAD as usual:** Model, recompute, save, and edit your project files normally.
-2. **Switch to History Workbench:** Select **History** from the FreeCAD workbench selector.
-3. **Refresh the project:** Click <img src="freecad/history_wb/resources/icons/RefreshRepository.svg" width="16" alt="" /> **Refresh Project** so the history list and document status reflect the latest files.
-4. **Review in-progress changes:** Click the **In Progress** iteration item in the history list. The document tree shows added, removed, and modified objects since the last reviewed state.
-5. **Inspect detailed properties:** Click a changed object in the model tree. The property panel shows changed dimensions, placements, expressions, constraints, quantities, links, and other editable properties.
-6. **Open 3D comparisons:** For changed Part, PartDesign, or Sketcher objects, click <img src="freecad/history_wb/resources/icons/VisualDiff.svg" width="16" alt="" /> **3D Comparison** next to the object to open a separate comparison document. Removed material is shown in red, added material in green, and unchanged material in gray. You may use FreeCAD's unified measurement tool to measure changes.
-7. **Mark documents reviewed:** Click **Reviewed** on individual documents when they are ready, or click **Mark All Reviewed** after reviewing the whole project. This supports incremental review across multiple related files, such as assemblies.
-8. **Keep working if needed:** Return to the CAD model and make more edits. The next **In Progress** comparison is made against the documents you already marked as reviewed.
-9. **Verify reviewed work:** Click the **Reviewed** iteration item in the history list to confirm exactly what will be saved in the next iteration.
-10. **Save an iteration:** Click <img src="freecad/history_wb/resources/icons/Commit.svg" width="16" alt="" /> **Save Iteration**, enter a description of the change, and confirm.
+1. **Work in FreeCAD as usual:** Model, recompute, save, and edit your project files normally. Recompute your document(s) and ensure there are no errors.
+2. **Refresh the project:** In the History workbench, click <img src="freecad/history_wb/resources/icons/RefreshRepository.svg" width="16" alt="" /> **Refresh Project** so the history list and document status reflect the latest files.
+3. **Review in-progress changes:** Click the **In Progress** iteration item in the list. The document tree shows added, removed, and modified objects since the last reviewed state.
+4. **Inspect detailed properties:** Click a changed object in the model tree. The property panel shows changed dimensions, placements, expressions, constraints, quantities, links, and other editable properties.
+5. **Open 3D comparisons:** For changed Part, PartDesign, or Sketcher objects, click <img src="freecad/history_wb/resources/icons/VisualDiff.svg" width="16" alt="" /> **3D Comparison** next to the object to open a separate comparison document. Removed material is shown in red, added material in green, and unchanged material in gray. You may use FreeCAD's unified measurement tool to measure changes.
+6. **Mark documents reviewed:** Click the **Reviewed** button on individual documents when they are ready, or click **Mark All Reviewed** after reviewing all of them. This supports incremental review across multiple related files, such as assemblies.
+7. **Keep working if needed:** Return to the CAD model and make more edits, if needed. The next **In Progress** comparison is made against the documents you already marked as reviewed.
+8. **Verify reviewed work:** Click the **Reviewed** iteration item in the history list to confirm exactly what will be saved in the next iteration.
+9.  **Save an iteration:** Click <img src="freecad/history_wb/resources/icons/Commit.svg" width="16" alt="" /> **Save Iteration**, enter a description of the changes, and confirm.
 
-To preserve project history, previous iterations cannot be altered once they are saved. All changes require a new iteration to be saved.
+To preserve project history, previous iterations cannot be altered once they are saved.
 
 > [!CAUTION]
 > Tree comparisons focus on structured FreeCAD object and property data, but may not capture every CAD model change yet. Use 3D comparisons as an additional review step before saving an iteration.
+
+## Commands
+
+| Command | Icon | Description |
+|---------|------|-------------|
+| Open History Panel | <img src="freecad/history_wb/resources/icons/Logo.svg" width="32" alt="" /> | Open or focus the History panel. Use it to quickly switch to the history window if it has gone out of focus. |
+| Refresh Project | <img src="freecad/history_wb/resources/icons/RefreshRepository.svg" width="32" alt="" /> | Refresh the detected project and reload iterations. If an iteration is already selected, the tree comparison is refreshed. Use it when opening FreeCAD documents located within a project and after making any changes. |
+| Recompute Active Document | <img src="freecad/history_wb/resources/icons/RecomputeActiveDocument.svg" width="32" alt="" /> | Recompute the active document. Use it when you need to recompute only the currently active document. |
+| Recompute All | <img src="freecad/history_wb/resources/icons/RecomputeAll.svg" width="32" alt="" /> | Recompute every open document. Use it to ensure all document state is current before doing reviews. Useful for projects with many document inter-dependencies. |
+| Open All Documents in Project | <img src="freecad/history_wb/resources/icons/OpenAllDocuments.svg" width="32" alt="" /> | Open every `.FCStd` file found in the project. Useful for initializing a project. |
+| Initialize Project | <img src="freecad/history_wb/resources/icons/CreateGitRepository.svg" width="32" alt="" /> | Initialize a new project for the selected directory. Use it when setting up a new folder of CAD files for the first time. |
+| Close Comparison Windows | <img src="freecad/history_wb/resources/icons/DiffCloseDiffWindows.svg" width="32" alt="" /> | Close every document starting with `Compare_` without saving. Use it when you want to quickly clean up comparison windows after reviewing 3D diffs. |
+| Save Iteration | <img src="freecad/history_wb/resources/icons/Commit.svg" width="32" alt="" /> | Save reviewed changes as an iteration. Use it after reviewing and marking documents as reviewed to save the result. |
+| Configure Author | <img src="freecad/history_wb/resources/icons/ConfigureGit.svg" width="32" alt="" /> | Configure iteration author name and email. Visible in the menu only. |
 
 ## Roadmap
 

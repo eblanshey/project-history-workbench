@@ -58,7 +58,7 @@ if Gui is not None:
         ]
         menu_commands = [
             *toolbar_commands,
-            "DiffConfigureGitCommand",
+            "DiffConfigureAuthorCommand",
         ]
 
         def __init__(self):
@@ -113,7 +113,7 @@ if Gui is not None:
         def Activated(self) -> None:
             """Called when user switches to this workbench."""
             try:
-                Log.info("Workbench project_history_wb activated.")
+                Log.info("Workbench history_wb activated.")
 
                 # Create container on first activation (deferred from Initialize for faster startup)
                 if not getattr(self, "_container_initialized", False):
