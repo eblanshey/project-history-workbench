@@ -1,48 +1,32 @@
 # Architecture
 
-History Workbench uses a layered architecture with domain-driven and ports-and-adapters patterns. The goal is to keep FreeCAD, Qt, git, and filesystem details at the edges while core comparison behavior remains understandable and testable.
+History Workbench uses a layered architecture with domain-driven and ports-and-adapters patterns. The goal is to keep FreeCAD, Qt, git, and filesystem details at the edges while core CAD-history behavior remains understandable and testable.
 
 ## Design Principles
 
 - Dependencies point inward where practical: entry points and UI call application actions; application actions coordinate domain services; infrastructure adapts external systems.
 - Domain concepts are explicit: snapshots, diffs, settings, tree paths, and git state have dedicated models and services.
-- Application actions are small use cases. They coordinate dependencies and return result objects rather than directly updating UI.
+- Application actions are small desktop use cases. They coordinate dependencies and return result objects rather than directly updating Qt views or dialogs.
 - UI state stays in the UI layer. The application container does not own presenter state or view state.
-- External systems are represented through ports. Real FreeCAD and git implementations live in infrastructure; tests usually use fakes.
+- External systems are represented through ports. Real FreeCAD, git, YAML, and filesystem implementations live in infrastructure; tests usually use fakes.
 - FreeCAD startup work stays minimal. The workbench registers commands first, then creates the diff panel when activated or opened.
 
-## Frontend And Backend Analogy
+## Desktop Layer Model
 
-History Workbench is a desktop FreeCAD workbench, but its internal shape is close to a frontend/backend application.
+History Workbench is a desktop FreeCAD workbench hosted inside another application. Use the project layer names when deciding where code belongs.
 
-### Backend
+```text
+FreeCAD command/workbench callback -> entry point -> presenter or application action
+Qt widget event                    -> presenter   -> application action
+Application action                 -> domain service/model -> infrastructure adapter
+Infrastructure adapter             -> FreeCAD / git / filesystem / YAML
+```
 
-The application and domain layers act like the backend.
+FreeCAD commands are entry points. They expose `GetResources()`, answer `IsActive()`, and translate `Activated()` callbacks into presenter or application calls. They are not presenters, although small command-specific dialogs may still live there until they are worth extracting into UI code.
 
-| Backend concept | History Workbench implementation |
-| --- | --- |
-| API endpoint | Application action with an `execute()` method. |
-| Business logic | Domain services, models, and algorithms. |
-| Request/response result | Result models returned by application actions. |
-| Database or external service | Infrastructure adapters for FreeCAD, git, and snapshot files. |
-| Dependency injection container | `ApplicationContainer`, which wires actions, services, repositories, and ports. |
+UI code owns Qt widgets, presenters, dialog flow, display feedback, translated display text, and UI session state. Application actions own workbench use cases such as stage, commit, diff, save-before-diff, and open visual comparison. Domain owns CAD-history models, rules, and algorithms. Infrastructure owns concrete FreeCAD, git, filesystem, YAML, and FreeCAD preference calls.
 
-Application actions are similar to API endpoints: they accept inputs, coordinate services, and return results. They should not hold UI state between calls.
-
-The domain layer contains backend business concepts: snapshots, diffs, settings, tree paths, and git workflow rules.
-
-### Frontend
-
-The UI layer acts like the frontend.
-
-| Frontend concept | History Workbench implementation |
-| --- | --- |
-| State store | `UIState`, currently holding session state such as the detected repository. |
-| Component/controller | Presenters that react to user events and action results. |
-| Rendered view | Qt widgets under `ui/views/`. |
-| View contract | Protocols under `ui/protocols/`. |
-
-Presenters call backend-like application actions, transform results for display, and update views through protocols. Views own Qt rendering and translation. UI state stays in the UI layer, not in the application container or domain services.
+FreeCAD document changes often update the visible desktop UI as a side effect. Visibility is not the layer boundary. Opening, saving, recomputing, staging, and creating comparison documents belong in application use cases when they are part of a workbench operation and are performed through ports.
 
 ## Runtime Flow
 
@@ -81,46 +65,47 @@ Domain services and infrastructure adapters perform work
 
 Location: `freecad/history_wb/entrypoints/`
 
-Entry points integrate with FreeCAD's workbench and command APIs.
+Entry points integrate with FreeCAD's workbench and command APIs. They are driving adapters from the host desktop application into History Workbench.
 
 - `workbench.py` defines `HistoryWorkbench`, registers toolbars/menus, creates the application container, registers preferences, and opens the diff panel.
 - `commands.py` defines FreeCAD command classes and delegates work to presenters or application actions.
 - Entry points may access the global container through `freecad/history_wb/_container.py`.
 - Entry points should stay thin. They translate FreeCAD callbacks into application or UI calls.
+- Command classes should not own domain rules or multi-step workflow logic when a presenter or application action can own it instead.
 
 ### UI Layer
 
 Location: `freecad/history_wb/ui/`
 
-The UI layer owns presenter state, Qt views, and view protocols.
+The UI layer owns presenter state, Qt views, dialog flow, display feedback, and view protocols.
 
 - `composer.py` is the UI composition root. It creates views, presenters, and `UIState`.
 - `state.py` stores UI-only state such as the detected `GitRepository`.
 - `registry.py` stores globally reachable UI objects needed by FreeCAD commands.
-- `presenters/` transforms application results into view updates.
+- `presenters/` transforms application results into view updates and presentation feedback.
 - `protocols/` defines presenter-facing view contracts.
 - `views/` contains Qt widgets and preferences UI.
 - User-facing UI text is translated at display sites with literal `translate("History", "...")` calls, or defined with `QT_TRANSLATE_NOOP` when deferred.
 
-Presenters depend on view protocols and application actions. Views render Qt widgets and perform translation. Presenters should pass raw data, not translated UI strings.
+Presenters depend on view protocols and application actions. Views render Qt widgets and perform translation. Presenters should pass raw data, not translated UI strings. Dialogs and message boxes are presentation concerns even when they are launched from FreeCAD command entry points.
 
 ### Application Layer
 
 Location: `freecad/history_wb/application/`
 
-The application layer exposes workbench use cases as small action classes.
+The application layer exposes workbench use cases as small action classes. Actions coordinate desktop side effects through ports without owning Qt presentation behavior.
 
-- `actions/` contains use cases such as creating snapshots, creating document diffs, staging documents, committing staged files, reading settings, and finding repositories.
+- `actions/` contains use cases such as creating snapshots, creating document diffs, staging documents, committing staged files, opening visual comparisons, reading settings, and finding repositories.
 - `actions/result_models.py` contains reusable result types.
 - `di/container.py` wires application actions, domain services, and infrastructure adapters.
 
-Actions should be stateless after construction. They receive dependencies through constructors, execute one operation, and return a result.
+Actions should be stateless after construction. They receive dependencies through constructors, execute one operation, and return a result. They may save FreeCAD documents, open comparison documents, write snapshot files, or stage git paths when those effects are part of the use case and are performed through ports or domain services.
 
 ### Domain Layer
 
 Location: `freecad/history_wb/domain/`
 
-The domain layer contains core workbench concepts and contracts.
+The domain layer contains core CAD-history concepts, rules, models, algorithms, and contracts.
 
 - `diff/` contains diff models, comparison algorithms, and `DiffEngine`.
 - `git/` contains git models, git port protocols, and `GitService`.
@@ -130,15 +115,17 @@ The domain layer contains core workbench concepts and contracts.
 - `config.py` contains default diff settings such as exclusions and float precision.
 - `freecad_ports.py` defines minimal FreeCAD-facing protocols used by domain/application code.
 
-Most domain code is pure Python. `domain/snapshots/gui_extractor.py` extracts FreeCAD's visual tree through `claimChildren()` using injected `GuiLike` from `FreeCadContext`, so domain services avoid direct `FreeCADGui` imports while still matching runtime GUI behavior.
+Most domain code is pure Python. `domain/snapshots/gui_extractor.py` extracts FreeCAD's visual tree through `claimChildren()` using injected `GuiLike` from `FreeCadContext`, so domain services avoid direct `FreeCADGui` imports while still matching runtime GUI behavior. Concrete FreeCAD runtime imports and document mutation belong in infrastructure adapters.
 
 ### Infrastructure Layer
 
 Location: `freecad/history_wb/infrastructure/`
 
-Infrastructure adapts external systems to project protocols.
+Infrastructure adapts external systems to project protocols. It is still required even for systems central to the workbench, because FreeCAD runtime modules, git CLI, YAML libraries, and filesystem IO are concrete integration details.
 
 - `freecad/ports.py` adapts the runtime FreeCAD API to `FreeCadPort` and `AppPort`.
+- `freecad/freecad_visual_diff_creator.py` creates visual comparison documents through FreeCAD and Part APIs.
+- `freecad/freecad_file_manager.py` materializes and extracts FreeCAD document revisions for visual diffing.
 - `freecad/settings_repo.py` persists diff settings through FreeCAD preferences.
 - `freecad/logger.py` sends `Log` output to the FreeCAD console.
 - `git/git_port_adapter.py` implements git operations by calling the git CLI.
@@ -208,9 +195,25 @@ Infrastructure Layer
 - Entry points may call UI registries, presenters, commands, and application container accessors.
 - UI may call application actions and use domain models for display state.
 - Application may use domain services, domain models, and domain ports.
+- Application actions may coordinate desktop side effects through ports, but should not import Qt widgets or concrete FreeCAD/git/filesystem implementations.
 - Domain should not import UI or application modules.
-- Infrastructure implements domain ports and can call external APIs.
+- Infrastructure implements ports and can call external APIs.
 - The container is a composition mechanism, not application state.
+
+## Placement Rules
+
+Use these rules when deciding where code belongs:
+
+| Code mentions or does | Layer |
+| --- | --- |
+| FreeCAD command registration, `Activated()`, `GetResources()`, workbench lifecycle | Entry point |
+| Qt widget, dialog, message box, translated display text, view state | UI |
+| Multi-step user operation such as stage, commit, diff, save before diff, open comparison | Application |
+| Snapshot/diff/tree/settings/git rule that can be expressed without concrete runtime APIs | Domain |
+| `FreeCAD`, `FreeCADGui`, `Part`, git CLI, YAML library, direct filesystem IO, zip extraction | Infrastructure |
+| Concrete object creation and dependency wiring | Composition root/container |
+
+Opening a FreeCAD document, saving a modified document, recomputing, or creating a comparison document can visibly change the desktop UI. The deciding factor is not visibility. The deciding factor is ownership: presentation code decides what the user sees and asks for; application code decides what the workbench operation does; infrastructure code performs concrete runtime calls.
 
 ## Composition Roots
 
