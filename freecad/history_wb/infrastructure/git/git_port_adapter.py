@@ -70,6 +70,7 @@ class GitPortAdapter(GitPort):
 
         run_kwargs: dict[str, Any] = {
             "cwd": cwd,
+            "shell": False,
             "capture_output": True,
             "text": True,
             "encoding": "utf-8",
@@ -628,7 +629,7 @@ class GitPortAdapter(GitPort):
         try:
             target = self._show_target(commit, git_path)
             os.makedirs(os.path.dirname(destination), exist_ok=True)
-            run_kwargs: dict[str, Any] = {"cwd": git_root, "stderr": subprocess.PIPE}
+            run_kwargs: dict[str, Any] = {"cwd": git_root, "shell": False, "stderr": subprocess.PIPE}
             env_overrides = self._default_git_env()
             if env_overrides:
                 run_kwargs["env"] = os.environ | env_overrides
