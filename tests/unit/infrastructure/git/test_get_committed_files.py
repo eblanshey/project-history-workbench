@@ -8,6 +8,7 @@ import subprocess
 from unittest.mock import patch
 
 import pytest
+
 from freecad.history_wb.infrastructure.git import GitPortAdapter
 
 
@@ -39,6 +40,7 @@ class TestGitPortAdapterGetCommittedFiles:
             mock_run.assert_called_once_with(
                 ["git", "diff-tree", "--root", "--no-commit-id", "--name-only", "-z", "-r", "abc123"],
                 cwd="/path/to/repo",
+                shell=False,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -95,6 +97,7 @@ class TestGitPortAdapterGetCommittedFiles:
             mock_run.assert_called_once_with(
                 ["git", "diff-tree", "--root", "--no-commit-id", "--name-only", "-z", "-r", commit_ref],
                 cwd="/path/to/repo",
+                shell=False,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",

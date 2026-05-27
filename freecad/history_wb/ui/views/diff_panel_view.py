@@ -164,6 +164,18 @@ class DiffPanelView(QtWidgets.QWidget):
         """
         self._document_diff_tree.set_add_button_callback(callback)
 
+    def set_remove_from_reviewed_button_callback(self, callback: Callable[[str], None]) -> None:
+        """Set callback for per-file Remove button in Reviewed view."""
+        self._document_diff_tree.set_remove_from_reviewed_button_callback(callback)
+
+    def set_remove_all_from_reviewed_callback(self, callback: Callable[[], None]) -> None:
+        """Set callback for Reviewed context action Remove All from Reviewed."""
+        self._history_panel.set_remove_all_from_reviewed_callback(callback)
+
+    def set_mark_all_reviewed_from_in_progress_callback(self, callback: Callable[[], None]) -> None:
+        """Set callback for In Progress context action Mark All Reviewed."""
+        self._history_panel.set_mark_all_reviewed_from_in_progress_callback(callback)
+
     def set_stage_all_button_visible(self, visible: bool) -> None:
         """Show or hide the Mark All Reviewed button.
 
@@ -193,6 +205,18 @@ class DiffPanelView(QtWidgets.QWidget):
             callback: A no-argument callable to invoke on click.
         """
         self._document_diff_tree.set_stage_all_callback(callback)
+
+    def set_remove_all_button_callback(self, callback: Callable[[], None]) -> None:
+        """Set callback for summary-bar Remove All button."""
+        self._document_diff_tree.set_remove_all_button_callback(callback)
+
+    def set_remove_all_button_visible(self, visible: bool) -> None:
+        """Show or hide summary-bar Remove All button."""
+        self._document_diff_tree.set_remove_all_button_visible(visible)
+
+    def set_remove_all_button_enabled(self, enabled: bool) -> None:
+        """Enable or disable summary-bar Remove All button."""
+        self._document_diff_tree.set_remove_all_button_enabled(enabled)
 
     def set_node_selection_callback(self, callback: Callable[[str, str], None]) -> None:
         """Set callback for node selection with (git_path, node_path).

@@ -14,7 +14,6 @@ from freecad.history_wb.application.actions.open_visual_diff import (
 from freecad.history_wb.domain.freecad_ports import FreeCadFileManagerPort
 from freecad.history_wb.domain.git.git_service import GitService
 from freecad.history_wb.domain.git.models import GitRepository
-
 from tests.fakes import FakeFreeCadPort, FakeGitPort, MockDocument
 
 

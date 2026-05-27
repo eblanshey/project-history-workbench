@@ -48,6 +48,7 @@ def compose_and_register_ui(container: ApplicationContainer) -> DiffPanelView:
         get_eligible_docs_action=container.get_open_eligible_docs_action,
         create_document_diffs_action=container.create_document_diffs_action,
         stage_documents_action=container.stage_documents_action,
+        unstage_documents_action=container.unstage_documents_action,
         get_dirty_documents_action=container.get_dirty_documents_action,
         open_visual_feature_diff_action=container.open_visual_feature_diff_action,
         settings_repo=container.settings_repo,
@@ -60,6 +61,9 @@ def compose_and_register_ui(container: ApplicationContainer) -> DiffPanelView:
 
     # Connect add button callback
     view.set_add_button_callback(diff_presenter.on_add_button_clicked)
+    view.set_remove_from_reviewed_button_callback(diff_presenter.on_remove_from_reviewed_button_clicked)
+    view.set_remove_all_from_reviewed_callback(diff_presenter.on_remove_all_from_reviewed_clicked)
+    view.set_mark_all_reviewed_from_in_progress_callback(diff_presenter.on_stage_all_clicked)
 
     # Lifecycle presenter - creates git detection + refresh behavior
     git_repo_presenter = GitRepositoryPresenter(

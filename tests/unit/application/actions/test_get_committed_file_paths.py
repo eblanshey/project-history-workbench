@@ -5,6 +5,7 @@
 from unittest.mock import MagicMock
 
 import pytest
+
 from freecad.history_wb.application.actions.get_committed_file_paths import GetCommittedFilePathsAction
 from freecad.history_wb.domain.git.git_service import GitService
 from freecad.history_wb.domain.git.models import GitRepository

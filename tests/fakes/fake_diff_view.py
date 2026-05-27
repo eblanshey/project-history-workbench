@@ -26,6 +26,10 @@ class FakeDiffView:
         self._history_scroll_bottom_callback: Callable[[], None] | None = None
         self._add_button_callback: Callable[[str], None] | None = None
         self._stage_all_callback: Callable[[], None] | None = None
+        self._remove_from_reviewed_button_callback: Callable[[str], None] | None = None
+        self._remove_all_from_reviewed_callback: Callable[[], None] | None = None
+        self._mark_all_reviewed_from_in_progress_callback: Callable[[], None] | None = None
+        self._remove_all_button_callback: Callable[[], None] | None = None
         self._visual_diff_callback: Callable[[str, str], None] | None = None
         self._current_selection: Any = None
 
@@ -178,10 +182,35 @@ class FakeDiffView:
         self._record_call("set_stage_all_callback", callback=callback)
         self._stage_all_callback = callback
 
+    def set_remove_from_reviewed_button_callback(self, callback: Callable[[str], None]) -> None:
+        """Capture remove-from-reviewed callback registration."""
+        self._record_call("set_remove_from_reviewed_button_callback", callback=callback)
+        self._remove_from_reviewed_button_callback = callback
+
+    def set_remove_all_from_reviewed_callback(self, callback: Callable[[], None]) -> None:
+        """Capture remove-all-from-reviewed callback registration."""
+        self._record_call("set_remove_all_from_reviewed_callback", callback=callback)
+        self._remove_all_from_reviewed_callback = callback
+
+    def set_mark_all_reviewed_from_in_progress_callback(self, callback: Callable[[], None]) -> None:
+        """Capture mark-all-reviewed callback registration from In Progress context menu."""
+        self._record_call("set_mark_all_reviewed_from_in_progress_callback", callback=callback)
+        self._mark_all_reviewed_from_in_progress_callback = callback
+
     def trigger_stage_all_callback(self) -> None:
         """Trigger the registered Stage All callback if one exists."""
         if self._stage_all_callback is not None:
             self._stage_all_callback()
+
+    def trigger_remove_from_reviewed_button_callback(self, git_path: str) -> None:
+        """Trigger registered remove callback for tests."""
+        if self._remove_from_reviewed_button_callback is not None:
+            self._remove_from_reviewed_button_callback(git_path)
+
+    def trigger_remove_all_from_reviewed_callback(self) -> None:
+        """Trigger registered remove-all callback for tests."""
+        if self._remove_all_from_reviewed_callback is not None:
+            self._remove_all_from_reviewed_callback()
 
     def set_stage_all_button_visible(self, visible: bool) -> None:
         """Capture Stage All button visibility call.
@@ -198,6 +227,19 @@ class FakeDiffView:
             enabled: Whether the Stage All button should be enabled.
         """
         self._record_call("set_stage_all_button_enabled", enabled=enabled)
+
+    def set_remove_all_button_visible(self, visible: bool) -> None:
+        """Capture Remove All button visibility call."""
+        self._record_call("set_remove_all_button_visible", visible=visible)
+
+    def set_remove_all_button_enabled(self, enabled: bool) -> None:
+        """Capture Remove All button enabled call."""
+        self._record_call("set_remove_all_button_enabled", enabled=enabled)
+
+    def set_remove_all_button_callback(self, callback: Callable[[], None]) -> None:
+        """Capture Remove All summary button callback registration."""
+        self._record_call("set_remove_all_button_callback", callback=callback)
+        self._remove_all_button_callback = callback
 
     def get_current_history_selection(self) -> HistorySelection | None:
         """Return currently selected history entry for presenter logic."""

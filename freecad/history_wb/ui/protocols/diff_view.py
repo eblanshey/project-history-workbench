@@ -136,6 +136,9 @@ class DiffView(Protocol):
                       document whose '+ Stage' button was clicked.
         """
 
+    def set_remove_from_reviewed_button_callback(self, callback: Callable[[str], None]) -> None:
+        """Set callback for per-file remove from Reviewed button."""
+
     def set_visual_diff_callback(self, callback: Callable[[str, str], None]) -> None:
         """Set callback for visual diff click with (git_path, node_path)."""
 
@@ -161,6 +164,12 @@ class DiffView(Protocol):
             callback: A no-argument callable to invoke on Stage All click.
         """
 
+    def set_remove_all_from_reviewed_callback(self, callback: Callable[[], None]) -> None:
+        """Set callback for Remove All from Reviewed action."""
+
+    def set_mark_all_reviewed_from_in_progress_callback(self, callback: Callable[[], None]) -> None:
+        """Set callback for Mark All Reviewed action from In Progress context menu."""
+
     def set_stage_all_button_visible(self, visible: bool) -> None:
         """Show or hide the 'Stage All' button.
 
@@ -174,6 +183,15 @@ class DiffView(Protocol):
         Args:
             enabled: Whether the Stage All button should be enabled.
         """
+
+    def set_remove_all_button_visible(self, visible: bool) -> None:
+        """Show or hide the 'Remove All' button for Reviewed selection."""
+
+    def set_remove_all_button_enabled(self, enabled: bool) -> None:
+        """Enable or disable the 'Remove All' button for Reviewed selection."""
+
+    def set_remove_all_button_callback(self, callback: Callable[[], None]) -> None:
+        """Set callback for summary-bar Remove All button."""
 
     def get_current_history_selection(self) -> HistorySelection | None:
         """Return currently selected history entry, if any."""

@@ -10,7 +10,6 @@ from freecad.history_wb.application.actions.recompute_all_open_documents import 
     RecomputeAllOpenDocumentsAction,
 )
 from freecad.history_wb.domain.freecad_ports import DocumentLike, DocumentObjectLike
-
 from tests.fakes.fake_freecad_port import FakeFreeCadPort
 
 

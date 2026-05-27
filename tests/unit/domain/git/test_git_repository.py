@@ -5,6 +5,7 @@
 import dataclasses
 
 import pytest
+
 from freecad.history_wb.domain.git import GitRepository
 
 

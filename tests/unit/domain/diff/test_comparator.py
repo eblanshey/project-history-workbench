@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Any
 
 import pytest
+
 from freecad.history_wb.domain.config import EXCLUDED_PROPERTIES
 from freecad.history_wb.domain.diff.comparator import PropertyComparator, TreeComparator
 from freecad.history_wb.domain.diff.models import DiffState, NodeDiff, PropertyDiff

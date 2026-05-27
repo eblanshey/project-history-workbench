@@ -10,7 +10,6 @@ from freecad.history_wb.application.actions.open_all_documents_in_repository imp
     OpenAllDocumentsInRepositoryAction,
 )
 from freecad.history_wb.domain.git.models import GitRepository
-
 from tests.fakes.fake_freecad_port import FakeFreeCadPort
 
 

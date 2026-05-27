@@ -4,6 +4,7 @@
 """Unit tests for PropertyPathValue class."""
 
 import pytest
+
 from freecad.history_wb.domain.tree.data_path import PropertyPathType, PropertyPathValue
 
 

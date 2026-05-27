@@ -7,6 +7,7 @@ including tree rendering, staging controls, and callback wiring.
 from __future__ import annotations
 
 import pytest
+
 from freecad.history_wb.domain.diff.models import DiffState
 from freecad.history_wb.qt import QtCore, QtWidgets
 from freecad.history_wb.ui.views.diff_theme import DIFF_STATE_ROLE
@@ -277,6 +278,35 @@ class TestShowDocDiffsWithStageButtons:
         # Then: Tree is cleared
         assert widget.tree_widget.topLevelItemCount() == 0
 
+    @pytest.mark.parametrize("kind", ["WORKING_TREE", "COMMIT"])
+    def test_remove_buttons_hidden_when_not_staging(self, widget, kind: str) -> None:  # type: ignore[no-untyped-def]
+        from freecad.history_wb.ui.presenters.presentation_models import DiffTreePresentation, NodePresentation
+        from freecad.history_wb.ui.views.models import HistorySelection
+
+        widget.clear_doc_diffs()
+        selection = HistorySelection(item_kind=kind, commit_hash=None if kind != "COMMIT" else "abc123")
+        widget.set_current_history_selection(selection)
+        widget.show_doc_diffs(
+            [
+                DiffTreePresentation(
+                    nodes=[
+                        NodePresentation(
+                            path="Body/Pad",
+                            type_id="PartDesign::Pad",
+                            label="Pad",
+                            state=DiffState.MODIFIED,
+                            has_changes=True,
+                            children=[],
+                        )
+                    ],
+                    git_path="parts/A.FCStd",
+                    indicators=[],
+                )
+            ]
+        )
+
+        assert "parts/A.FCStd" not in widget._remove_from_reviewed_buttons
+
 
 class TestCallbackWiring:
     """Tests for callback wiring methods."""
@@ -321,6 +351,39 @@ class TestCallbackWiring:
         stage_button = widget._stage_buttons["parts/A.FCStd"]
         stage_button.click()
 
+        assert captured == ["parts/A.FCStd"]
+
+    def test_remove_button_callback_receives_git_path(self, widget) -> None:  # type: ignore[no-untyped-def]
+        from freecad.history_wb.ui.presenters.presentation_models import DiffTreePresentation, NodePresentation
+        from freecad.history_wb.ui.views.models import HistorySelection
+
+        captured: list[str] = []
+        widget.clear_doc_diffs()
+        widget.set_current_history_selection(HistorySelection(item_kind="STAGING", commit_hash=None))
+        widget.set_remove_from_reviewed_button_callback(lambda git_path: captured.append(git_path))
+        widget.show_doc_diffs(
+            [
+                DiffTreePresentation(
+                    nodes=[
+                        NodePresentation(
+                            path="Body/Pad",
+                            type_id="PartDesign::Pad",
+                            label="Pad",
+                            state=DiffState.MODIFIED,
+                            has_changes=True,
+                            children=[],
+                        )
+                    ],
+                    git_path="parts/A.FCStd",
+                    indicators=[],
+                )
+            ]
+        )
+
+        button = widget._remove_from_reviewed_buttons["parts/A.FCStd"]
+        assert button.text() == "- Remove"
+        assert "will not be saved in the next iteration" in button.toolTip()
+        button.click()
         assert captured == ["parts/A.FCStd"]
 
     def test_set_stage_all_callback_invokes_callback(self, widget) -> None:  # type: ignore[no-untyped-def]
@@ -546,6 +609,34 @@ class TestSetStageAllButtonVisibilityAndEnabled:
 
         widget.set_stage_all_button_enabled(False)
         assert not widget._stage_all_button.isEnabled()
+
+    def test_set_remove_all_button_visible_and_enabled(self, widget) -> None:  # type: ignore[no-untyped-def]
+        """Remove All summary button visibility/enabled controls work."""
+        widget.set_remove_all_button_visible(True)
+        assert not widget._remove_all_button.isHidden()
+        widget.set_remove_all_button_enabled(True)
+        assert widget._remove_all_button.isEnabled()
+
+        widget.set_remove_all_button_enabled(False)
+        assert not widget._remove_all_button.isEnabled()
+        widget.set_remove_all_button_visible(False)
+        assert widget._remove_all_button.isHidden()
+
+    def test_remove_all_button_has_requested_text_and_tooltip(self, widget) -> None:  # type: ignore[no-untyped-def]
+        """Remove All summary button has requested text and tooltip."""
+        assert widget._remove_all_button.text() == "- Remove All"
+        assert "will not be saved in the next iteration" in widget._remove_all_button.toolTip()
+
+    def test_set_remove_all_button_callback_invokes_callback(self, widget) -> None:  # type: ignore[no-untyped-def]
+        """Remove All summary callback invoked on click."""
+        captured: list[bool] = []
+
+        def callback() -> None:
+            captured.append(True)
+
+        widget.set_remove_all_button_callback(callback)
+        widget._on_remove_all_clicked()
+        assert captured == [True]
 
 
 class TestCollapseTreeItem:

@@ -8,7 +8,6 @@ from freecad.history_wb.application.actions.get_git_repository_init_candidates i
     GetGitRepositoryInitCandidatesAction,
 )
 from freecad.history_wb.domain.git.git_service import GitService
-
 from tests.fakes.fake_freecad_port import FakeFreeCadPort
 from tests.fakes.fake_git_port import FakeGitPort
 

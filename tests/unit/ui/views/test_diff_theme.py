@@ -1,6 +1,7 @@
 """File responsibility: Unit tests for theme-aware diff color helpers."""
 
 import pytest
+
 from freecad.history_wb.domain.diff.models import DiffState
 from freecad.history_wb.qt import QtGui
 from freecad.history_wb.ui.views.diff_theme import background_for_state, foreground_for_background

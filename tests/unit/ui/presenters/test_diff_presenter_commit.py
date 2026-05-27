@@ -19,6 +19,7 @@ from freecad.history_wb.application.actions.result_models import (
     Result,
 )
 from freecad.history_wb.application.actions.stage_documents import StageDocumentsAction
+from freecad.history_wb.application.actions.unstage_documents import UnstageDocumentsAction
 from freecad.history_wb.domain.diff.models import DiffResult
 from freecad.history_wb.domain.git.models import GitRepository
 from freecad.history_wb.domain.snapshots.models import Snapshot
@@ -26,7 +27,6 @@ from freecad.history_wb.ui.presenters.diff_presenter import DiffPresenter
 from freecad.history_wb.ui.presenters.presentation_models import NewFileIndicator
 from freecad.history_wb.ui.state import UIState
 from freecad.history_wb.ui.views.models import HistorySelection
-
 from tests.fakes.fake_diff_view import FakeDiffView
 
 
@@ -40,6 +40,7 @@ def _make_presenter() -> tuple[FakeDiffView, DiffPresenter, MagicMock]:
         get_eligible_docs_action=MagicMock(spec=GetOpenEligibleDocumentsAction),
         create_document_diffs_action=create_document_diffs_action,
         stage_documents_action=MagicMock(spec=StageDocumentsAction),
+        unstage_documents_action=MagicMock(spec=UnstageDocumentsAction),
         get_dirty_documents_action=MagicMock(spec=GetDirtyDocumentsAction),
         open_visual_feature_diff_action=MagicMock(spec=OpenVisualDiffAction),
     )
@@ -175,3 +176,46 @@ class TestVisualDiffClickHandling:
         assert request.type is VisualDiffRequestType.COMMIT
         assert request.old_commit == "abc123~1"
         assert request.new_commit == "abc123"
+
+
+class TestRemoveFromReviewed:
+    def test_per_file_remove_calls_action_clears_property_and_refreshes_staging(self) -> None:
+        view, presenter, create_document_diffs_action = _make_presenter()
+        repo = GitRepository(name="repo", absolute_path="/home/user/dir/repo")
+        presenter._ui_state.git_repository = repo
+        presenter._unstage_documents.execute.return_value = Result.success(True)
+        create_document_diffs_action.execute.return_value = Result.success([])
+
+        presenter.on_remove_from_reviewed_button_clicked("doc.FCStd")
+
+        presenter._unstage_documents.execute.assert_called_once_with(repo, ["doc.FCStd"])
+        assert any(call["method"] == "clear_property_diff" for call in view.get_calls())
+        create_document_diffs_action.execute.assert_called_with(
+            CreateDocumentDiffsRequest(mode=DocumentDiffMode.STAGING, repo=repo)
+        )
+
+    def test_remove_all_refreshes_working_tree_when_working_tree_selected(self) -> None:
+        view, presenter, _ = _make_presenter()
+        repo = GitRepository(name="repo", absolute_path="/home/user/dir/repo")
+        presenter._ui_state.git_repository = repo
+        presenter._unstage_documents.execute.return_value = Result.success(True)
+        view.set_current_history_selection(HistorySelection(item_kind="WORKING_TREE", commit_hash=None))
+
+        presenter._on_working_tree_selected = MagicMock()
+        presenter.on_remove_all_from_reviewed_clicked()
+
+        presenter._unstage_documents.execute.assert_called_once_with(repo, None)
+        presenter._on_working_tree_selected.assert_called_once()
+
+    def test_staging_selection_shows_remove_all_summary_button(self) -> None:
+        view, presenter, create_document_diffs_action = _make_presenter()
+        repo = GitRepository(name="repo", absolute_path="/home/user/dir/repo")
+        presenter._ui_state.git_repository = repo
+        create_document_diffs_action.execute.return_value = Result.success([])
+
+        presenter._current_history_selection = HistorySelection(item_kind="STAGING", commit_hash=None)
+        presenter.present_diffs([], set(), {"doc.FCStd": DocumentDiffStatus.NEW_FILE})
+
+        assert any(
+            call["method"] == "set_remove_all_button_visible" and call["visible"] is True for call in view.get_calls()
+        )

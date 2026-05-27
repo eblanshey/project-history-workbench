@@ -9,7 +9,6 @@ from pathlib import Path
 from freecad.history_wb.infrastructure.freecad.freecad_file_manager import (
     FreeCadFileManagerAdapter,
 )
-
 from tests.fakes.fake_git_port import FakeGitPort
 
 

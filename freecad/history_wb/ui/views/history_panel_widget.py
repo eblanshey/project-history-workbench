@@ -105,6 +105,8 @@ class HistoryPanelWidget(QtWidgets.QWidget):
         self._on_history_scroll_bottom_callback: Callable[[], None] | None = None
         self._on_refresh_callback: Callable[[], None] | None = None
         self._on_selection_changed_callback: Callable[[HistorySelection | None], None] | None = None
+        self._on_remove_all_from_reviewed_callback: Callable[[], None] | None = None
+        self._on_mark_all_reviewed_from_in_progress_callback: Callable[[], None] | None = None
         self._current_selection: HistorySelection | None = None
         self._current_repository_path: str | None = None
         self._history_scroll_bottom_armed = True
@@ -121,6 +123,8 @@ class HistoryPanelWidget(QtWidgets.QWidget):
         self._history_list.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
         self._history_list.setWordWrap(True)
         self._history_list.setSpacing(0)
+        self._history_list.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        self._history_list.customContextMenuRequested.connect(self._on_history_list_context_menu_requested)
 
         history_placeholder = QtWidgets.QLabel(translate("History", "Iterations"))
         history_placeholder.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
@@ -302,6 +306,14 @@ class HistoryPanelWidget(QtWidgets.QWidget):
         self._history_scroll_bottom_armed = True
         self._history_list.verticalScrollBar().valueChanged.connect(self._on_history_scrollbar_value_changed)
 
+    def set_remove_all_from_reviewed_callback(self, callback: Callable[[], None]) -> None:
+        """Set callback for Remove All from Reviewed context action."""
+        self._on_remove_all_from_reviewed_callback = callback
+
+    def set_mark_all_reviewed_from_in_progress_callback(self, callback: Callable[[], None]) -> None:
+        """Set callback for Mark All Reviewed context action on In Progress row."""
+        self._on_mark_all_reviewed_from_in_progress_callback = callback
+
     def append_commits(self, commits: list[GitCommit]) -> None:
         """Append commit entries after existing history rows."""
         for commit in commits:
@@ -358,6 +370,42 @@ class HistoryPanelWidget(QtWidgets.QWidget):
             self._set_current_selection(item_data)
             if self._on_history_selection_callback is not None:
                 self._on_history_selection_callback(item_data)
+
+    def _on_history_list_context_menu_requested(self, pos: QtCore.QPoint) -> None:
+        """Show Reviewed-only context action for removing all staged files."""
+        item = self._history_list.itemAt(pos)
+        if item is None:
+            return
+
+        item_data = item.data(QtCore.Qt.ItemDataRole.UserRole)
+        if not isinstance(item_data, HistorySelection):
+            return
+
+        if item_data.item_kind == "WORKING_TREE" and item_data.commit_hash is None:
+            menu = QtWidgets.QMenu(self._history_list)
+            menu.setToolTipsVisible(True)
+            action = menu.addAction(translate("History", "Mark All Reviewed"))
+            selected_action = menu.exec(self._history_list.mapToGlobal(pos))
+            if selected_action == action and self._on_mark_all_reviewed_from_in_progress_callback is not None:
+                self._on_mark_all_reviewed_from_in_progress_callback()
+            return
+
+        if item_data.item_kind != "STAGING" or item_data.commit_hash is not None:
+            return
+
+        tooltip = translate(
+            "History",
+            "Remove document(s) from Reviewed. The current file(s) stay unchanged "
+            "and will not be saved in the next iteration until reviewed again.",
+        )
+        menu = QtWidgets.QMenu(self._history_list)
+        menu.setToolTipsVisible(True)
+        action = menu.addAction(translate("History", "Remove All from Reviewed"))
+        action.setToolTip(tooltip)
+        action.setStatusTip(tooltip)
+        selected_action = menu.exec(self._history_list.mapToGlobal(pos))
+        if selected_action == action and self._on_remove_all_from_reviewed_callback is not None:
+            self._on_remove_all_from_reviewed_callback()
 
     def _on_history_scrollbar_value_changed(self, value: int) -> None:
         """Notify callback when history scrollbar is near bottom."""

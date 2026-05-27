@@ -28,6 +28,7 @@ from .result_models import (
 )
 from .save_diff_settings import SaveDiffSettingsAction
 from .save_git_identity import SaveGitIdentityAction
+from .unstage_documents import UnstageDocumentsAction
 
 
 __all__ = [
@@ -51,6 +52,7 @@ __all__ = [
     "CreateDocumentSnapshotForCommitAction",
     "CreateDiffAction",
     "CreateDocumentDiffsAction",
+    "UnstageDocumentsAction",
     # Result models
     "Result",
     "SnapshotResult",

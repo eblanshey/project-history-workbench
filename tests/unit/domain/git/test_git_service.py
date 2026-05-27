@@ -3,8 +3,8 @@
 """Unit tests for the GitService class."""
 
 import pytest
-from freecad.history_wb.domain.git import GitRepository, GitService
 
+from freecad.history_wb.domain.git import GitRepository, GitService
 from tests.fakes import FakeGitPort, MockDocument
 
 
@@ -156,6 +156,30 @@ class TestStageFiles:
         result = service.stage_files(repo=repo, paths=["file.FCStd"])
 
         assert result is True
+
+
+class TestUnstageFiles:
+    """Tests for GitService unstage delegation."""
+
+    def test_unstage_files_delegates_repo_and_paths(self) -> None:
+        fake_port = FakeGitPort()
+        service = GitService(git_port=fake_port)
+        repo = GitRepository(name="repo", absolute_path="/repo")
+
+        result = service.unstage_files(repo=repo, paths=["a.FCStd", "a/.snapshots/a.yaml"])
+
+        assert result is True
+        assert fake_port.get_last_unstage_files_call() == ("/repo", ["a.FCStd", "a/.snapshots/a.yaml"])
+
+    def test_unstage_all_delegates_repo(self) -> None:
+        fake_port = FakeGitPort()
+        service = GitService(git_port=fake_port)
+        repo = GitRepository(name="repo", absolute_path="/repo")
+
+        result = service.unstage_all(repo=repo)
+
+        assert result is True
+        assert fake_port.get_last_unstage_all_call() == "/repo"
 
     def test_returns_false_on_failure(self) -> None:
         fake_port = FakeGitPort(fail_stage=True)

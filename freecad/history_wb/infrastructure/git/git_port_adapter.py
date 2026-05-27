@@ -338,16 +338,7 @@ class GitPortAdapter(GitPort):
             Empty list if repo is clean or not a git repo.
         """
         try:
-            # Use NUL-delimited porcelain output.
-            # Why: newline-delimited output cannot safely represent filenames
-            # containing embedded newlines, and quoted-path parsing is trickier.
-            # With -z, git uses ASCII NUL as record separator and raw paths.
-            # NUL is represented in Python string literals as "\x00".
-            result = self._run_git(["status", "--porcelain", "-z"], cwd=git_root, timeout=30)
-            if result is None or result.returncode != 0:
-                return []
-
-            status_entries = self._parse_status_output_entries(result.stdout)
+            status_entries = self._get_status_entries(git_root)
             return [
                 str(entry["rel_path"])
                 for entry in status_entries
@@ -362,39 +353,6 @@ class GitPortAdapter(GitPort):
         except (NotADirectoryError, OSError) as e:
             Log.warning(f"Git status failed: {e}")
             return []
-
-    def _parse_status_output_entries(self, stdout: str) -> list[dict[str, str | int]]:
-        """Parse git status porcelain output into normalized status entries."""
-        parsed_entries: list[dict[str, str | int]] = []
-        if "\x00" in stdout:
-            # NUL-delimited mode (-z): each entry ends with NUL ('\x00').
-            # Split by NUL and ignore final empty fragment if present.
-            entries = [entry for entry in stdout.split("\x00") if entry]
-            index = 0
-            while index < len(entries):
-                parsed = self._parse_git_status_entry_z(entries, index)
-                if parsed is None:
-                    index += 1
-                    continue
-                parsed_entries.append(parsed)
-                index += int(parsed["consumed"])
-            return parsed_entries
-
-        for line in stdout.split("\n"):
-            line = line.rstrip()
-            if not line:
-                continue
-            parsed_line = self._parse_git_status_line(line)
-            if parsed_line is not None:
-                parsed_entries.append(
-                    {
-                        "index_status": line[0],
-                        "wt_status": parsed_line["status"],
-                        "rel_path": parsed_line["rel_path"],
-                        "consumed": 1,
-                    }
-                )
-        return parsed_entries
 
     def _parse_git_status_line(self, line: str) -> dict[str, str] | None:
         """Parse a git status porcelain line into status and path components.
@@ -557,6 +515,128 @@ class GitPortAdapter(GitPort):
             Log.warning(f"Git add failed: {e}")
             return False
 
+    def _get_staged_status_entries(self, git_root: str) -> list[dict[str, str | int]]:
+        """Return parsed porcelain entries that are currently staged."""
+        status_entries = self._get_status_entries(git_root)
+        return [entry for entry in status_entries if str(entry["index_status"]) not in (" ", "?")]
+
+    def _get_status_entries(self, git_root: str) -> list[dict[str, str | int]]:
+        """Return parsed entries from git status --porcelain -z output."""
+        # Use NUL-delimited porcelain output.
+        # Why: newline-delimited output cannot safely represent filenames
+        # containing embedded newlines, and quoted-path parsing is trickier.
+        # With -z, git uses ASCII NUL as record separator and raw paths.
+        # NUL is represented in Python string literals as "\x00".
+        result = self._run_git(["status", "--porcelain", "-z"], cwd=git_root, timeout=30)
+        if result is None or result.returncode != 0:
+            return []
+        return self._parse_status_output_entries(result.stdout)
+
+    def _parse_status_output_entries(self, stdout: str) -> list[dict[str, str | int]]:
+        """Parse git status porcelain output into normalized status entries."""
+        parsed_entries: list[dict[str, str | int]] = []
+        if "\x00" in stdout:
+            # NUL-delimited mode (-z): each entry ends with NUL ('\x00').
+            # Split by NUL and ignore final empty fragment if present.
+            entries = [entry for entry in stdout.split("\x00") if entry]
+            index = 0
+            while index < len(entries):
+                parsed = self._parse_git_status_entry_z(entries, index)
+                if parsed is None:
+                    index += 1
+                    continue
+                parsed_entries.append(parsed)
+                index += int(parsed["consumed"])
+            return parsed_entries
+
+        for line in stdout.split("\n"):
+            line = line.rstrip()
+            if not line:
+                continue
+            parsed_line = self._parse_git_status_line(line)
+            if parsed_line is None:
+                continue
+            parsed_entries.append(
+                {
+                    "index_status": line[0],
+                    "wt_status": parsed_line["status"],
+                    "rel_path": parsed_line["rel_path"],
+                    "consumed": 1,
+                }
+            )
+        return parsed_entries
+
+    def _has_head_commit(self, git_root: str) -> bool:
+        """Return True when repository has at least one commit."""
+        result = self._run_git(["rev-parse", "--verify", "HEAD"], cwd=git_root, timeout=10)
+        return result is not None and result.returncode == 0
+
+    def _run_unstage_with_restore(self, git_root: str, paths: list[str]) -> bool:
+        """Run index-only unstage for repositories with HEAD."""
+        result = self._run_git(["restore", "--staged", "--", *paths], cwd=git_root, timeout=30)
+        if result is None:
+            return False
+        if result.returncode == 0:
+            return True
+        Log.warning(f"Git restore --staged failed: {result.stderr.strip()}")
+        return False
+
+    def _run_unstage_with_rm_cached(self, git_root: str, paths: list[str]) -> bool:
+        """Run index-only unstage fallback for repositories without HEAD."""
+        result = self._run_git(["rm", "--cached", "--", *paths], cwd=git_root, timeout=30)
+        if result is None:
+            return False
+        if result.returncode == 0:
+            return True
+        Log.warning(f"Git rm --cached failed: {result.stderr.strip()}")
+        return False
+
+    def unstage_files(self, git_root: str, paths: list[str]) -> bool:
+        """Unstage selected paths from index while leaving working tree untouched."""
+        if not paths:
+            return True
+
+        try:
+            staged_entries = self._get_staged_status_entries(git_root)
+            staged_paths = {str(entry["rel_path"]) for entry in staged_entries}
+            target_paths = [path for path in paths if path in staged_paths]
+            if not target_paths:
+                return True
+
+            if self._has_head_commit(git_root):
+                return self._run_unstage_with_restore(git_root, target_paths)
+            return self._run_unstage_with_rm_cached(git_root, target_paths)
+        except subprocess.TimeoutExpired:
+            Log.warning("Git unstage command timed out")
+            return False
+        except FileNotFoundError:
+            Log.warning("Git command not found")
+            return False
+        except (NotADirectoryError, OSError) as e:
+            Log.warning(f"Git unstage failed: {e}")
+            return False
+
+    def unstage_all(self, git_root: str) -> bool:
+        """Unstage all currently staged repository paths from index only."""
+        try:
+            staged_entries = self._get_staged_status_entries(git_root)
+            target_paths = [str(entry["rel_path"]) for entry in staged_entries]
+            if not target_paths:
+                return True
+
+            if self._has_head_commit(git_root):
+                return self._run_unstage_with_restore(git_root, target_paths)
+            return self._run_unstage_with_rm_cached(git_root, target_paths)
+        except subprocess.TimeoutExpired:
+            Log.warning("Git unstage all command timed out")
+            return False
+        except FileNotFoundError:
+            Log.warning("Git command not found")
+            return False
+        except (NotADirectoryError, OSError) as e:
+            Log.warning(f"Git unstage all failed: {e}")
+            return False
+
     def get_staged_paths(self, git_root: str) -> list[str]:
         """Get staged FCStd file paths using git status --porcelain -z.
 
@@ -570,11 +650,7 @@ class GitPortAdapter(GitPort):
             List of relative paths (from git root) that are staged and are FCStd files.
         """
         try:
-            result = self._run_git(["status", "--porcelain", "-z"], cwd=git_root, timeout=30)
-            if result is None or result.returncode != 0:
-                return []
-
-            status_entries = self._parse_status_output_entries(result.stdout)
+            status_entries = self._get_status_entries(git_root)
             return [
                 str(entry["rel_path"])
                 for entry in status_entries

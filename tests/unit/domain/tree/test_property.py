@@ -4,6 +4,7 @@
 """Unit tests for the Property class."""
 
 import pytest
+
 from freecad.history_wb.domain.tree.data_path import (
     DataPathKind,
     ListData,

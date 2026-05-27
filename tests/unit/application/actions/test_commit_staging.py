@@ -3,7 +3,6 @@
 from freecad.history_wb.application.actions.commit_staging import CommitStagingAction
 from freecad.history_wb.domain.git.git_service import GitService
 from freecad.history_wb.domain.git.models import GitRepository
-
 from tests.fakes import FakeGitPort
 
 

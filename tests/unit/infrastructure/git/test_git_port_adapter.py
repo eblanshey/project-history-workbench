@@ -10,6 +10,7 @@ import unittest.mock
 from unittest.mock import patch
 
 import pytest
+
 from freecad.history_wb.infrastructure.git import GitPortAdapter
 from freecad.history_wb.utils import Log
 
@@ -51,6 +52,7 @@ class TestGitPortAdapter:
             mock_run.assert_called_once_with(
                 ["git", "rev-parse", "--show-toplevel"],
                 cwd=path,
+                shell=False,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -109,6 +111,7 @@ class TestGitPortAdapter:
             mock_run.assert_called_once_with(
                 ["git", "rev-parse", "--show-toplevel"],
                 cwd="/parent/directory",
+                shell=False,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -267,6 +270,7 @@ class TestGitPortAdapter:
         mock_run.assert_called_once_with(
             ["git", "init"],
             cwd="/path/to/project",
+            shell=False,
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -359,6 +363,7 @@ class TestGitPortAdapterGetCommits:
             mock_run.assert_called_once_with(
                 ["git", "log", "-n20", "--format=%H%x00%B%x00%an%x00%aI%x00"],
                 cwd="/path/to/repo",
+                shell=False,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -450,6 +455,7 @@ class TestGitPortAdapterGetCommits:
             mock_run.assert_called_once_with(
                 ["git", "log", "-n5", "--format=%H%x00%B%x00%an%x00%aI%x00"],
                 cwd="/path/to/repo",
+                shell=False,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -472,6 +478,7 @@ class TestGitPortAdapterGetCommits:
             mock_run.assert_called_once_with(
                 ["git", "log", "--skip=10", "-n5", "--format=%H%x00%B%x00%an%x00%aI%x00"],
                 cwd="/path/to/repo",
+                shell=False,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -589,6 +596,7 @@ class TestGitPortAdapterGetCommits:
             mock_run.assert_called_once_with(
                 ["git", "log", "-n20", "--format=%H%x00%B%x00%an%x00%aI%x00"],
                 cwd="/parent/directory",
+                shell=False,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -771,6 +779,7 @@ class TestGitPortAdapterStageFiles:
             mock_run.assert_called_once_with(
                 ["git", "add", "-v", "--", "-weird.FCStd"],
                 cwd="/path/to/repo",
+                shell=False,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -816,6 +825,7 @@ class TestGitPortAdapterGetStagedPaths:
             mock_run.assert_called_once_with(
                 ["git", "status", "--porcelain", "-z"],
                 cwd="/path/to/repo",
+                shell=False,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -1015,6 +1025,7 @@ class TestGitPortAdapterGetFileContents:
             mock_run.assert_called_once_with(
                 ["git", "show", ":path/to/file.FCStd"],
                 cwd="/path/to/repo",
+                shell=False,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -1043,6 +1054,7 @@ class TestGitPortAdapterGetFileContents:
             mock_run.assert_called_once_with(
                 ["git", "show", "abc123:path/to/file.FCStd"],
                 cwd="/path/to/repo",
+                shell=False,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -1115,3 +1127,126 @@ class TestGitPortAdapterGetFileContents:
             result = self.adapter.get_file_contents("/path/to/repo", "HEAD", "path/to/file.FCStd")
 
             assert result == "head content\n"
+
+
+class TestGitPortAdapterUnstage:
+    """Tests for unstage methods of GitPortAdapter."""
+
+    def setup_method(self) -> None:
+        self.adapter = GitPortAdapter()
+        self.adapter._git_executable = "git"
+
+    def test_unstage_files_uses_restore_with_pathspec_separator(self) -> None:
+        status_result = subprocess.CompletedProcess(
+            args=["git", "status", "--porcelain", "-z"],
+            returncode=0,
+            stdout="A  doc.FCStd\x00A  doc/.snapshots/doc.yaml\x00",
+            stderr="",
+        )
+        head_result = subprocess.CompletedProcess(
+            args=["git", "rev-parse", "--verify", "HEAD"], returncode=0, stdout="h", stderr=""
+        )
+        restore_result = subprocess.CompletedProcess(
+            args=["git", "restore", "--staged", "--", "doc.FCStd", "doc/.snapshots/doc.yaml"],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+
+        with patch.object(subprocess, "run", side_effect=[status_result, head_result, restore_result]) as mock_run:
+            ok = self.adapter.unstage_files("/repo", ["doc.FCStd", "doc/.snapshots/doc.yaml"])
+
+        assert ok is True
+        assert mock_run.call_args_list[2].args[0] == [
+            "git",
+            "restore",
+            "--staged",
+            "--",
+            "doc.FCStd",
+            "doc/.snapshots/doc.yaml",
+        ]
+
+    def test_unstage_files_filters_to_currently_staged_entries(self) -> None:
+        status_result = subprocess.CompletedProcess(
+            args=["git", "status", "--porcelain", "-z"],
+            returncode=0,
+            stdout="A  doc.FCStd\x00",
+            stderr="",
+        )
+        head_result = subprocess.CompletedProcess(
+            args=["git", "rev-parse", "--verify", "HEAD"], returncode=0, stdout="h", stderr=""
+        )
+        restore_result = subprocess.CompletedProcess(
+            args=["git", "restore", "--staged", "--", "doc.FCStd"],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+
+        with patch.object(subprocess, "run", side_effect=[status_result, head_result, restore_result]) as mock_run:
+            ok = self.adapter.unstage_files("/repo", ["doc.FCStd", "doc/.snapshots/doc.yaml"])
+
+        assert ok is True
+        assert mock_run.call_args_list[2].args[0] == ["git", "restore", "--staged", "--", "doc.FCStd"]
+
+    def test_unstage_all_uses_all_staged_entries_including_non_fcstd(self) -> None:
+        status_result = subprocess.CompletedProcess(
+            args=["git", "status", "--porcelain", "-z"],
+            returncode=0,
+            stdout="A  doc.FCStd\x00A  notes.txt\x00",
+            stderr="",
+        )
+        head_result = subprocess.CompletedProcess(
+            args=["git", "rev-parse", "--verify", "HEAD"], returncode=0, stdout="h", stderr=""
+        )
+        restore_result = subprocess.CompletedProcess(
+            args=["git", "restore", "--staged", "--", "doc.FCStd", "notes.txt"],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+
+        with patch.object(subprocess, "run", side_effect=[status_result, head_result, restore_result]) as mock_run:
+            ok = self.adapter.unstage_all("/repo")
+
+        assert ok is True
+        assert mock_run.call_args_list[2].args[0] == ["git", "restore", "--staged", "--", "doc.FCStd", "notes.txt"]
+
+    def test_no_head_staged_additions_use_rm_cached_only(self) -> None:
+        status_result = subprocess.CompletedProcess(
+            args=["git", "status", "--porcelain", "-z"],
+            returncode=0,
+            stdout="A  doc.FCStd\x00",
+            stderr="",
+        )
+        no_head_result = subprocess.CompletedProcess(
+            args=["git", "rev-parse", "--verify", "HEAD"],
+            returncode=128,
+            stdout="",
+            stderr="fatal: Needed a single revision",
+        )
+        rm_cached_result = subprocess.CompletedProcess(
+            args=["git", "rm", "--cached", "--", "doc.FCStd"],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+
+        with patch.object(subprocess, "run", side_effect=[status_result, no_head_result, rm_cached_result]) as mock_run:
+            ok = self.adapter.unstage_all("/repo")
+
+        assert ok is True
+        assert mock_run.call_args_list[2].args[0] == ["git", "rm", "--cached", "--", "doc.FCStd"]
+
+    @pytest.mark.parametrize(
+        "side_effect",
+        [
+            subprocess.TimeoutExpired(cmd="git", timeout=30),
+            OSError("io"),
+        ],
+    )
+    def test_unstage_errors_return_false(self, side_effect: Exception) -> None:
+        with patch.object(subprocess, "run", side_effect=side_effect):
+            ok = self.adapter.unstage_files("/repo", ["doc.FCStd"])
+
+        assert ok is False

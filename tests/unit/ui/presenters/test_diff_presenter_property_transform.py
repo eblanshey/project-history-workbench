@@ -6,11 +6,13 @@
 from unittest.mock import MagicMock
 
 import pytest
+
 from freecad.history_wb.application.actions.create_document_diffs import CreateDocumentDiffsAction
 from freecad.history_wb.application.actions.get_dirty_documents import GetDirtyDocumentsAction
 from freecad.history_wb.application.actions.get_open_eligible_documents import GetOpenEligibleDocumentsAction
 from freecad.history_wb.application.actions.open_visual_diff import OpenVisualDiffAction
 from freecad.history_wb.application.actions.stage_documents import StageDocumentsAction
+from freecad.history_wb.application.actions.unstage_documents import UnstageDocumentsAction
 from freecad.history_wb.domain.diff.models import DiffState, NodeDiff, PropertyDiff
 from freecad.history_wb.domain.tree import Property
 from freecad.history_wb.domain.tree.data_path import (
@@ -23,7 +25,6 @@ from freecad.history_wb.domain.tree.data_path import (
 )
 from freecad.history_wb.ui.presenters.diff_presenter import DiffPresenter
 from freecad.history_wb.ui.state import UIState
-
 from tests.fakes.fake_diff_view import FakeDiffView
 
 
@@ -36,6 +37,7 @@ def _make_presenter() -> tuple[FakeDiffView, DiffPresenter]:
         get_eligible_docs_action=MagicMock(spec=GetOpenEligibleDocumentsAction),
         create_document_diffs_action=MagicMock(spec=CreateDocumentDiffsAction),
         stage_documents_action=MagicMock(spec=StageDocumentsAction),
+        unstage_documents_action=MagicMock(spec=UnstageDocumentsAction),
         get_dirty_documents_action=MagicMock(spec=GetDirtyDocumentsAction),
         open_visual_feature_diff_action=MagicMock(spec=OpenVisualDiffAction),
     )

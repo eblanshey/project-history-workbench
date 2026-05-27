@@ -43,6 +43,7 @@ from ..actions.recompute_all_open_documents import RecomputeAllOpenDocumentsActi
 from ..actions.save_diff_settings import SaveDiffSettingsAction
 from ..actions.save_git_identity import SaveGitIdentityAction
 from ..actions.stage_documents import StageDocumentsAction
+from ..actions.unstage_documents import UnstageDocumentsAction
 
 
 __all__ = [
@@ -75,6 +76,7 @@ class ApplicationContainer:
     create_diff_action: CreateDiffAction
     create_document_diffs_action: CreateDocumentDiffsAction
     stage_documents_action: StageDocumentsAction
+    unstage_documents_action: UnstageDocumentsAction
     get_dirty_documents_action: GetDirtyDocumentsAction
     get_staged_file_paths_action: GetStagedFilePathsAction
     get_committed_file_paths_action: GetCommittedFilePathsAction
@@ -187,6 +189,7 @@ def create_application_container(ctx: FreeCadContext) -> ApplicationContainer:
     )
     create_diff_action = CreateDiffAction(diff_engine=diff_engine)
     stage_documents_action = StageDocumentsAction(git_service=git_service, freecad_port=freecad_port)
+    unstage_documents_action = UnstageDocumentsAction(git_service=git_service)
     get_dirty_documents_action = GetDirtyDocumentsAction(git_service=git_service)
     get_staged_file_paths_action = GetStagedFilePathsAction(git_service=git_service)
     get_committed_file_paths_action = GetCommittedFilePathsAction(git_service=git_service)
@@ -220,6 +223,7 @@ def create_application_container(ctx: FreeCadContext) -> ApplicationContainer:
         create_diff_action=create_diff_action,
         create_document_diffs_action=create_document_diffs_action,
         stage_documents_action=stage_documents_action,
+        unstage_documents_action=unstage_documents_action,
         get_dirty_documents_action=get_dirty_documents_action,
         get_staged_file_paths_action=get_staged_file_paths_action,
         get_committed_file_paths_action=get_committed_file_paths_action,

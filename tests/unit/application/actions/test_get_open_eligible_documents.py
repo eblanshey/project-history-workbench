@@ -9,7 +9,6 @@ from freecad.history_wb.application.actions.get_open_eligible_documents import (
 )
 from freecad.history_wb.domain.git.git_service import GitService
 from freecad.history_wb.domain.git.models import GitRepository
-
 from tests.fakes import FakeFreeCadPort, FakeGitPort, MockDocument
 
 

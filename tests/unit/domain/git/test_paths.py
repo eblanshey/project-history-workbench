@@ -5,6 +5,7 @@
 from unittest.mock import patch
 
 import pytest
+
 from freecad.history_wb.domain.git.paths import git_path_name, is_fcstd_path, relative_git_path, to_git_path
 
 

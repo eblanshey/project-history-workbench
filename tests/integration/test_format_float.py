@@ -2,6 +2,7 @@
 # File responsibility: Integration tests for Qt-backed float formatting.
 
 import pytest
+
 from freecad.history_wb.utils import format_float
 
 

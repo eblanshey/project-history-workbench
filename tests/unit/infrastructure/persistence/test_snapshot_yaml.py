@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
+
 from freecad.history_wb.domain import Property, Snapshot, SnapshotObject, SnapshotOccurrence
 from freecad.history_wb.infrastructure.persistence import SnapshotYamlSerializer
 

@@ -127,6 +127,14 @@ class GitService:
         """
         return self._git_port.stage_files(repo.absolute_path, paths)
 
+    def unstage_files(self, repo: GitRepository, paths: list[str]) -> bool:
+        """Unstage files in the git repository index only."""
+        return self._git_port.unstage_files(repo.absolute_path, paths)
+
+    def unstage_all(self, repo: GitRepository) -> bool:
+        """Unstage all currently staged repository paths."""
+        return self._git_port.unstage_all(repo.absolute_path)
+
     def get_staged_files(self, repo: GitRepository) -> list[str]:
         """Get list of staged FCStd file paths.
 

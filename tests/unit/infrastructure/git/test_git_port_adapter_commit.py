@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import call, patch
 
 import pytest
+
 from freecad.history_wb.domain.git.models import GitIdentity
 from freecad.history_wb.infrastructure.git import GitPortAdapter
 from freecad.history_wb.utils import Log
@@ -99,6 +100,7 @@ class TestGitPortAdapterCommit:
             assert mock_run.call_args_list[-1] == call(
                 ["git", "commit", "-m", "My commit message"],
                 cwd="/path/to/repo",
+                shell=False,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -124,6 +126,7 @@ class TestGitPortAdapterCommit:
             assert mock_run.call_args_list[-1] == call(
                 ["git", "commit", "-m", "test"],
                 cwd="/custom/repo/path",
+                shell=False,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -232,6 +235,7 @@ class TestGitPortAdapterCommit:
             assert mock_run.call_args_list[-1] == call(
                 ["git", "commit", "-m", "Fix: update | value in config"],
                 cwd="/path/to/repo",
+                shell=False,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -293,6 +297,7 @@ class TestGitPortAdapterIdentity:
             call(
                 ["git", "config", "--local", "user.name", "Local User"],
                 cwd="/path/to/repo",
+                shell=False,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -302,6 +307,7 @@ class TestGitPortAdapterIdentity:
             call(
                 ["git", "config", "--local", "user.email", "local@example.com"],
                 cwd="/path/to/repo",
+                shell=False,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",

@@ -5,6 +5,7 @@
 """Unit tests for UIRegistry."""
 
 import pytest
+
 from freecad.history_wb.ui.registry import ui_registry
 from freecad.history_wb.ui.state import UIState
 

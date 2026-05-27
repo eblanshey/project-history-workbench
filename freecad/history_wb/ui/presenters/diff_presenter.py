@@ -26,6 +26,7 @@ from ...application.actions.result_models import (
     DocumentDiffStatus,
 )
 from ...application.actions.stage_documents import StageDocumentsAction
+from ...application.actions.unstage_documents import UnstageDocumentsAction
 from ...domain.diff.engine import DiffResult
 from ...domain.diff.models import DiffState, NodeDiff, PropertyDiff, PropertyPathDiff
 from ...domain.freecad_ports import DocumentLike
@@ -378,6 +379,7 @@ class DiffPresenter:
         get_eligible_docs_action: GetOpenEligibleDocumentsAction,
         create_document_diffs_action: CreateDocumentDiffsAction,
         stage_documents_action: StageDocumentsAction,
+        unstage_documents_action: UnstageDocumentsAction,
         get_dirty_documents_action: GetDirtyDocumentsAction,
         open_visual_feature_diff_action: OpenVisualDiffAction,
         settings_repo: SettingsRepository | None = None,
@@ -400,6 +402,7 @@ class DiffPresenter:
         self._get_eligible_docs = get_eligible_docs_action
         self._create_document_diffs = create_document_diffs_action
         self._stage_documents = stage_documents_action
+        self._unstage_documents = unstage_documents_action
         self._get_dirty_documents = get_dirty_documents_action
         self._open_visual_feature_diff = open_visual_feature_diff_action
         self._settings_repo = settings_repo
@@ -414,6 +417,10 @@ class DiffPresenter:
 
         # Wire Stage All callback
         self._view.set_stage_all_callback(self.on_stage_all_clicked)
+        self._view.set_remove_all_button_callback(self.on_remove_all_from_reviewed_clicked)
+        self._view.set_remove_from_reviewed_button_callback(self.on_remove_from_reviewed_button_clicked)
+        self._view.set_remove_all_from_reviewed_callback(self.on_remove_all_from_reviewed_clicked)
+        self._view.set_mark_all_reviewed_from_in_progress_callback(self.on_stage_all_clicked)
 
     def _get_precision(self) -> int:
         """Get the current float precision from settings or use default.
@@ -540,6 +547,7 @@ class DiffPresenter:
         creates flat warning items (no tree below).
         """
         self._view.set_stage_all_button_visible(False)
+        self._view.set_remove_all_button_visible(False)
 
         repo = self._ui_state.git_repository
         if repo is None:
@@ -573,6 +581,7 @@ class DiffPresenter:
         then stores results and presents them to the view.
         """
         self._view.set_stage_all_button_visible(False)
+        self._view.set_remove_all_button_visible(False)
 
         if commit_hash is None:
             Log.warning("Commit selection received without commit hash")
@@ -676,7 +685,7 @@ class DiffPresenter:
         ]
 
         if not snapshots:
-            Log.warning("No documents with changes to stage")
+            # Normal no-op case (for example, In Progress context action with nothing to stage).
             return
 
         # Stage all documents
@@ -695,6 +704,44 @@ class DiffPresenter:
 
         # Refresh the working tree view to reflect staged state
         self._on_working_tree_selected()
+
+    def on_remove_from_reviewed_button_clicked(self, git_path: str) -> None:
+        """Unstage one reviewed document unit (FCStd + snapshot yaml)."""
+        repo = self._ui_state.git_repository
+        if repo is None:
+            Log.warning("No git repository detected")
+            return
+
+        result = self._unstage_documents.execute(repo, [git_path])
+        if not result.is_success:
+            Log.warning(f"Failed to remove document from reviewed: {result.message}")
+            return
+
+        Log.info(f"Removed reviewed document: {git_path}")
+        self.clear_property_diff()
+        self._on_staging_selected()
+
+    def on_remove_all_from_reviewed_clicked(self) -> None:
+        """Unstage all reviewed staged paths from index."""
+        repo = self._ui_state.git_repository
+        if repo is None:
+            Log.warning("No git repository detected")
+            return
+
+        result = self._unstage_documents.execute(repo, None)
+        if not result.is_success:
+            Log.warning(f"Failed to remove all reviewed files: {result.message}")
+            return
+
+        Log.info("Removed all reviewed files")
+        self.clear_property_diff()
+        current_selection = self._view.get_current_history_selection()
+        if current_selection is None:
+            return
+        if current_selection.item_kind == "STAGING":
+            self._on_staging_selected()
+        elif current_selection.item_kind == "WORKING_TREE":
+            self._on_working_tree_selected()
 
     def present_diffs(
         self,
@@ -735,7 +782,7 @@ class DiffPresenter:
         presentations.sort(key=lambda p: p.git_path)
 
         self._view.show_doc_diffs(presentations)
-        self._configure_stage_all_button(presentations, is_working_tree)
+        self._configure_summary_buttons(presentations)
         self._show_summary(diff_results)
 
     def _build_presentations(
@@ -810,14 +857,31 @@ class DiffPresenter:
             )
         return presentations
 
-    def _configure_stage_all_button(self, presentations: list[DiffTreePresentation], is_working_tree: bool) -> None:
-        """Configure Stage All button visibility and enabled state."""
+    def _configure_summary_buttons(self, presentations: list[DiffTreePresentation]) -> None:
+        """Configure summary-bar bulk action buttons by current history selection."""
+        current = self._current_history_selection
+        is_working_tree = current is not None and current.item_kind == "WORKING_TREE"
+        is_staging = current is not None and current.item_kind == "STAGING"
+
         if is_working_tree:
             any_staggable = any(p.stage_button_enabled for p in presentations)
             self._view.set_stage_all_button_visible(True)
             self._view.set_stage_all_button_enabled(any_staggable)
-        else:
+            self._view.set_remove_all_button_visible(False)
+            self._view.set_remove_all_button_enabled(False)
+            return
+
+        if is_staging:
             self._view.set_stage_all_button_visible(False)
+            self._view.set_stage_all_button_enabled(False)
+            self._view.set_remove_all_button_visible(True)
+            self._view.set_remove_all_button_enabled(bool(presentations))
+            return
+
+        self._view.set_stage_all_button_visible(False)
+        self._view.set_stage_all_button_enabled(False)
+        self._view.set_remove_all_button_visible(False)
+        self._view.set_remove_all_button_enabled(False)
 
     def _show_summary(self, diff_results: list[DiffResult]) -> None:
         """Show the summary of changed documents."""

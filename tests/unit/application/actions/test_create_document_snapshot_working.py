@@ -13,7 +13,6 @@ from freecad.history_wb.domain.git.git_service import GitService
 from freecad.history_wb.domain.git.models import GitRepository
 from freecad.history_wb.domain.snapshots.gui_extractor import SnapshotExtractor
 from freecad.history_wb.domain.snapshots.models import Snapshot
-
 from tests.fakes import FakeGitPort, MockDocument
 
 

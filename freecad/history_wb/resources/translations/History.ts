@@ -207,79 +207,105 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/document_diff_tree_widget.py" line="55"/>
+        <location filename="../../ui/views/document_diff_tree_widget.py" line="24"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="396"/>
+        <source>Remove document(s) from Reviewed. The current file(s) stay unchanged and will not be saved in the next iteration until reviewed again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../ui/views/document_diff_tree_widget.py" line="64"/>
         <source>+ Mark All Reviewed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/document_diff_tree_widget.py" line="63"/>
+        <location filename="../../ui/views/document_diff_tree_widget.py" line="72"/>
+        <source>- Remove All</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../ui/views/document_diff_tree_widget.py" line="81"/>
         <source>Tree</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/document_diff_tree_widget.py" line="136"/>
-        <location filename="../../ui/views/document_diff_tree_widget.py" line="162"/>
+        <location filename="../../ui/views/document_diff_tree_widget.py" line="170"/>
+        <location filename="../../ui/views/document_diff_tree_widget.py" line="197"/>
         <source>Unnamed Document</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/document_diff_tree_widget.py" line="183"/>
+        <location filename="../../ui/views/document_diff_tree_widget.py" line="241"/>
         <source>+ Reviewed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/document_diff_tree_widget.py" line="205"/>
-        <location filename="../../ui/views/document_diff_tree_widget.py" line="360"/>
+        <location filename="../../ui/views/document_diff_tree_widget.py" line="253"/>
+        <source>- Remove</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../ui/views/document_diff_tree_widget.py" line="267"/>
+        <location filename="../../ui/views/document_diff_tree_widget.py" line="425"/>
         <source>No changes</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/document_diff_tree_widget.py" line="318"/>
+        <location filename="../../ui/views/document_diff_tree_widget.py" line="383"/>
         <source>Open 3D comparison</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/document_diff_tree_widget.py" line="363"/>
+        <location filename="../../ui/views/document_diff_tree_widget.py" line="428"/>
         <source>Changed:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="125"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="129"/>
         <source>Iterations</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="135"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="139"/>
         <source>Refresh Project and Iterations</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="232"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="236"/>
         <source>In Progress</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="233"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="237"/>
         <source>Reviewed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="262"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="266"/>
         <source>No iterations to display.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="460"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="387"/>
+        <source>Mark All Reviewed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../ui/views/history_panel_widget.py" line="403"/>
+        <source>Remove All from Reviewed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../ui/views/history_panel_widget.py" line="508"/>
         <source>Yesterday</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="477"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="525"/>
         <source>No project detected</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="486"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="534"/>
         <source>Project: %1</source>
         <translation type="unfinished"></translation>
     </message>

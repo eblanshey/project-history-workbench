@@ -84,6 +84,29 @@ class GitPort(Protocol):
         """
         ...
 
+    def unstage_files(self, git_root: str, paths: list[str]) -> bool:
+        """Unstage files in the git repository index only.
+
+        Args:
+            git_root: Absolute path to git repository root.
+            paths: List of relative paths (from git root) to unstage.
+
+        Returns:
+            True if unstage succeeded, False otherwise.
+        """
+        ...
+
+    def unstage_all(self, git_root: str) -> bool:
+        """Unstage all currently staged repository paths.
+
+        Args:
+            git_root: Absolute path to git repository root.
+
+        Returns:
+            True if unstage succeeded, False otherwise.
+        """
+        ...
+
     def get_dirty_paths(self, git_root: str) -> list[str]:
         """Get list of dirty file paths (modified or untracked).
 

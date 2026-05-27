@@ -8,6 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+
 from freecad.history_wb.domain.snapshots.gui_extractor import SnapshotExtractor
 
 

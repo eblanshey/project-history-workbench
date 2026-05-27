@@ -8,6 +8,7 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from freecad.history_wb.domain.git.models import GitCommit, GitRepository
 from freecad.history_wb.ui.presenters.git_repository_presenter import GitRepositoryPresenter
 

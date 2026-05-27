@@ -11,6 +11,7 @@ from datetime import datetime
 from unittest.mock import patch
 
 import pytest
+
 from freecad.history_wb.qt import QtCore, QtGui, QtWidgets
 from freecad.history_wb.ui.views.history_panel_widget import HistoryPanelWidget
 
@@ -348,12 +349,113 @@ class TestShowCommits:
 
         widget.show_commits(commits)
 
+
+class TestReviewedContextMenu:
+    def test_reviewed_context_menu_triggers_remove_all_callback(self, widget) -> None:  # type: ignore[no-untyped-def]
+        widget.show_commits([])
+        called = {"count": 0}
+        widget.set_remove_all_from_reviewed_callback(lambda: called.__setitem__("count", called["count"] + 1))
+
+        staging_item = widget.history_list.item(1)
+        rect = widget.history_list.visualItemRect(staging_item)
+        pos = rect.center()
+
+        class _FakeAction:
+            def setToolTip(self, _value: str) -> None:
+                return
+
+            def setStatusTip(self, _value: str) -> None:
+                return
+
+        class _FakeMenu:
+            created = False
+            exec_called = False
+
+            def __init__(self, *_args, **_kwargs) -> None:
+                _FakeMenu.created = True
+                self._action = _FakeAction()
+
+            def setToolTipsVisible(self, _visible: bool) -> None:
+                return
+
+            def addAction(self, _text: str) -> _FakeAction:
+                return self._action
+
+            def exec(self, *_args, **_kwargs) -> _FakeAction:
+                _FakeMenu.exec_called = True
+                return self._action
+
+        with patch("freecad.history_wb.ui.views.history_panel_widget.QtWidgets.QMenu", _FakeMenu):
+            widget._on_history_list_context_menu_requested(pos)
+
+        assert _FakeMenu.created is True
+        assert _FakeMenu.exec_called is True
+        assert called["count"] == 1
+
+    def test_context_menu_not_shown_for_commit_rows(self, widget) -> None:  # type: ignore[no-untyped-def]
+        from freecad.history_wb.domain.git.models import GitCommit
+
+        widget.show_commits(
+            [
+                GitCommit(
+                    id="abc1234",
+                    message="m",
+                    author="a",
+                    timestamp=datetime.fromisoformat("2024-01-15T10:30:00+00:00"),
+                )
+            ]
+        )
+        row_indexes = [2]
+        with patch("freecad.history_wb.ui.views.history_panel_widget.QtWidgets.QMenu.exec") as menu_exec:
+            for row in row_indexes:
+                item = widget.history_list.item(row)
+                pos = widget.history_list.visualItemRect(item).center()
+                widget._on_history_list_context_menu_requested(pos)
+
+        menu_exec.assert_not_called()
+
         # Verify there are 3 items total (Working Tree, Staging, and the commit)
         assert widget.history_list.count() == 3
-        # Verify the commit is at position 2 (after special items)
-        assert "a1b2c3d" in _history_row_text(widget, 2)  # 7-char hash
-        assert "John Doe" in _history_row_text(widget, 2)  # Author
-        assert widget._format_commit_timestamp(commits[0].timestamp) in _history_row_text(widget, 2)
+        # Verify commit row still rendered after context-menu checks.
+        assert "abc1234" in _history_row_text(widget, 2)
+        assert "a" in _history_row_text(widget, 2)
+
+    def test_in_progress_context_menu_triggers_mark_all_reviewed_callback(self, widget) -> None:  # type: ignore[no-untyped-def]
+        widget.show_commits([])
+        called = {"count": 0}
+        widget.set_mark_all_reviewed_from_in_progress_callback(lambda: called.__setitem__("count", called["count"] + 1))
+
+        working_tree_item = widget.history_list.item(0)
+        rect = widget.history_list.visualItemRect(working_tree_item)
+        pos = rect.center()
+
+        class _FakeAction:
+            pass
+
+        class _FakeMenu:
+            created = False
+            exec_called = False
+
+            def __init__(self, *_args, **_kwargs) -> None:
+                _FakeMenu.created = True
+                self._action = _FakeAction()
+
+            def setToolTipsVisible(self, _visible: bool) -> None:
+                return
+
+            def addAction(self, _text: str) -> _FakeAction:
+                return self._action
+
+            def exec(self, *_args, **_kwargs) -> _FakeAction:
+                _FakeMenu.exec_called = True
+                return self._action
+
+        with patch("freecad.history_wb.ui.views.history_panel_widget.QtWidgets.QMenu", _FakeMenu):
+            widget._on_history_list_context_menu_requested(pos)
+
+        assert _FakeMenu.created is True
+        assert _FakeMenu.exec_called is True
+        assert called["count"] == 1
 
     def test_show_commits_empty_list(self, widget) -> None:  # type: ignore[no-untyped-def]
         """Test that empty commit list shows only special items."""

@@ -90,10 +90,11 @@ class TestConstraintItemExpression:
         """Constraint[0] expression should map to key '[0]', not '[0].Value'."""
         import Sketcher
         from FreeCAD import Vector
+        from Part import LineSegment
+
         from freecad.history_wb.domain.snapshots.gui_extractor import (
             _build_expression_map_for_property,
         )
-        from Part import LineSegment
 
         doc = temp_document
         sketch = doc.addObject("Sketcher::SketchObject", "TestSketch")

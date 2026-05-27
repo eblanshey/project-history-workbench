@@ -4,6 +4,7 @@
 """Unit tests for data_path dispatch functions."""
 
 import pytest
+
 from freecad.history_wb.domain.tree.data_path import (
     DataPath,
     ListData,

@@ -7,7 +7,6 @@ from datetime import datetime
 from freecad.history_wb.application.actions.get_commits import GetCommitsAction
 from freecad.history_wb.domain.git.git_service import GitService
 from freecad.history_wb.domain.git.models import GitCommit, GitRepository
-
 from tests.fakes.fake_git_port import FakeGitPort
 
 

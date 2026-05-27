@@ -8,6 +8,7 @@ import subprocess
 from unittest.mock import patch
 
 import pytest
+
 from freecad.history_wb.infrastructure.git.git_port_adapter import GitPortAdapter
 
 

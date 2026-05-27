@@ -5,7 +5,6 @@
 """Unit tests for FreeCAD port protocol and adapter."""
 
 from freecad.history_wb.domain.freecad_ports import FreeCadPort
-
 from tests.fakes.fake_freecad_port import FakeFreeCadPort
 
 

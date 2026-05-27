@@ -6,6 +6,7 @@ import dataclasses
 from datetime import datetime
 
 import pytest
+
 from freecad.history_wb.domain.git import GitCommit
 
 

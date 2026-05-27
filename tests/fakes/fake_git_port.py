@@ -27,7 +27,13 @@ class FakeGitPort:
         _committed_files: Mapping of (git_root, commit) tuples to lists of FCStd file paths.
     """
 
-    def __init__(self, fail_stage: bool = False, fail_commit: bool = False, fail_init: bool = False) -> None:
+    def __init__(
+        self,
+        fail_stage: bool = False,
+        fail_commit: bool = False,
+        fail_init: bool = False,
+        fail_unstage: bool = False,
+    ) -> None:
         """Initialize the fake git port with empty mappings.
 
         Args:
@@ -44,6 +50,7 @@ class FakeGitPort:
         self._fail_commit = fail_commit
         # Flag to simulate git init failures
         self._fail_init = fail_init
+        self._fail_unstage = fail_unstage
         # Staged paths for get_staged_paths
         self._staged_paths: list[str] = []
         # File contents mapping: (commit, git_path) -> content
@@ -61,6 +68,8 @@ class FakeGitPort:
         self._identity: GitIdentity | None = None
         self._last_save_identity_call: tuple[str, GitIdentity, bool] | None = None
         self._can_write_global_identity = True
+        self._last_unstage_files_call: tuple[str, list[str]] | None = None
+        self._last_unstage_all_call: str | None = None
 
     def add_git_repo(self, root_path: str) -> None:
         """Add a simulated git repository root.
@@ -241,6 +250,16 @@ class FakeGitPort:
         """
         return []
 
+    def unstage_files(self, git_root: str, paths: list[str]) -> bool:
+        """Fake implementation of unstage_files for testing."""
+        self._last_unstage_files_call = (git_root, paths)
+        return not self._fail_unstage
+
+    def unstage_all(self, git_root: str) -> bool:
+        """Fake implementation of unstage_all for testing."""
+        self._last_unstage_all_call = git_root
+        return not self._fail_unstage
+
     def get_staged_paths(self, git_root: str) -> list[str]:
         """Fake implementation of get_staged_paths for testing.
 
@@ -343,6 +362,14 @@ class FakeGitPort:
             Tuple of (git_root, message) from the last commit() call, or None if not called.
         """
         return self._last_commit_call
+
+    def get_last_unstage_files_call(self) -> tuple[str, list[str]] | None:
+        """Return last unstage_files call args."""
+        return self._last_unstage_files_call
+
+    def get_last_unstage_all_call(self) -> str | None:
+        """Return last unstage_all call arg."""
+        return self._last_unstage_all_call
 
     def set_committed_files(self, root_path: str, commit: str, paths: list[str]) -> None:
         """Set committed file paths for a specific commit in a repo.

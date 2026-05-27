@@ -9,7 +9,6 @@ from freecad.history_wb.application.actions.find_active_git_repository import (
 )
 from freecad.history_wb.domain.git.git_service import GitService
 from freecad.history_wb.domain.git.models import GitRepository
-
 from tests.fakes.fake_freecad_port import FakeFreeCadPort
 from tests.fakes.fake_git_port import FakeGitPort
 

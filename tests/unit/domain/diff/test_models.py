@@ -3,6 +3,7 @@
 """Unit tests for domain diff models."""
 
 import pytest
+
 from freecad.history_wb.domain.diff.models import (
     DiffState,
     PropertyDiff,

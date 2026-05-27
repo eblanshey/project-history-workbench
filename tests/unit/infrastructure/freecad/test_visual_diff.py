@@ -7,6 +7,7 @@ from types import ModuleType
 from typing import Any
 
 import pytest
+
 from freecad.history_wb.infrastructure.freecad.freecad_visual_diff_creator import FreeCADVisualDiffCreator
 
 
