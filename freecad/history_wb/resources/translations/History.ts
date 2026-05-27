@@ -4,180 +4,197 @@
 <context>
     <name>History</name>
     <message>
-        <location filename="../../entrypoints/commands.py" line="88"/>
-        <location filename="../../entrypoints/commands.py" line="269"/>
-        <location filename="../../entrypoints/commands.py" line="576"/>
+        <location filename="../../entrypoints/commands.py" line="338"/>
+        <location filename="../../ui/presenters/git_repository_presenter.py" line="111"/>
+        <location filename="../../ui/presenters/git_repository_presenter.py" line="159"/>
         <source>No Project</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="89"/>
-        <location filename="../../entrypoints/commands.py" line="270"/>
+        <location filename="../../ui/presenters/git_repository_presenter.py" line="112"/>
+        <location filename="../../ui/presenters/git_repository_presenter.py" line="160"/>
         <source>No project detected. Please open a document from a project.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="116"/>
-        <location filename="../../entrypoints/commands.py" line="132"/>
-        <location filename="../../entrypoints/commands.py" line="306"/>
+        <location filename="../../ui/presenters/git_repository_presenter.py" line="146"/>
+        <location filename="../../ui/presenters/git_repository_presenter.py" line="195"/>
+        <location filename="../../ui/presenters/git_repository_presenter.py" line="210"/>
         <source>Save Iteration Failed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="117"/>
+        <location filename="../../ui/presenters/git_repository_presenter.py" line="196"/>
         <source>Name and email are required to save iteration</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="133"/>
+        <location filename="../../ui/presenters/git_repository_presenter.py" line="211"/>
         <source>Git identity could not be saved</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="137"/>
+        <location filename="../../ui/presenters/git_repository_presenter.py" line="215"/>
         <source>Could not save git identity for all projects. Uncheck the global option to save it only for this project.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="174"/>
+        <location filename="../../ui/views/diff_panel_view.py" line="372"/>
         <source>Configure Author</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="178"/>
+        <location filename="../../ui/views/diff_panel_view.py" line="376"/>
         <source>Enter the name and email you&apos;d like to use for your git identity, which is used for authoring project iterations.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="194"/>
+        <location filename="../../ui/views/diff_panel_view.py" line="393"/>
         <source>Configure globally for all projects</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="205"/>
+        <location filename="../../ui/views/diff_panel_view.py" line="404"/>
         <source>Name:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="206"/>
+        <location filename="../../ui/views/diff_panel_view.py" line="405"/>
         <source>Email:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="211"/>
+        <location filename="../../ui/views/diff_panel_view.py" line="410"/>
         <source>Global configuration option disabled because global config file not writable.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="221"/>
-        <location filename="../../entrypoints/commands.py" line="354"/>
+        <location filename="../../ui/views/diff_panel_view.py" line="348"/>
+        <location filename="../../ui/views/diff_panel_view.py" line="420"/>
         <source>OK</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="222"/>
-        <location filename="../../entrypoints/commands.py" line="355"/>
-        <location filename="../../entrypoints/commands.py" line="515"/>
+        <location filename="../../entrypoints/commands.py" line="277"/>
+        <location filename="../../ui/views/diff_panel_view.py" line="349"/>
+        <location filename="../../ui/views/diff_panel_view.py" line="421"/>
         <source>Cancel</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="279"/>
+        <location filename="../../entrypoints/commands.py" line="96"/>
+        <location filename="../../entrypoints/commands.py" line="128"/>
+        <source>History Panel Unavailable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../entrypoints/commands.py" line="97"/>
+        <source>Open History Panel before configuring author.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../entrypoints/commands.py" line="129"/>
+        <source>Open History Panel before saving an iteration.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../ui/presenters/git_repository_presenter.py" line="119"/>
         <source>No Reviewed Files</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="280"/>
+        <location filename="../../ui/presenters/git_repository_presenter.py" line="120"/>
         <source>There are no reviewed files to save.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="307"/>
+        <location filename="../../ui/presenters/git_repository_presenter.py" line="147"/>
         <source>Git commit failed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="315"/>
+        <location filename="../../ui/presenters/git_repository_presenter.py" line="134"/>
         <source>Empty Notes</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="316"/>
+        <location filename="../../ui/presenters/git_repository_presenter.py" line="135"/>
         <source>Iteration notes cannot be empty</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="331"/>
+        <location filename="../../ui/views/diff_panel_view.py" line="333"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="157"/>
         <source>Save Iteration</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="340"/>
+        <location filename="../../ui/views/diff_panel_view.py" line="337"/>
         <source>Enter iteration notes:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="345"/>
+        <location filename="../../ui/views/diff_panel_view.py" line="341"/>
         <source>Enter iteration notes (subject and optional body)...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="432"/>
+        <location filename="../../entrypoints/commands.py" line="194"/>
         <source>No Directories Available</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="433"/>
+        <location filename="../../entrypoints/commands.py" line="195"/>
         <source>No open documents are available for project initialization. Please open at least one saved document in the root location you&apos;d like to initialize a new project.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="450"/>
+        <location filename="../../entrypoints/commands.py" line="212"/>
         <source>Initialization Failed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="451"/>
+        <location filename="../../entrypoints/commands.py" line="213"/>
         <source>Unknown error occurred</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="458"/>
+        <location filename="../../entrypoints/commands.py" line="220"/>
         <source>Initialized project: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="462"/>
+        <location filename="../../entrypoints/commands.py" line="224"/>
         <source>Project Initialized</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="470"/>
+        <location filename="../../entrypoints/commands.py" line="232"/>
         <source>Initialize Project</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="475"/>
+        <location filename="../../entrypoints/commands.py" line="237"/>
         <source>Choose a directory to initialize based on currently open documents. The selected directory will be the root of your project:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="497"/>
+        <location filename="../../entrypoints/commands.py" line="259"/>
         <source>Already inside project</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="509"/>
+        <location filename="../../entrypoints/commands.py" line="271"/>
         <source>All listed directories are already inside projects.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="513"/>
+        <location filename="../../entrypoints/commands.py" line="275"/>
         <source>Initialize</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="577"/>
+        <location filename="../../entrypoints/commands.py" line="339"/>
         <source>No project detected. Open a FreeCAD document in a project first.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -208,7 +225,7 @@
     </message>
     <message>
         <location filename="../../ui/views/document_diff_tree_widget.py" line="24"/>
-        <location filename="../../ui/views/history_panel_widget.py" line="396"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="441"/>
         <source>Remove document(s) from Reviewed. The current file(s) stay unchanged and will not be saved in the next iteration until reviewed again.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -260,52 +277,52 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="129"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="131"/>
         <source>Iterations</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="139"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="146"/>
         <source>Refresh Project and Iterations</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="236"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="264"/>
         <source>Current Files</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="237"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="265"/>
         <source>Reviewed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="266"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="294"/>
         <source>No iterations to display.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="387"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="433"/>
         <source>Mark All Reviewed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="403"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="448"/>
         <source>Remove All from Reviewed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="508"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="553"/>
         <source>Yesterday</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="525"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="570"/>
         <source>No project detected</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../ui/views/history_panel_widget.py" line="534"/>
+        <location filename="../../ui/views/history_panel_widget.py" line="579"/>
         <source>Project: %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -398,12 +415,12 @@
 <context>
     <name>HistoryCloseDiffWindows</name>
     <message>
-        <location filename="../../entrypoints/commands.py" line="663"/>
+        <location filename="../../entrypoints/commands.py" line="425"/>
         <source>Close Comparison Windows</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="664"/>
+        <location filename="../../entrypoints/commands.py" line="426"/>
         <source>Close every document starting with &apos;Diff_&apos; without saving</source>
         <translation type="unfinished"></translation>
     </message>
@@ -411,12 +428,12 @@
 <context>
     <name>HistoryCommit</name>
     <message>
-        <location filename="../../entrypoints/commands.py" line="246"/>
+        <location filename="../../entrypoints/commands.py" line="109"/>
         <source>Save Iteration</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="247"/>
+        <location filename="../../entrypoints/commands.py" line="110"/>
         <source>Save reviewed changes as an iteration</source>
         <translation type="unfinished"></translation>
     </message>
@@ -424,12 +441,12 @@
 <context>
     <name>HistoryConfigureAuthorCommand</name>
     <message>
-        <location filename="../../entrypoints/commands.py" line="68"/>
+        <location filename="../../entrypoints/commands.py" line="78"/>
         <source>Configure Author</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="69"/>
+        <location filename="../../entrypoints/commands.py" line="79"/>
         <source>Configure author name and email</source>
         <translation type="unfinished"></translation>
     </message>
@@ -437,12 +454,12 @@
 <context>
     <name>HistoryInitializeGitRepository</name>
     <message>
-        <location filename="../../entrypoints/commands.py" line="409"/>
+        <location filename="../../entrypoints/commands.py" line="171"/>
         <source>Initialize Git Repository</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="410"/>
+        <location filename="../../entrypoints/commands.py" line="172"/>
         <source>Initialize a git repository in the selected directory</source>
         <translation type="unfinished"></translation>
     </message>
@@ -450,12 +467,12 @@
 <context>
     <name>HistoryOpenAllDocumentsInRepository</name>
     <message>
-        <location filename="../../entrypoints/commands.py" line="549"/>
+        <location filename="../../entrypoints/commands.py" line="311"/>
         <source>Open All Documents in Project</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="553"/>
+        <location filename="../../entrypoints/commands.py" line="315"/>
         <source>Open every .FCStd file found in the project. Useful for generating en masse.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -463,12 +480,12 @@
 <context>
     <name>HistoryOpenDiffWindow</name>
     <message>
-        <location filename="../../entrypoints/commands.py" line="638"/>
+        <location filename="../../entrypoints/commands.py" line="400"/>
         <source>Open History Panel</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="639"/>
+        <location filename="../../entrypoints/commands.py" line="401"/>
         <source>Open history panel view</source>
         <translation type="unfinished"></translation>
     </message>
@@ -476,12 +493,12 @@
 <context>
     <name>HistoryRecomputeActiveDocument</name>
     <message>
-        <location filename="../../entrypoints/commands.py" line="613"/>
+        <location filename="../../entrypoints/commands.py" line="375"/>
         <source>Recompute Active Document</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="614"/>
+        <location filename="../../entrypoints/commands.py" line="376"/>
         <source>Recompute the active document</source>
         <translation type="unfinished"></translation>
     </message>
@@ -489,12 +506,12 @@
 <context>
     <name>HistoryRecomputeAllOpenDocuments</name>
     <message>
-        <location filename="../../entrypoints/commands.py" line="590"/>
+        <location filename="../../entrypoints/commands.py" line="352"/>
         <source>Recompute All</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="591"/>
+        <location filename="../../entrypoints/commands.py" line="353"/>
         <source>Recompute every open document</source>
         <translation type="unfinished"></translation>
     </message>
@@ -502,12 +519,12 @@
 <context>
     <name>HistoryRefreshRepository</name>
     <message>
-        <location filename="../../entrypoints/commands.py" line="380"/>
+        <location filename="../../entrypoints/commands.py" line="142"/>
         <source>Refresh Project</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../entrypoints/commands.py" line="381"/>
+        <location filename="../../entrypoints/commands.py" line="143"/>
         <source>Refresh the detected project and reload iterations.
 Open at least one FreeCAD document located within a project before running this command.
 How it works: open FreeCAD documents are checked one by one until one is found to be located within a project.</source>

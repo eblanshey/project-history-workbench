@@ -75,6 +75,52 @@ class TestHistoryPanelWidgetRefreshButton:
         assert "refresh" in tooltip.lower() or "git" in tooltip.lower()
 
 
+class TestHistoryPanelWidgetSaveIterationButton:
+    """Tests for HistoryPanelWidget save iteration button."""
+
+    def test_save_iteration_button_has_tooltip(self, widget) -> None:  # type: ignore[no-untyped-def]
+        """Save iteration button has expected tooltip."""
+        assert widget._save_iteration_button.toolTip() == "Save Iteration"
+
+    def test_save_iteration_button_is_left_of_refresh(self, widget) -> None:  # type: ignore[no-untyped-def]
+        """Save iteration button is placed before refresh button in header layout."""
+        button_positions = []
+        layout = widget.layout().itemAt(0).widget().layout()
+        for i in range(layout.count()):
+            item = layout.itemAt(i)
+            child_widget = item.widget()
+            if child_widget is not None:
+                button_positions.append(child_widget)
+
+        assert button_positions[-2] is widget._save_iteration_button
+        assert button_positions[-1] is widget._refresh_button
+
+    def test_save_iteration_button_has_compact_width(self, widget) -> None:  # type: ignore[no-untyped-def]
+        """Save iteration button uses compact icon-only sizing policy."""
+        policy = widget._save_iteration_button.sizePolicy()
+        assert policy.horizontalPolicy() == QtWidgets.QSizePolicy.Policy.Minimum
+        assert widget._save_iteration_button.toolButtonStyle() == QtCore.Qt.ToolButtonStyle.ToolButtonIconOnly
+
+    def test_set_save_iteration_callback_connects_to_button_clicked(self, widget) -> None:  # type: ignore[no-untyped-def]
+        """set_save_iteration_callback() registers callback used by save button click."""
+        callback_called = False
+
+        def mock_callback() -> None:
+            nonlocal callback_called
+            callback_called = True
+
+        widget.set_save_iteration_callback(mock_callback)
+        widget._save_iteration_button.click()
+
+        assert callback_called is True
+
+    def test_refresh_button_uses_compact_icon_only_sizing(self, widget) -> None:  # type: ignore[no-untyped-def]
+        """Refresh button uses compact icon-only sizing policy."""
+        policy = widget._refresh_button.sizePolicy()
+        assert policy.horizontalPolicy() == QtWidgets.QSizePolicy.Policy.Minimum
+        assert widget._refresh_button.toolButtonStyle() == QtCore.Qt.ToolButtonStyle.ToolButtonIconOnly
+
+
 class TestHistoryPanelWidgetShowRepository:
     """Tests for HistoryPanelWidget.show_repository() method."""
 

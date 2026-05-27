@@ -9,7 +9,7 @@ from freecad.history_wb.ui.presenters.presentation_models import (
     NodePresentation,
     PropertyPresentation,
 )
-from freecad.history_wb.ui.views.models import HistorySelection
+from freecad.history_wb.ui.views.models import GitConfigDialogResult, HistorySelection
 
 
 class FakeDiffView:
@@ -23,6 +23,7 @@ class FakeDiffView:
         self._last_call: dict[str, Any] | None = None
         self._refresh_callback: Callable[[], None] | None = None
         self._history_selection_callback: Callable[[Any], None] | None = None
+        self._save_iteration_callback: Callable[[], None] | None = None
         self._history_scroll_bottom_callback: Callable[[], None] | None = None
         self._add_button_callback: Callable[[str], None] | None = None
         self._stage_all_callback: Callable[[], None] | None = None
@@ -92,6 +93,11 @@ class FakeDiffView:
         self._record_call("set_history_selection_callback", callback=callback)
         self._history_selection_callback = callback
 
+    def set_save_iteration_callback(self, callback: Callable[[], None]) -> None:
+        """Capture save-iteration callback registration."""
+        self._record_call("set_save_iteration_callback", callback=callback)
+        self._save_iteration_callback = callback
+
     def set_history_scroll_bottom_callback(self, callback: Callable[[], None]) -> None:
         """Capture bottom-scroll callback registration for infinite scroll."""
         self._record_call("set_history_scroll_bottom_callback", callback=callback)
@@ -155,6 +161,44 @@ class FakeDiffView:
         """
         if self._refresh_callback is not None:
             self._refresh_callback()
+
+    def trigger_save_iteration(self) -> None:
+        """Trigger the registered save-iteration callback if one exists."""
+        if self._save_iteration_callback is not None:
+            self._save_iteration_callback()
+
+    def show_warning_message(self, title: str, message: str) -> None:
+        """Capture warning message display call."""
+        self._record_call("show_warning_message", title=title, message=message)
+
+    def show_info_message(self, title: str, message: str) -> None:
+        """Capture information message display call."""
+        self._record_call("show_info_message", title=title, message=message)
+
+    def show_error_message(self, title: str, message: str) -> None:
+        """Capture error message display call."""
+        self._record_call("show_error_message", title=title, message=message)
+
+    def show_save_iteration_dialog(self) -> str | None:
+        """Capture save iteration dialog call and return configured result."""
+        self._record_call("show_save_iteration_dialog")
+        return None
+
+    def show_configure_author_dialog(
+        self,
+        *,
+        message: str | None = None,
+        initial_values: GitConfigDialogResult | None = None,
+        global_config_writable: bool = True,
+    ) -> GitConfigDialogResult | None:
+        """Capture configure author dialog call and return configured result."""
+        self._record_call(
+            "show_configure_author_dialog",
+            message=message,
+            initial_values=initial_values,
+            global_config_writable=global_config_writable,
+        )
+        return None
 
     def collapse_tree_item(self, git_path: str) -> None:
         """Capture collapse_tree_item call instead of collapsing UI.

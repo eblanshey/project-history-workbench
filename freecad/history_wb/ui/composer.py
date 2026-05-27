@@ -70,6 +70,11 @@ def compose_and_register_ui(container: ApplicationContainer) -> DiffPanelView:
         view=view,
         find_git_repo_action=container.find_active_git_repository_action,
         get_commits_action=container.get_commits_action,
+        get_staged_file_paths_action=container.get_staged_file_paths_action,
+        commit_staging_action=container.commit_staging_action,
+        get_git_identity_action=container.get_git_identity_action,
+        save_git_identity_action=container.save_git_identity_action,
+        can_write_global_git_identity_action=container.can_write_global_git_identity_action,
         ui_state=ui_state,
         clear_doc_diffs=diff_presenter.clear_doc_diff,
     )

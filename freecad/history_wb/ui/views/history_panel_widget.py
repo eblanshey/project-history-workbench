@@ -14,6 +14,7 @@ from .models import HistorySelection
 __all__ = ["HistoryPanelWidget"]
 
 _REFRESH_ICON: QtGui.QIcon = QtGui.QIcon(str(get_icon_path("RefreshRepository.svg")))
+_SAVE_ITERATION_ICON: QtGui.QIcon = QtGui.QIcon(str(get_icon_path("Commit.svg")))
 
 
 class _HistoryListItemWidget(QtWidgets.QWidget):
@@ -104,6 +105,7 @@ class HistoryPanelWidget(QtWidgets.QWidget):
         self._on_history_selection_callback: Callable[[HistorySelection], None] | None = None
         self._on_history_scroll_bottom_callback: Callable[[], None] | None = None
         self._on_refresh_callback: Callable[[], None] | None = None
+        self._on_save_iteration_callback: Callable[[], None] | None = None
         self._on_selection_changed_callback: Callable[[HistorySelection | None], None] | None = None
         self._on_remove_all_from_reviewed_callback: Callable[[], None] | None = None
         self._on_mark_all_reviewed_from_in_progress_callback: Callable[[], None] | None = None
@@ -133,17 +135,34 @@ class HistoryPanelWidget(QtWidgets.QWidget):
         self._repository_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
         self._repository_label.setStyleSheet("font-size: 11px; color: gray; font-style: italic;")
 
-        self._refresh_button = QtWidgets.QPushButton()
+        button_style = "QToolButton { padding: 5px; }"
+
+        self._refresh_button = QtWidgets.QToolButton()
         self._refresh_button.setIcon(_REFRESH_ICON)
         self._refresh_button.setIconSize(QtCore.QSize(24, 24))
+        self._refresh_button.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonIconOnly)
+        self._refresh_button.setSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
+        self._refresh_button.setStyleSheet(button_style)
         refresh_tooltip = translate("History", "Refresh Project and Iterations")
         self._refresh_button.setToolTip(refresh_tooltip)
+
+        self._save_iteration_button = QtWidgets.QToolButton()
+        self._save_iteration_button.setIcon(_SAVE_ITERATION_ICON)
+        self._save_iteration_button.setIconSize(QtCore.QSize(24, 24))
+        self._save_iteration_button.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonIconOnly)
+        self._save_iteration_button.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed
+        )
+        self._save_iteration_button.setStyleSheet(button_style)
+        self._save_iteration_button.setToolTip(translate("History", "Save Iteration"))
+        self._save_iteration_button.clicked.connect(self._on_save_iteration_button_clicked)
 
         repository_header_layout = QtWidgets.QHBoxLayout()
         repository_header_layout.setContentsMargins(0, 0, 0, 0)
         repository_header_layout.setSpacing(6)
         repository_header_layout.addWidget(self._repository_label, 0, QtCore.Qt.AlignmentFlag.AlignVCenter)
         repository_header_layout.addStretch()
+        repository_header_layout.addWidget(self._save_iteration_button, 0, QtCore.Qt.AlignmentFlag.AlignVCenter)
         repository_header_layout.addWidget(self._refresh_button, 0, QtCore.Qt.AlignmentFlag.AlignVCenter)
 
         repository_header_container = QtWidgets.QWidget()
@@ -170,6 +189,15 @@ class HistoryPanelWidget(QtWidgets.QWidget):
         """
         self._on_refresh_callback = callback
         self._refresh_button.clicked.connect(callback)
+
+    def set_save_iteration_callback(self, callback: Callable[[], None]) -> None:
+        """Set callback invoked when Save Iteration button is clicked."""
+        self._on_save_iteration_callback = callback
+
+    def _on_save_iteration_button_clicked(self) -> None:
+        """Invoke registered Save Iteration callback when available."""
+        if self._on_save_iteration_callback is not None:
+            self._on_save_iteration_callback()
 
     def show_snapshots(self, snapshots: list[SnapshotSummary]) -> None:
         """Display list of available snapshots.
@@ -381,17 +409,34 @@ class HistoryPanelWidget(QtWidgets.QWidget):
         if not isinstance(item_data, HistorySelection):
             return
 
-        if item_data.item_kind == "WORKING_TREE" and item_data.commit_hash is None:
-            menu = QtWidgets.QMenu(self._history_list)
-            menu.setToolTipsVisible(True)
-            action = menu.addAction(translate("History", "Mark All Reviewed"))
-            selected_action = menu.exec(self._history_list.mapToGlobal(pos))
-            if selected_action == action and self._on_mark_all_reviewed_from_in_progress_callback is not None:
-                self._on_mark_all_reviewed_from_in_progress_callback()
+        if self._is_working_tree_selection(item_data):
+            self._show_mark_all_reviewed_menu(pos)
             return
 
-        if item_data.item_kind != "STAGING" or item_data.commit_hash is not None:
+        if not self._is_staging_selection(item_data):
             return
+
+        self._show_remove_all_from_reviewed_menu(pos)
+
+    def _is_working_tree_selection(self, selection: HistorySelection) -> bool:
+        """Return whether selection points to Current Files pseudo-row."""
+        return selection.item_kind == "WORKING_TREE" and selection.commit_hash is None
+
+    def _is_staging_selection(self, selection: HistorySelection) -> bool:
+        """Return whether selection points to Reviewed pseudo-row."""
+        return selection.item_kind == "STAGING" and selection.commit_hash is None
+
+    def _show_mark_all_reviewed_menu(self, pos: QtCore.QPoint) -> None:
+        """Show context action for marking all Current Files as Reviewed."""
+        menu = QtWidgets.QMenu(self._history_list)
+        menu.setToolTipsVisible(True)
+        action = menu.addAction(translate("History", "Mark All Reviewed"))
+        selected_action = menu.exec(self._history_list.mapToGlobal(pos))
+        if selected_action == action and self._on_mark_all_reviewed_from_in_progress_callback is not None:
+            self._on_mark_all_reviewed_from_in_progress_callback()
+
+    def _show_remove_all_from_reviewed_menu(self, pos: QtCore.QPoint) -> None:
+        """Show context action for removing all files from Reviewed."""
 
         tooltip = translate(
             "History",

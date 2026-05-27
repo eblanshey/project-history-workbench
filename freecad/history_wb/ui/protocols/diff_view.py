@@ -23,7 +23,7 @@ from ..presenters.presentation_models import (
     NodePresentation,
     PropertyPresentation,
 )
-from ..views.models import HistorySelection
+from ..views.models import GitConfigDialogResult, HistorySelection
 
 
 __all__ = ["DiffView"]
@@ -98,6 +98,9 @@ class DiffView(Protocol):
         Args:
             callback: A no-argument callable to invoke on refresh.
         """
+
+    def set_save_iteration_callback(self, callback: Callable[[], None]) -> None:
+        """Set callback fired by Save Iteration panel button."""
 
     def set_history_selection_callback(self, callback: Callable[[HistorySelection], None]) -> None:
         """Set the callback for history list selection.
@@ -195,3 +198,24 @@ class DiffView(Protocol):
 
     def get_current_history_selection(self) -> HistorySelection | None:
         """Return currently selected history entry, if any."""
+
+    def show_warning_message(self, title: str, message: str) -> None:
+        """Show warning dialog/message to user."""
+
+    def show_info_message(self, title: str, message: str) -> None:
+        """Show informational dialog/message to user."""
+
+    def show_error_message(self, title: str, message: str) -> None:
+        """Show error dialog/message to user."""
+
+    def show_save_iteration_dialog(self) -> str | None:
+        """Show Save Iteration dialog and return commit notes or None."""
+
+    def show_configure_author_dialog(
+        self,
+        *,
+        message: str | None = None,
+        initial_values: GitConfigDialogResult | None = None,
+        global_config_writable: bool = True,
+    ) -> GitConfigDialogResult | None:
+        """Show configure-author dialog and return entered values or None."""

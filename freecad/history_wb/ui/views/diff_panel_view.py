@@ -5,6 +5,7 @@ from collections.abc import Callable
 from ...domain.git.models import GitCommit, GitRepository
 from ...domain.settings import SettingsRepository
 from ...qt import QtCore, QtWidgets
+from ...utils import translate
 from ..presenters.presentation_models import (
     DiffTreePresentation,
     NodePresentation,
@@ -12,7 +13,7 @@ from ..presenters.presentation_models import (
 )
 from .document_diff_tree_widget import DocumentDiffTreeWidget
 from .history_panel_widget import HistoryPanelWidget
-from .models import HistorySelection
+from .models import GitConfigDialogResult, HistorySelection
 from .property_diff_tree_widget import PropertyDiffTreeWidget
 
 
@@ -117,6 +118,10 @@ class DiffPanelView(QtWidgets.QWidget):
             callback: A no-argument callable to invoke on refresh.
         """
         self._history_panel.set_refresh_callback(callback)
+
+    def set_save_iteration_callback(self, callback: Callable[[], None]) -> None:
+        """Set callback fired by Save Iteration panel button."""
+        self._history_panel.set_save_iteration_callback(callback)
 
     def set_history_selection_callback(self, callback: Callable[[HistorySelection], None]) -> None:
         """Set the callback for history list selection.
@@ -309,3 +314,123 @@ class DiffPanelView(QtWidgets.QWidget):
             enabled: Whether the reviewed button should be enabled.
         """
         self._document_diff_tree.set_stage_button_enabled(git_path, enabled)
+
+    def show_warning_message(self, title: str, message: str) -> None:
+        """Show warning dialog."""
+        QtWidgets.QMessageBox.warning(self, title, message)
+
+    def show_info_message(self, title: str, message: str) -> None:
+        """Show informational dialog."""
+        QtWidgets.QMessageBox.information(self, title, message)
+
+    def show_error_message(self, title: str, message: str) -> None:
+        """Show error dialog."""
+        QtWidgets.QMessageBox.critical(self, title, message)
+
+    def show_save_iteration_dialog(self) -> str | None:
+        """Show Save Iteration dialog and return notes when accepted."""
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle(translate("History", "Save Iteration"))
+        dialog.setSizeGripEnabled(True)
+
+        layout = QtWidgets.QVBoxLayout(dialog)
+        label = QtWidgets.QLabel(translate("History", "Enter iteration notes:"))
+        layout.addWidget(label)
+
+        text_edit = QtWidgets.QPlainTextEdit(dialog)
+        text_edit.setPlaceholderText(translate("History", "Enter iteration notes (subject and optional body)..."))
+        text_edit.setTabStopDistance(40)
+        text_edit.setMinimumHeight(100)
+        text_edit.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
+        layout.addWidget(text_edit)
+
+        button_layout = QtWidgets.QHBoxLayout()
+        ok_button = QtWidgets.QPushButton(translate("History", "OK"))
+        cancel_button = QtWidgets.QPushButton(translate("History", "Cancel"))
+        ok_button.clicked.connect(dialog.accept)
+        cancel_button.clicked.connect(dialog.reject)
+        button_layout.addStretch()
+        button_layout.addWidget(ok_button)
+        button_layout.addWidget(cancel_button)
+        layout.addLayout(button_layout)
+
+        dialog.resize(500, 300)
+        accepted = dialog.exec() == 1
+        if not accepted:
+            return None
+        return text_edit.toPlainText()
+
+    def show_configure_author_dialog(
+        self,
+        *,
+        message: str | None = None,
+        initial_values: GitConfigDialogResult | None = None,
+        global_config_writable: bool = True,
+    ) -> GitConfigDialogResult | None:
+        """Show configure-author dialog and return entered values."""
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle(translate("History", "Configure Author"))
+        layout = QtWidgets.QVBoxLayout(dialog)
+        layout.addWidget(
+            QtWidgets.QLabel(
+                translate(
+                    "History",
+                    "Enter the name and email you'd like to use for your git identity, "
+                    "which is used for authoring project iterations.",
+                ),
+                dialog,
+            )
+        )
+        if message:
+            message_label = QtWidgets.QLabel(message, dialog)
+            message_label.setStyleSheet("color: red;")
+            layout.addWidget(message_label)
+
+        form_layout = QtWidgets.QFormLayout()
+        name_edit = QtWidgets.QLineEdit(dialog)
+        email_edit = QtWidgets.QLineEdit(dialog)
+        remember_checkbox = QtWidgets.QCheckBox(
+            translate("History", "Configure globally for all projects"),
+            dialog,
+        )
+        if initial_values is not None:
+            name_edit.setText(initial_values.author_name)
+            email_edit.setText(initial_values.author_email)
+            remember_checkbox.setChecked(initial_values.should_save_globally)
+        if not global_config_writable:
+            remember_checkbox.setChecked(False)
+            remember_checkbox.setEnabled(False)
+
+        form_layout.addRow(translate("History", "Name:"), name_edit)
+        form_layout.addRow(translate("History", "Email:"), email_edit)
+        layout.addLayout(form_layout)
+        layout.addWidget(remember_checkbox)
+        if not global_config_writable:
+            global_config_label = QtWidgets.QLabel(
+                translate(
+                    "History",
+                    "Global configuration option disabled because global config file not writable.",
+                ),
+                dialog,
+            )
+            global_config_label.setStyleSheet("color: red;")
+            layout.addWidget(global_config_label)
+
+        button_layout = QtWidgets.QHBoxLayout()
+        ok_button = QtWidgets.QPushButton(translate("History", "OK"))
+        cancel_button = QtWidgets.QPushButton(translate("History", "Cancel"))
+        ok_button.clicked.connect(dialog.accept)
+        cancel_button.clicked.connect(dialog.reject)
+        button_layout.addStretch()
+        button_layout.addWidget(ok_button)
+        button_layout.addWidget(cancel_button)
+        layout.addLayout(button_layout)
+
+        ok = dialog.exec() == 1
+        if not ok:
+            return None
+        return GitConfigDialogResult(
+            author_name=name_edit.text().strip(),
+            author_email=email_edit.text().strip(),
+            should_save_globally=remember_checkbox.isChecked(),
+        )

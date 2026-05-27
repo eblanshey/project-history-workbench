@@ -8,7 +8,6 @@ This module defines the FreeCAD commands that bridge user interactions
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, TypedDict
 
 from ..qt import QtCore, QtWidgets
@@ -19,7 +18,9 @@ from ..utils import translate
 if TYPE_CHECKING:
     QWidget = QtWidgets.QWidget
 
+    from ..application.di.container import ApplicationContainer
     from ..domain.git.models import GitRepositoryInitCandidate
+    from ..ui.presenters.git_repository_presenter import GitRepositoryPresenter
 
 
 def _main_window_parent(container) -> QWidget | None:
@@ -35,28 +36,37 @@ def _main_window_parent(container) -> QWidget | None:
     return main_window  # type: ignore[return-value]
 
 
+def _ensure_git_repository_presenter_available(container: "ApplicationContainer") -> "GitRepositoryPresenter | None":
+    """Return git repository presenter, composing UI panel first when needed."""
+    from ..ui.registry import ui_registry
+
+    try:
+        return ui_registry.git_repository_presenter
+    except RuntimeError:
+        pass
+
+    try:
+        import FreeCADGui as Gui  # pylint: disable=import-error
+    except ImportError:
+        return None
+
+    workbench = Gui.getWorkbench("HistoryWorkbench")
+    if workbench is None:
+        return None
+
+    workbench.create_or_show_diff_panel()
+    try:
+        return ui_registry.git_repository_presenter
+    except RuntimeError:
+        return None
+
+
 class CommandResources(TypedDict):
     """Shape of FreeCAD command metadata returned by GetResources."""
 
     MenuText: object
     ToolTip: object
     Pixmap: str
-
-
-@dataclass(frozen=True)
-class CommitDialogResult:
-    """Commit dialog values collected from the user."""
-
-    message: str
-
-
-@dataclass(frozen=True)
-class GitConfigDialogResult:
-    """Git identity configuration values collected from the user."""
-
-    author_name: str
-    author_email: str
-    should_save_globally: bool
 
 
 class _ConfigureAuthorCommand:
@@ -77,164 +87,17 @@ class _ConfigureAuthorCommand:
     def Activated(self) -> None:
         """FreeCAD calls this when user clicks toolbar button."""
         from .._container import get_container
-        from ..ui.registry import ui_registry
 
         container = get_container()
-        parent = _main_window_parent(container)
-        repo = ui_registry.ui_state.git_repository
-        if repo is None:
+        presenter = _ensure_git_repository_presenter_available(container)
+        if presenter is None:
             QtWidgets.QMessageBox.warning(
-                parent,  # type: ignore[arg-type]
-                translate("History", "No Project"),
-                translate("History", "No project detected. Please open a document from a project."),
+                _main_window_parent(container),  # type: ignore[arg-type]
+                translate("History", "History Panel Unavailable"),
+                translate("History", "Open History Panel before configuring author."),
             )
             return
-
-        self.configure_repository(container, repo, parent)
-
-    def configure_repository(self, container, repo, parent: QWidget | None) -> bool:
-        """Show git config dialog and save identity for a repository."""
-        from ..domain.git.models import GitIdentity
-
-        retry_message: str | None = None
-        initial_values = self._configured_identity_dialog_values(container, repo)
-        global_config_writable = self._can_write_global_identity(container)
-        while True:
-            dialog_result = self._show_git_config_dialog(
-                container,
-                parent=parent,
-                message=retry_message,
-                initial_values=initial_values,
-                global_config_writable=global_config_writable,
-            )
-            if dialog_result is None:
-                return False
-
-            if not dialog_result.author_name or not dialog_result.author_email:
-                QtWidgets.QMessageBox.warning(
-                    parent,  # type: ignore[arg-type]
-                    translate("History", "Save Iteration Failed"),
-                    translate("History", "Name and email are required to save iteration"),
-                )
-                return False
-
-            save_result = container.save_git_identity_action.execute(
-                repo,
-                GitIdentity(name=dialog_result.author_name, email=dialog_result.author_email),
-                dialog_result.should_save_globally,
-            )
-            if save_result.is_success:
-                return True
-
-            if not dialog_result.should_save_globally:
-                QtWidgets.QMessageBox.critical(
-                    parent,  # type: ignore[arg-type]
-                    translate("History", "Save Iteration Failed"),
-                    translate("History", "Git identity could not be saved"),
-                )
-                return False
-
-            retry_message = translate(
-                "History",
-                "Could not save git identity for all projects. "
-                "Uncheck the global option to save it only for this project.",
-            )
-            initial_values = dialog_result
-
-    def _can_write_global_identity(self, container) -> bool:
-        """Return whether global git identity config can be written."""
-        result = container.can_write_global_git_identity_action.execute()
-        if not result.is_success:
-            return False
-        return bool(result.data)
-
-    def _configured_identity_dialog_values(self, container, repo) -> GitConfigDialogResult | None:
-        """Return existing git identity as dialog defaults when configured."""
-        identity_result = container.get_git_identity_action.execute(repo)
-        identity = identity_result.data
-        if identity is None:
-            return None
-        return GitConfigDialogResult(
-            author_name=identity.name,
-            author_email=identity.email,
-            should_save_globally=False,
-        )
-
-    def _show_git_config_dialog(
-        self,
-        container,
-        *,
-        parent: QWidget | None = None,
-        message: str | None = None,
-        initial_values: GitConfigDialogResult | None = None,
-        global_config_writable: bool = True,
-    ) -> GitConfigDialogResult | None:
-        """Show git identity configuration dialog."""
-        dialog = QtWidgets.QDialog(parent)  # type: ignore[arg-type]
-        dialog.setWindowTitle(translate("History", "Configure Author"))
-        layout = QtWidgets.QVBoxLayout(dialog)
-        layout.addWidget(
-            QtWidgets.QLabel(
-                translate(
-                    "History",
-                    "Enter the name and email you'd like to use for your git identity, "
-                    "which is used for authoring project iterations.",
-                ),
-                dialog,
-            )
-        )
-        if message:
-            message_label = QtWidgets.QLabel(message, dialog)
-            message_label.setStyleSheet("color: red;")
-            layout.addWidget(message_label)
-        form_layout = QtWidgets.QFormLayout()
-        name_edit = QtWidgets.QLineEdit(dialog)
-        email_edit = QtWidgets.QLineEdit(dialog)
-        remember_checkbox = QtWidgets.QCheckBox(
-            translate("History", "Configure globally for all projects"),
-            dialog,
-        )
-        if initial_values is not None:
-            name_edit.setText(initial_values.author_name)
-            email_edit.setText(initial_values.author_email)
-            remember_checkbox.setChecked(initial_values.should_save_globally)
-        if not global_config_writable:
-            remember_checkbox.setChecked(False)
-            remember_checkbox.setEnabled(False)
-
-        form_layout.addRow(translate("History", "Name:"), name_edit)
-        form_layout.addRow(translate("History", "Email:"), email_edit)
-        layout.addLayout(form_layout)
-        layout.addWidget(remember_checkbox)
-        if not global_config_writable:
-            global_config_label = QtWidgets.QLabel(
-                translate(
-                    "History",
-                    "Global configuration option disabled because global config file not writable.",
-                ),
-                dialog,
-            )
-            global_config_label.setStyleSheet("color: red;")
-            layout.addWidget(global_config_label)
-
-        button_layout = QtWidgets.QHBoxLayout()
-        ok_button = QtWidgets.QPushButton(translate("History", "OK"))
-        cancel_button = QtWidgets.QPushButton(translate("History", "Cancel"))
-        ok_button.clicked.connect(dialog.accept)
-        cancel_button.clicked.connect(dialog.reject)
-        button_layout.addStretch()
-        button_layout.addWidget(ok_button)
-        button_layout.addWidget(cancel_button)
-        layout.addLayout(button_layout)
-
-        ok = dialog.exec() == 1  # QDialog.Accepted = 1
-        if not ok:
-            return None
-        return GitConfigDialogResult(
-            author_name=name_edit.text().strip(),
-            author_email=email_edit.text().strip(),
-            should_save_globally=remember_checkbox.isChecked(),
-        )
+        presenter.on_configure_author_requested()
 
 
 class _CommitCommand:
@@ -258,117 +121,16 @@ class _CommitCommand:
         from ..ui.registry import ui_registry
 
         container = get_container()
-        parent = _main_window_parent(container)
-
-        # Check if we have a git repository via UIState in registry
-        repo = ui_registry.ui_state.git_repository
-
-        if repo is None:
+        presenter = _ensure_git_repository_presenter_available(container)
+        if presenter is None:
             QtWidgets.QMessageBox.warning(
-                parent,  # type: ignore[arg-type]
-                translate("History", "No Project"),
-                translate("History", "No project detected. Please open a document from a project."),
+                _main_window_parent(container),  # type: ignore[arg-type]
+                translate("History", "History Panel Unavailable"),
+                translate("History", "Open History Panel before saving an iteration."),
             )
             return
 
-        # Check for staged files
-        staged_result = container.get_staged_file_paths_action.execute(repo)
-        if not staged_result.is_success or not staged_result.data:
-            QtWidgets.QMessageBox.information(
-                parent,  # type: ignore[arg-type]
-                translate("History", "No Reviewed Files"),
-                translate("History", "There are no reviewed files to save."),
-            )
-            return
-
-        identity_result = container.get_git_identity_action.execute(repo)
-        if identity_result.data is None and not _ConfigureAuthorCommand().configure_repository(container, repo, parent):
-            return
-
-        dialog_result = self._show_commit_dialog(parent)
-
-        if dialog_result is None:
-            return
-
-        if not self._validate_commit_dialog_result(parent, dialog_result):
-            return
-
-        # Execute commit action
-        result = container.commit_staging_action.execute(repo, dialog_result.message.strip())
-
-        if result.is_success:
-            container.log("Commit successful")
-            # Reload commits by triggering refresh
-            ui_registry.git_repository_presenter.refresh_repository_and_commits()
-        else:
-            QtWidgets.QMessageBox.critical(
-                parent,  # type: ignore[arg-type]
-                translate("History", "Save Iteration Failed"),
-                result.message or translate("History", "Git commit failed"),
-            )
-
-    def _validate_commit_dialog_result(self, parent: QWidget | None, dialog_result: CommitDialogResult) -> bool:
-        """Validate commit dialog values and show warnings for invalid input."""
-        if not dialog_result.message.strip():
-            QtWidgets.QMessageBox.warning(
-                parent,  # type: ignore[arg-type]
-                translate("History", "Empty Notes"),
-                translate("History", "Iteration notes cannot be empty"),
-            )
-            return False
-        return True
-
-    def _show_commit_dialog(self, parent: QWidget | None) -> CommitDialogResult | None:
-        """Show the commit dialog and return the message or None if cancelled.
-
-        Args:
-            parent: Parent widget for the dialog.
-
-        Returns:
-            Commit dialog result if user confirmed, None if cancelled.
-        """
-        dialog = QtWidgets.QDialog(parent)  # type: ignore[arg-type]
-        dialog.setWindowTitle(translate("History", "Save Iteration"))
-
-        # Enable resize grip in bottom-right corner
-        dialog.setSizeGripEnabled(True)
-
-        # Create layout with text area and buttons
-        layout = QtWidgets.QVBoxLayout(dialog)
-
-        # Add label
-        label = QtWidgets.QLabel(translate("History", "Enter iteration notes:"))
-        layout.addWidget(label)
-
-        # Create a multi-line text editor that can resize vertically
-        text_edit = QtWidgets.QPlainTextEdit(dialog)
-        text_edit.setPlaceholderText(translate("History", "Enter iteration notes (subject and optional body)..."))
-        text_edit.setTabStopDistance(40)  # Tab spacing in pixels
-        text_edit.setMinimumHeight(100)  # Minimum height for initial usability
-        # Allow the text edit to expand vertically when dialog is resized
-        text_edit.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
-        layout.addWidget(text_edit)
-
-        # Add OK and Cancel buttons
-        button_layout = QtWidgets.QHBoxLayout()
-        ok_button = QtWidgets.QPushButton(translate("History", "OK"))
-        cancel_button = QtWidgets.QPushButton(translate("History", "Cancel"))
-
-        ok_button.clicked.connect(dialog.accept)
-        cancel_button.clicked.connect(dialog.reject)
-
-        button_layout.addStretch()
-        button_layout.addWidget(ok_button)
-        button_layout.addWidget(cancel_button)
-        layout.addLayout(button_layout)
-
-        # Make the dialog resizable with a reasonable size
-        dialog.resize(500, 300)
-
-        ok = dialog.exec() == 1  # QDialog.Accepted = 1
-        if not ok:
-            return None
-        return CommitDialogResult(message=text_edit.toPlainText())
+        presenter.on_save_iteration_requested()
 
 
 class _RefreshRepositoryCommand:
