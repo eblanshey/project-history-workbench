@@ -1,16 +1,8 @@
-<p align="center">
-  <img src="freecad/history_wb/resources/icons/Logo.svg" width="96" alt="History Workbench logo" />
-</p>
+# History Workbench for FreeCAD
 
-<h1 align="center">History Workbench for FreeCAD</h1>
+## Track CAD model history and review changes using 3D and tree comparisons.
 
-<p align="center">
-  <strong>Track CAD model history and review changes using 3D and tree comparisons.</strong>
-</p>
-
-<p align="center">
-  <a href="https://www.freecad.org/"><img alt="FreeCAD 1.1+" src="https://img.shields.io/badge/FreeCAD-1.1%2B-blue"></a>
-</p>
+<a href="https://www.freecad.org/"><img alt="FreeCAD 1.1+" src="https://img.shields.io/badge/FreeCAD-1.1%2B-blue"></a>
 
 ![3d comparison image](https://raw.githubusercontent.com/eblanshey/HistoryWorkbench/master/freecad/history_wb/resources/media/3d-comparison.png)
 
@@ -18,7 +10,7 @@
 
 ## Intro
 
-History Workbench helps you create projects with confidence by tracking iterations over time, reviewing in-progress work, and showing model changes as detailed 3D and parametric tree comparisons.
+History Workbench helps you create CAD projects with confidence by tracking iterations over time, reviewing in-progress work, restoring models from saved history, and showing model changes as detailed 3D and parametric tree comparisons.
 
 It helps answer questions like:
 
@@ -28,6 +20,8 @@ It helps answer questions like:
 - Which objects, dimensions, placements, expressions, or dependencies changed?
 - What did my model look like 3 iterations ago?
 - Why did I change this model 2 months ago?
+
+History Workbench uses Git internally for version control, but Git knowledge is not required for normal use. The workbench intentionally replaces Git terminology with CAD-focused terms, such as **Project**, **Iteration**, and **Review**, so the workflow matches how CAD users think about model history.
 
 > [!NOTE]
 > This workbench is relatively new. We try to avoid backwards-incompatible changes but they are still possible. Sharing feedback, opening issues, and submitting pull requests are encouraged!
