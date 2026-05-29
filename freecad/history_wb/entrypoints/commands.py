@@ -167,10 +167,10 @@ class _InitializeGitRepositoryCommand:
     def GetResources(self) -> CommandResources:
         """Return FreeCAD command metadata for UI integration."""
         return {
-            "MenuText": QtCore.QT_TRANSLATE_NOOP("HistoryInitializeGitRepository", "Initialize Git Repository"),
+            "MenuText": QtCore.QT_TRANSLATE_NOOP("HistoryInitializeGitRepository", "Initialize Project"),
             "ToolTip": QtCore.QT_TRANSLATE_NOOP(
                 "HistoryInitializeGitRepository",
-                "Initialize a git repository in the selected directory",
+                "Initialize a new project in the selected directory",
             ),
             "Pixmap": os.path.join(ICONPATH, "CreateGitRepository.svg"),
         }

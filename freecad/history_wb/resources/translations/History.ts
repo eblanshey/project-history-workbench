@@ -585,12 +585,12 @@ Saved history is not affected.</source>
     <name>HistoryInitializeGitRepository</name>
     <message>
         <location filename="../../entrypoints/commands.py" line="170"/>
-        <source>Initialize Git Repository</source>
+        <source>Initialize Project</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../../entrypoints/commands.py" line="171"/>
-        <source>Initialize a git repository in the selected directory</source>
+        <source>Initialize a new project in the selected directory</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
